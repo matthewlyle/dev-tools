@@ -19,7 +19,6 @@ struct AppCommands: Commands {
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
-    @AppStorage("endpointScope") private var scope: EndpointScope = .all
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -38,14 +37,6 @@ struct AppCommands: Commands {
             }
             .pickerStyle(.inline)
             .disabled(servers.selected == nil)
-            Picker("Endpoints", selection: $scope) {
-                Text("All Endpoints").tag(EndpointScope.all)
-                    .keyboardShortcut("1", modifiers: [.command, .option])
-                Text("Saved Endpoints").tag(EndpointScope.saved)
-                    .keyboardShortcut("2", modifiers: [.command, .option])
-            }
-            .pickerStyle(.inline)
-            .disabled(servers.selected == nil || section != .endpoints)
         }
 
         CommandGroup(after: .toolbar) {
@@ -60,7 +51,7 @@ struct AppCommands: Commands {
             .keyboardShortcut("r", modifiers: .command)
             .disabled(account.token == nil || servers.isRefreshing)
 
-            Button("Probe Connections") {
+            Button("Connect") {
                 guard let id = servers.selectedID else { return }
                 Task { await servers.probe(id: id) }
             }

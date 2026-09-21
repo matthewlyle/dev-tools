@@ -1,0 +1,25 @@
+<!--
+  App icon source. Glyph is lucide `braces` (ISC licensed,
+  https://lucide.dev/icons/braces), stroke recoloured to Plex amber (#E5A00D).
+
+  Background, canvas, and glyph placement mirror the FastNotes icon: the black
+  fills the whole 1024 canvas rather than sitting in a rounded tile with
+  transparent margins. macOS 26 masks the icon to its own squircle and paints a
+  light plate behind anything transparent, which showed up as a white surround.
+  Full bleed means the mask crops the flat background, not the plate. The glyph
+  is kept inside the middle ~45% so the mask can't clip it.
+
+  Regenerate the PNG set with Icon/build-icon.sh.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#161616"/>
+  <g transform="translate(280 280) scale(19.333)"
+     fill="none"
+     stroke="#E5A00D"
+     stroke-width="1.6"
+     stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/>
+    <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>
+  </g>
+</svg>

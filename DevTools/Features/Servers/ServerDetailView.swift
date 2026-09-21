@@ -42,7 +42,7 @@ struct ServerDetailView: View {
 
             switch section {
             case .endpoints:
-                EndpointsSectionView(entry: entry, server: connected)
+                EndpointListView(server: connected, serverID: entry.id)
             case .history:
                 HistoryListView(serverID: entry.id)
             case .activity:
@@ -88,7 +88,7 @@ struct ServerDetailView: View {
         if entry.isProbing {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.mini)
-                Text("Probing connections…")
+                Text("Connecting…")
             }
             .font(.caption)
             .foregroundStyle(.secondary)

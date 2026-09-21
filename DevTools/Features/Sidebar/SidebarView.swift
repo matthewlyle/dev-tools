@@ -83,12 +83,12 @@ private struct ServerRow: View {
     }
 
     private var subtitle: String {
-        if entry.isProbing, entry.probes.isEmpty { return "Probing…" }
+        if entry.isProbing, entry.probes.isEmpty { return "Connecting…" }
         if let active, case .ok(let latency) = active.outcome {
             return "\(active.connection.kind.rawValue) · \(latency.milliseconds) ms"
         }
         if !entry.probes.isEmpty { return "Unreachable" }
-        return entry.resource.productVersion ?? "Not probed"
+        return entry.resource.productVersion ?? "Not connected"
     }
 
     private var statusColor: Color {

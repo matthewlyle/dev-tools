@@ -1,20 +1,43 @@
 import SwiftUI
 
+/// Every documented GET operation, grouped by tag, with the requests saved
+/// for this server pinned as the first group. One list, one filter.
 struct EndpointListView: View {
     let server: ConnectedServer?
+    let serverID: String
 
     @Environment(SpecStore.self) private var spec
     @Environment(RequestStore.self) private var requests
+    @Environment(SavedStore.self) private var saved
 
     @State private var search = ""
     @State private var pending: SpecOperation?
+
+    private var needle: String { search.trimmingCharacters(in: .whitespaces) }
 
     private var groups: [SpecCatalog.TagGroup] {
         spec.catalog?.groups(matching: search) ?? []
     }
 
+    private var savedRows: [SavedRequest] {
+        let all = saved.items(for: serverID)
+        guard !needle.isEmpty else { return all }
+        return all.filter {
+            $0.name.localizedCaseInsensitiveContains(needle)
+                || $0.request.summary.localizedCaseInsensitiveContains(needle)
+                || $0.notes.localizedCaseInsensitiveContains(needle)
+        }
+    }
+
     var body: some View {
         List {
+            if !savedRows.isEmpty {
+                Section("Saved") {
+                    ForEach(savedRows) { item in
+                        SavedRequestRow(item: item, serverID: serverID, disabled: server == nil)
+                    }
+                }
+            }
             ForEach(groups) { group in
                 Section(group.name) {
                     ForEach(group.operations) { operation in
@@ -34,7 +57,7 @@ struct EndpointListView: View {
                 } else {
                     ProgressView()
                 }
-            } else if groups.isEmpty {
+            } else if groups.isEmpty && savedRows.isEmpty {
                 ContentUnavailableView.search(text: search)
             }
         }
