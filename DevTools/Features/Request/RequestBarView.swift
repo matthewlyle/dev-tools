@@ -101,6 +101,15 @@ struct RequestBarView: View {
                     .textSelection(.enabled)
                 Spacer(minLength: 0)
                 Button {
+                    if let url = operation?.docsURL { NSWorkspace.shared.open(url) }
+                } label: {
+                    Label("Open in Developer Docs", systemImage: "safari")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .disabled(operation?.docsURL == nil)
+                .help(operation.map { "Open “\($0.summary)” on developer.plex.tv" } ?? "No documentation for this path")
+                Button {
                     showSave = true
                 } label: {
                     Label(editingSaved == nil ? "Save Request" : "Update Saved Request", systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill")
@@ -288,12 +297,6 @@ private struct OperationDocs: View {
                     Text("Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                if let url = operation.docsURL {
-                    Link(destination: url) {
-                        Label("Open in Developer Docs", systemImage: "arrow.up.right.square")
-                    }
-                    .font(.callout)
                 }
             }
             .padding(16)
