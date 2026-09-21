@@ -20,6 +20,16 @@ struct SpecCatalogTests {
         #expect(catalog.documentedHeaders.contains { $0.name == "X-Plex-Container-Size" })
     }
 
+    @Test func docsLinksAreDerivedFromTagAndOperationID() throws {
+        let root = try #require(catalog.match(path: "/"))
+        #expect(root.docsURL?.absoluteString == "https://developer.plex.tv/pms/#tag/General/operation/getSlash")
+
+        let spaced = SpecOperation(template: "/x", tag: "Live TV", operationID: "getX", summary: "", description: nil, parameters: [], supportsMediaQuery: false)
+        #expect(spaced.docsURL?.absoluteString == "https://developer.plex.tv/pms/#tag/Live%20TV/operation/getX")
+
+        #expect(catalog.operations.allSatisfy { $0.docsURL != nil })
+    }
+
     @Test func groupsFilterByTemplateSummaryOrTag() {
         #expect(catalog.groups(matching: "   ").count == catalog.groups.count)
 

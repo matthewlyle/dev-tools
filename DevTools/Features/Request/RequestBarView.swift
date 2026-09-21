@@ -289,6 +289,12 @@ private struct OperationDocs: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if let url = operation.docsURL {
+                    Link(destination: url) {
+                        Label("Open in Developer Docs", systemImage: "arrow.up.right.square")
+                    }
+                    .font(.callout)
+                }
             }
             .padding(16)
         }

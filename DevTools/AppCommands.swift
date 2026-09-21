@@ -15,6 +15,7 @@ struct AppCommands: Commands {
     let account: AccountStore
     let servers: ServerStore
     let requests: RequestStore
+    let spec: SpecStore
 
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
@@ -22,6 +23,10 @@ struct AppCommands: Commands {
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
+    }
+
+    private var currentDocsURL: URL? {
+        spec.operation(matching: requests.current.path)?.docsURL
     }
 
     var body: some Commands {
@@ -68,7 +73,6 @@ struct AppCommands: Commands {
                 .keyboardShortcut("s", modifiers: .command)
                 .disabled(activeServer == nil)
 
-
             Button("Copy as cURL") {
                 guard let server = activeServer, let command = requests.curl(for: server) else { return }
                 NSPasteboard.general.clearContents()
@@ -76,6 +80,12 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(activeServer == nil)
+
+            Button("Open in Developer Docs") {
+                if let url = currentDocsURL { NSWorkspace.shared.open(url) }
+            }
+            .disabled(currentDocsURL == nil)
+
             Divider()
 
             Button("Send") {

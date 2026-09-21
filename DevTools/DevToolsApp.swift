@@ -33,7 +33,7 @@ struct DevToolsApp: App {
         }
         .defaultSize(width: 1400, height: 860)
         .commands {
-            AppCommands(account: account, servers: servers, requests: requests)
+            AppCommands(account: account, servers: servers, requests: requests, spec: spec)
         }
 
         Settings {

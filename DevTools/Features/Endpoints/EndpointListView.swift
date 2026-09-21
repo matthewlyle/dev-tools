@@ -110,5 +110,10 @@ private struct EndpointRow: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .help(operation.description ?? operation.summary)
+        .contextMenu {
+            if let url = operation.docsURL {
+                Link("Open in Developer Docs", destination: url)
+            }
+        }
     }
 }

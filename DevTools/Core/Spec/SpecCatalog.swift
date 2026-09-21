@@ -26,11 +26,24 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
 
     let template: String
     let tag: String
+    let operationID: String?
     let summary: String
     let description: String?
     let parameters: [SpecParameter]
     /// Accepts the media-query filtering language (`#/components/parameters/mediaQuery`).
     let supportsMediaQuery: Bool
+
+    /// developer.plex.tv is a stock Redoc site, whose deep links are
+    /// `#tag/<tag>/operation/<operationId>` — both fields the spec already
+    /// carries, so links are derived, never authored.
+    static let docsBase = URL(string: "https://developer.plex.tv/pms/")!
+
+    var docsURL: URL? {
+        guard let operationID,
+              let tag = tag.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
+        else { return nil }
+        return URL(string: "#tag/\(tag)/operation/\(operationID)", relativeTo: Self.docsBase)?.absoluteURL
+    }
 
     var pathParameters: [SpecParameter] { parameters.filter { $0.location == .path } }
     var queryParameters: [SpecParameter] { parameters.filter { $0.location == .query } }
@@ -139,6 +152,7 @@ struct SpecCatalog: Sendable {
             operations.append(SpecOperation(
                 template: template,
                 tag: get.tags?.first ?? "Other",
+                operationID: get.operationId,
                 summary: get.summary ?? template,
                 description: get.description,
                 parameters: parameters,
