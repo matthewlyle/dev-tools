@@ -39,6 +39,8 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 
 **Layout**
 - Three-column `NavigationSplitView`. Toolbar shape is fixed: title leading, one segmented section switcher in the centre (`.secondaryAction`), each section's filter/search in the trailing slot. Never two segmented controls in the toolbar; SwiftUI has no column-aligned toolbar sections on macOS, so don't try to put items "over" a column.
+- Column layout is narrow: lists use two-line rows, not tables. Use `Table` only where there's width (response headers). Sorting in a narrow list goes in a toolbar menu.
+- Sheets for short targeted input (save, placeholders); popovers for reference (endpoint docs); never a popover for a warning. No auxiliary windows.
 
 **Toolbar placement** — decide this when adding the control, not at review.
 - The toolbar is for things that act on *what the column shows*: switching the view, filtering or searching it, sorting it, clearing it. If a control acts on the *object being edited* — the request's path, params, headers, send, save, copy — it lives beside that object in the request bar. If it acts on a sub-pane (Raw view's wrap, fold, copy body), it lives in that pane's own header row.
@@ -47,8 +49,6 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Each section owns the trailing slot and declares its own items from its view; when the section changes, its items go with it. Aim for at most three trailing items before the search field.
 - Toolbar items are icon-only `Label`s, no bezels, standard SF Symbols. Every one must also exist as a menu bar command — the toolbar is never a command's only home, because users can hide or customise it.
 - The Probe/Connect/Refresh class of rare actions belongs in the menu bar only; the toolbar is for what you do repeatedly.
-- Column layout is narrow: lists use two-line rows, not tables. Use `Table` only where there's width (response headers). Sorting in a narrow list goes in a toolbar menu.
-- Sheets for short targeted input (save, placeholders); popovers for reference (endpoint docs); never a popover for a warning. No auxiliary windows.
 
 **Liquid Glass**
 - Never apply `glassEffect` yourself. Glass is the system's controls/navigation layer — toolbar, sidebar, `.glassProminent` on Send. Everything in a content pane (status readouts, pagination, badges, cards, the sign-in card) uses standard fills: `.fill.tertiary`, `.quaternary`, `.regularMaterial`.
