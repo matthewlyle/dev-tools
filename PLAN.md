@@ -17,10 +17,10 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 ## v1 scope
 
 1. Sign in (PIN flow) + server picker with connection probing — done
-2. Request builder + response inspector (Raw / Headers), history — done
+2. Request builder + response inspector (Response / Headers), history — done
 3. Response browser: back/forward between requests, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
-4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls, response-customization panel — done
-5. Media Query builder — deferred (not started)
+4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls — done. The response-customization (include/exclude) menus were removed; `includeFields` etc. are typed as ordinary params
+5. Media Query builder — done as the fourth section, "Media" (⌘4): flat AND/OR filters, sort, group, limit; nested `push`/`pop` grouping and a tag-value picker are deferred
 6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause)
 7. Saved requests — done
 
@@ -78,9 +78,11 @@ dev-tools/
         JSONValue.swift          order-preserving JSON parser
         JSONFormatter.swift      pretty-printer that keeps key order and number formatting
         Highlighter.swift        XML/JSON tokenizer → [Token]
-        Folding.swift            fold regions from tokens (Raw view collapse)
+        Folding.swift            fold regions from tokens (Response view collapse)
         ResponseDocument.swift   Data + contentType → text, tokens, folds, format, Node tree (size-gated)
-        ResponseShape.swift      attribute/element names in the last response → includeFields/excludeElements vocabulary
+      Query/
+        MediaQuery.swift         media query model: typed fields, documented per-type operators, terms/sort/group/limit → PlexRequest; SectionDetails parses Type/Field/Sort
+        MediaItem.swift          one container item as read: title, artwork, aspect by type, one-line subtitle, tag vs element child groups; MediaValue decodes units by attribute name
       Spec/
         OpenAPISpec.swift        Codable model of the bundled OpenAPI document
         SpecCatalog.swift        operations grouped by tag, placeholder matching, access scopes, documented headers
@@ -94,7 +96,9 @@ dev-tools/
     Stores/
       AccountStore.swift         sign-in state, user, sign-out
       ServerStore.swift          resources + probe results, selected server, persisted servers snapshot
-      RequestStore.swift         current request, send/replay, in-flight, last response + document, history, back/forward, section cache
+      RequestStore.swift         current request, send/replay, in-flight, last response + document, history (clear / delete one), back/forward, per-server placeholder options cache (sections, playlists, collections, tuner devices)
+      MediaQueryStore.swift      the query being built (survives section switches) + per-library details cache from includeDetails=1
+      ImageStore.swift           artwork via PlexHTTP (token as header, never in a URL): /photo/:/transcode at pixel size, in-memory cache per server/path/size
       SavedStore.swift           saved requests per server
       SpecStore.swift            loads the bundled spec into a SpecCatalog
       ValueMemory.swift          id-like values seen per server for placeholder suggestions; last-used per placeholder
@@ -103,21 +107,22 @@ dev-tools/
       SignIn/                    PIN code, "Open plex.tv/link", polling state
       Sidebar/                   MainSplitView (three columns, section switcher, preload + reset on switch), SidebarView (servers)
       Servers/                   ServerDetailView — server header + the selected section's list
-      Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet
+      Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (request bar → nav → response; editable vs read-only), RequestBarView, KeyValueEditor
       Browser/                   NavigationBar — back/forward + breadcrumbs (shown once there's a response)
-      Response/                  ResponseView (status bar, Raw/Headers tabs, 400/403 hints), RawResponseView + CodeTextView (highlight, wrap, fold), HeadersView
-      History/                   HistoryListView — read-only replay; selecting auto-runs without recording
+      Response/                  ResponseView (status bar, Response/Headers tabs, 400/403 hints), RawResponseView + CodeTextView (highlight, wrap, fold), HeadersView
+      History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear
       Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events + payload inspector)
+      MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
       Saved/                     SavedRequestRow
-      Settings/                  SettingsView — app-wide response format
+      Settings/                  SettingsView — app-wide response format, wrap lines, clear all history (confirmed)
     Resources/
       plex-openapi.json          generated by Tools/extract-spec.sh
       Fonts/                     Commit Mono
     Assets.xcassets              AppIcon, Hosts (Simple Icons host marks)
   DevToolsTests/
-    NodeParserTests, HighlighterTests, FoldingTests, JSONFormatterTests, ResponseShapeTests,
-    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests
+    NodeParserTests, HighlighterTests, FoldingTests, JSONFormatterTests,
+    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests, MediaQueryTests, PlaceholderOptionTests, MediaItemTests
 ```
 
 ## Key behaviors
@@ -130,13 +135,11 @@ dev-tools/
 
 **Response browsing.** Back/forward between sent requests, with a breadcrumb of the current path. In-response hyperlinks and the structured Pretty/Tree views were removed; responses render as highlighted Raw text and a Headers table. A redesigned Pretty view is deferred; when it returns it will re-introduce navigable link attributes and inline thumbnails via `/photo/:/transcode`.
 
-**Endpoint catalog (M4).** Spec operations grouped by tag in the content column. Click → path template loads into the builder; `{sectionId}`-style placeholders prompt for values (sections from the current server where applicable). Typed parameters with descriptions feed the Parameters editor as an autocomplete list. Documented headers (`X-Plex-Container-Start/Size/Focus-Key`, `X-Plex-Pms-Api-Version`, `X-Plex-Client-Profile-*`) offered in the Headers editor.
+**Endpoint catalog (M4).** Spec operations grouped by tag in the content column. Click → path template loads into the builder; `{placeholder}`s prompt for values in a sheet, each with the richest helper its value allows: a picker when the spec enumerates it (`element`, `transcodeType`, `identifier`, `index`) or the server can list it (`sectionId` → `/library/sections`, `playlistId` → `/playlists`, `collectionId` → each library's `/collections`, grouped by library, `deviceId` → `/media/grabbers/devices`); Now + a date picker for epoch placeholders (`updatedAt`, `timestamp`); otherwise a field plus values seen in earlier responses. Listable options are preloaded when a server connects so pickers don't flash. Typed parameters with descriptions feed the Parameters editor as an autocomplete list. Documented headers (`X-Plex-Container-Start/Size/Focus-Key`, `X-Plex-Pms-Api-Version`, `X-Plex-Client-Profile-*`) offered in the Headers editor.
 
 **Pagination (M4).** Read `X-Plex-Container-Start` / `X-Plex-Container-Total-Size` response headers and `offset`/`size`/`totalSize` on `MediaContainer`; status bar shows "40–59 of 1,204" with prev/next that adjust the container headers, plus a size=0 "count only" shortcut.
 
-**Response customization (M4).** Panel for `includeFields` / `excludeFields` / `includeElements` / `excludeElements` / `includeOptionalFields` / `includeOptionalElements`, populated from attribute and element names seen in the last response.
-
-**Media Query builder (M5).** Visual builder emitting the documented querystring language: per-type operators (`=`, `!=`, `==`, `!==`, `<=`, `>=`, `>>=`, `<<=`), relative dates with unit suffixes (`>>=-3y`), field scoping (`show.title`), `sort=field:desc,other`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for parentheses. Fields come from `/library/sections/{id}?includeDetails=1` (`Field` elements).
+**Media (M5).** The fourth section. Pick a library and a result type; the types, their `Field`s (with types) and `Sort`s come from `/library/sections/{id}?includeDetails=1`, fetched once per library. Operators are the spec's documented per-type table (integer/boolean/tag/string/date/language) and ride on the query key (`year>>=2000`, URI-encoded); booleans emit `field=1|0`; date values accept relative suffixes (`>>=-3y`). Filters AND together, or all OR with `or=1` ("Match any"); `sort=field[:desc],…`, `group=`, `limit=`. The emitted query is shown live and runs against `/library/sections/{id}/all`. Results show as a **poster grid** (aspect by type: 2:3, square, 16:9; artwork through `ImageStore`), with the raw Response and Headers a tab away and the pagination controls in the status row. Clicking a poster selects it and opens its metadata in the inspector (View › Show Info, ⌘I): artwork, title, `year · rating · runtime`, tagline, synopsis, tag groups as sentences (Genre: …), then every attribute with units decoded and credentials masked, and nested elements (Media → Part → Stream) collapsed. Not yet expressed: nested `push`/`pop` grouping, `sourceType`/field scoping, and picking tag values from the filter endpoints (tag fields take an id).
 
 **Activity (M6).** Connect `wss://{host}/:/websockets/notifications?X-Plex-Token=…` (ws for http servers; note the plural — Plex's own OpenAPI doc lists the singular `/:/websocket/…`, which 404s). Events arrive as `{NotificationContainer: {type, size, <TypeArray>: [...]}}`. Types to filter: `playing`, `timeline`, `activity`, `progress`, `status`, `backgroundProcessingQueue`, `transcodeSession.update/end`, `reachability`, `preference`. Ring buffer capped at 2000. No pause: connect/disconnect and clear only.
 
@@ -151,10 +154,10 @@ dev-tools/
 Each ends with a smoke-test proof, not a test suite.
 
 1. **Skeleton + auth + discovery.** Done.
-2. **Request/response core.** Done — Raw / Headers inspector, history with read-only replay.
+2. **Request/response core.** Done — Response / Headers inspector, history with read-only replay.
 3. **Parse + browser.** `Node` parsers, back/forward, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
-4. **Spec integration.** Endpoint catalog by tag, parameter/header autocomplete, pagination controls, response-customization panel — done.
-5. **Media Query builder.** Not started (deferred).
+4. **Spec integration.** Endpoint catalog by tag, parameter/header autocomplete, pagination controls — done. Response-customization menus removed.
+5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
 6. **Activity monitor.** Socket, event list, type filters, payload inspector — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
 8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay — in progress.
@@ -164,13 +167,15 @@ Each ends with a smoke-test proof, not a test suite.
 - `NodeParserTests`: the same fixture as XML and JSON → identical `Node` tree; element names/order kept; booleans match XML integers; ids unique.
 - `HighlighterTests`: token boundaries on tricky inputs (attributes with `=` in values, escaped quotes, nested arrays).
 - `FoldingTests` / `JSONFormatterTests`: fold regions and key-order/number-preserving pretty printing.
-- `ResponseShapeTests`: field/element vocabulary derived from a container's items.
 - `SpecCatalogTests`: spec loading, tag grouping/filtering, placeholder matching and filling, docs links, access from security scopes.
 - `ValueMemoryTests`: placeholder suggestions matched by stem, per-server isolation.
 - `CurlExporterTests` / `PlexRequestURLTests`: cURL uses `$PLEX_TOKEN`; the URL never contains the token.
 - `ConnectionRankingTests`: connection ranking invariants.
+- `MediaQueryTests`: operator characters ride on the key and URL-encode; booleans emit 1/0; empty terms skipped; `or=1` under Match any; sort/group/limit order; `SectionDetails` parsing of Type/Field/Sort.
+- `PlaceholderOptionTests`: playlists/collections map `ratingKey`/`title` (collections carry their library as a group); tuner devices fall back through `key`/`uuid`/`id` and `title`/make+model.
+- `MediaItemTests`: aspect by type; movie/episode subtitle composition; thumb fallback through parent art; tag groups vs element groups; unit decoding by attribute name (size, bitrate, epoch `*At`, runtime).
 
 ## Open items
 
 - Refresh cadence for the bundled spec (manual via script for now).
-- Redesign the Pretty view (removed): structured, media-aware rendering of a `MediaContainer`, plus whether to decode `type` integers to names using the spec's metadata type table.
+- A general Pretty view for arbitrary responses (removed from the inspector) stays deferred; the Media section's poster grid + info inspector now covers structured browsing of query results. Open: whether to decode `type` integers to names using the spec's metadata type table.

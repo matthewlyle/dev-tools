@@ -7,8 +7,36 @@ struct ClearHistoryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.serverID == rhs.serverID }
 }
 
+/// Published by the Media Query builder while it can run; Send (⌘↩) runs the
+/// built query instead of the request bar's request.
+struct RunMediaQueryAction: Equatable {
+    let summary: String
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.summary == rhs.summary }
+}
+
+/// Published by the History list while a row is selected.
+struct DeleteHistoryEntryAction: Equatable {
+    let id: HistoryEntry.ID
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+}
+
+/// Published by the Media results grid while a poster is selected.
+struct ShowMediaInfoAction: Equatable {
+    let visible: Bool
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.visible == rhs.visible }
+}
+
 extension FocusedValues {
     @Entry var clearHistory: ClearHistoryAction?
+    @Entry var deleteHistoryEntry: DeleteHistoryEntryAction?
+    @Entry var runMediaQuery: RunMediaQueryAction?
+    @Entry var showMediaInfo: ShowMediaInfoAction?
 }
 
 struct AppCommands: Commands {
@@ -20,6 +48,9 @@ struct AppCommands: Commands {
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
+    @FocusedValue(\.deleteHistoryEntry) private var deleteHistoryEntry
+    @FocusedValue(\.runMediaQuery) private var runMediaQuery
+    @FocusedValue(\.showMediaInfo) private var showMediaInfo
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -39,6 +70,8 @@ struct AppCommands: Commands {
                     .keyboardShortcut("2", modifiers: .command)
                 Text("Activity").tag(ServerSection.activity)
                     .keyboardShortcut("3", modifiers: .command)
+                Text("Media").tag(ServerSection.mediaQuery)
+                    .keyboardShortcut("4", modifiers: .command)
             }
             .pickerStyle(.inline)
             .disabled(servers.selected == nil)
@@ -46,6 +79,9 @@ struct AppCommands: Commands {
 
         CommandGroup(after: .toolbar) {
             Toggle("Wrap Lines", isOn: $wrapLines)
+            Button(showMediaInfo?.visible == true ? "Hide Info" : "Show Info") { showMediaInfo?.run() }
+                .keyboardShortcut("i", modifiers: .command)
+                .disabled(showMediaInfo == nil)
         }
 
         CommandMenu("Server") {
@@ -63,6 +99,10 @@ struct AppCommands: Commands {
             .disabled(servers.selected == nil || servers.selected?.isProbing == true)
 
             Divider()
+
+            Button("Delete History Item") { deleteHistoryEntry?.run() }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(deleteHistoryEntry == nil)
 
             Button("Clear History…") { clearHistory?.run() }
                 .disabled(clearHistory == nil)
@@ -89,8 +129,11 @@ struct AppCommands: Commands {
             Divider()
 
             Button("Send") {
-                guard let server = activeServer else { return }
-                requests.send(to: server)
+                if let runMediaQuery {
+                    runMediaQuery.run()
+                } else if let server = activeServer {
+                    requests.send(to: server)
+                }
             }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(activeServer == nil || account.user == nil)

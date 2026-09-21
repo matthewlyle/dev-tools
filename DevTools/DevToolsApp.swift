@@ -9,6 +9,9 @@ struct DevToolsApp: App {
     @State private var activity: ActivityStore
     @State private var saved: SavedStore
     @State private var memory: ValueMemory
+    @State private var mediaQuery: MediaQueryStore
+    @State private var images: ImageStore
+    @State private var lightbox = LightboxStore()
 
     init() {
         let identity = ClientIdentity.current()
@@ -21,6 +24,8 @@ struct DevToolsApp: App {
         _requests = State(initialValue: RequestStore(http: http, memory: memory))
         _activity = State(initialValue: ActivityStore(identity: identity))
         _saved = State(initialValue: SavedStore())
+        _mediaQuery = State(initialValue: MediaQueryStore(http: http))
+        _images = State(initialValue: ImageStore(http: http))
     }
 
     var body: some Scene {
@@ -33,6 +38,9 @@ struct DevToolsApp: App {
                 .environment(activity)
                 .environment(saved)
                 .environment(memory)
+                .environment(mediaQuery)
+                .environment(images)
+                .environment(lightbox)
                 .task { await spec.load() }
         }
         .defaultSize(width: 1400, height: 860)

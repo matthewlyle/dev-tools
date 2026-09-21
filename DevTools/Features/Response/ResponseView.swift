@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum ResponseTab: String, CaseIterable, Identifiable {
-    case raw = "Raw"
+    case raw = "Response"
     case headers = "Headers"
 
     var id: String { rawValue }
@@ -63,7 +63,6 @@ struct ResponseView: View {
                             for parameter in hint where requests.current.query.allSatisfy({ $0.name != parameter.name }) {
                                 requests.current.query.append(QueryParam(name: parameter.name, value: parameter.suggestedValue))
                             }
-                            requests.revealParameters()
                         }
                     }
                     if let operation = adminOnlyHint {
@@ -154,7 +153,7 @@ private struct AccessHint: View {
     }
 }
 
-private struct PaginationControls: View {
+struct PaginationControls: View {
     let pagination: PaginationInfo
     let server: ConnectedServer?
 

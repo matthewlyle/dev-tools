@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Fills an operation's `{placeholders}` before opening it. Sections come
-/// from the server; everything else offers values seen in earlier responses
-/// and remembers what you last used.
+/// Fills an operation's `{placeholders}` before opening it. A placeholder
+/// gets the richest helper its value allows: a picker when the spec enumerates
+/// it or the server can list it (libraries, playlists, collections, tuner
+/// devices), a now/date helper for epoch seconds, and otherwise a field with
+/// values seen in earlier responses. Whatever you pick is remembered.
 struct PlaceholderSheet: View {
     let operation: SpecOperation
     let server: ConnectedServer?
@@ -14,10 +16,16 @@ struct PlaceholderSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var values: [String: String] = [:]
-    @State private var sections: [RequestStore.SectionOption] = []
-    @State private var loadingSections = false
+    @State private var options: [String: [RequestStore.PlaceholderOption]] = [:]
+    @State private var loading: Set<String> = []
+    @State private var datePickerFor: String?
 
-    private var needsSections: Bool { operation.placeholders.contains("sectionId") }
+    /// Placeholders the spec describes as epoch seconds.
+    private static let epochPlaceholders: Set<String> = ["updatedAt", "timestamp"]
+
+    private var listable: [String] {
+        operation.placeholders.filter { RequestStore.listablePlaceholders.contains($0) }
+    }
 
     private var canOpen: Bool {
         operation.placeholders.allSatisfy { !(values[$0] ?? "").isEmpty }
@@ -35,24 +43,7 @@ struct PlaceholderSheet: View {
 
             Form {
                 ForEach(operation.placeholders, id: \.self) { name in
-                    if name == "sectionId", !sections.isEmpty {
-                        Picker(name, selection: binding(name)) {
-                            Text("Choose…").tag("")
-                            ForEach(sections) { section in
-                                Text("\(section.title) (\(section.key))").tag(section.key)
-                            }
-                        }
-                    } else {
-                        LabeledContent(name) {
-                            HStack(spacing: 6) {
-                                TextField(name, text: binding(name), prompt: Text(prompt(for: name)))
-                                    .labelsHidden()
-                                    .font(.code(.body))
-                                    .autocorrectionDisabled()
-                                recentMenu(for: name)
-                            }
-                        }
-                    }
+                    row(for: name)
                 }
             }
             .formStyle(.grouped)
@@ -65,9 +56,9 @@ struct PlaceholderSheet: View {
             }
 
             HStack {
-                if loadingSections {
+                if !loading.isEmpty {
                     ProgressView().controlSize(.small)
-                        .help("Fetching this server's libraries")
+                        .help("Fetching values from the server")
                 }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
@@ -96,18 +87,100 @@ struct PlaceholderSheet: View {
                     ?? server.flatMap { memory.lastUsed(placeholder: name, serverID: $0.machineID) }
                     ?? ""
             }
-            if let server { sections = requests.sections(for: server) }
+            if let server {
+                for name in listable { options[name] = requests.options(for: name, server: server) }
+            }
         }
         .task {
-            guard needsSections, let server else { return }
-            if sections.isEmpty {
-                loadingSections = true
-                await requests.preloadSections(on: server, force: true)
-                sections = requests.sections(for: server)
-                loadingSections = false
+            guard let server else { return }
+            for name in listable where options[name, default: []].isEmpty {
+                loading.insert(name)
+                await requests.preloadOptions(for: name, on: server, force: true)
+                options[name] = requests.options(for: name, server: server)
+                loading.remove(name)
             }
-            if sections.count == 1, values["sectionId", default: ""].isEmpty {
-                values["sectionId"] = sections[0].key
+            for name in listable {
+                if let only = options[name], only.count == 1, values[name, default: ""].isEmpty {
+                    values[name] = only[0].key
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func row(for name: String) -> some View {
+        let enumValues = operation.pathParameters.first { $0.name == name }?.enumValues ?? []
+        let listed = options[name] ?? []
+
+        if !enumValues.isEmpty {
+            Picker(name, selection: binding(name)) {
+                Text("Choose…").tag("")
+                ForEach(enumValues, id: \.self) { value in
+                    Text(value).tag(value)
+                }
+            }
+        } else if !listed.isEmpty {
+            Picker(name, selection: binding(name)) {
+                Text("Choose…").tag("")
+                if listed.contains(where: { $0.group != nil }) {
+                    let groups = Dictionary(grouping: listed) { $0.group ?? "" }
+                    ForEach(groups.keys.sorted(), id: \.self) { group in
+                        Section(group) {
+                            ForEach(groups[group] ?? []) { option in
+                                Text("\(option.title) (\(option.key))").tag(option.key)
+                            }
+                        }
+                    }
+                } else {
+                    ForEach(listed) { option in
+                        Text("\(option.title) (\(option.key))").tag(option.key)
+                    }
+                }
+            }
+        } else if Self.epochPlaceholders.contains(name) {
+            LabeledContent(name) {
+                HStack(spacing: 6) {
+                    TextField(name, text: binding(name), prompt: Text("epoch seconds"))
+                        .labelsHidden()
+                        .font(.code(.body))
+                        .autocorrectionDisabled()
+                    Button {
+                        values[name] = String(Int(Date.now.timeIntervalSince1970))
+                    } label: {
+                        Label("Use Current Time", systemImage: "clock")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Now, as epoch seconds")
+                    Button {
+                        datePickerFor = name
+                    } label: {
+                        Label("Pick Date", systemImage: "calendar")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Choose a date and time")
+                    .popover(isPresented: Binding(
+                        get: { datePickerFor == name },
+                        set: { if !$0 { datePickerFor = nil } }
+                    )) {
+                        DatePicker("Date", selection: dateBinding(name), displayedComponents: [.date, .hourAndMinute])
+                            .datePickerStyle(.graphical)
+                            .labelsHidden()
+                            .padding()
+                    }
+                    recentMenu(for: name)
+                }
+            }
+        } else {
+            LabeledContent(name) {
+                HStack(spacing: 6) {
+                    TextField(name, text: binding(name), prompt: Text(prompt(for: name)))
+                        .labelsHidden()
+                        .font(.code(.body))
+                        .autocorrectionDisabled()
+                    recentMenu(for: name)
+                }
             }
         }
     }
@@ -144,6 +217,14 @@ struct PlaceholderSheet: View {
         Binding(
             get: { values[name] ?? "" },
             set: { values[name] = $0 }
+        )
+    }
+
+    /// Epoch seconds ⇄ Date; an empty or unparseable field reads as now.
+    private func dateBinding(_ name: String) -> Binding<Date> {
+        Binding(
+            get: { Date(timeIntervalSince1970: Double(values[name] ?? "") ?? Date.now.timeIntervalSince1970) },
+            set: { values[name] = String(Int($0.timeIntervalSince1970)) }
         )
     }
 

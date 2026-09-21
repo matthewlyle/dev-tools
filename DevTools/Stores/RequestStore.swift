@@ -46,8 +46,6 @@ final class RequestStore {
 
     private(set) var pathFocusToken = 0
 
-    private(set) var parametersRevealToken = 0
-
     /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
 
@@ -106,21 +104,17 @@ final class RequestStore {
         send(to: server)
     }
 
+    /// Loads the operation's required parameters. Sends only when they all
+    /// have values; otherwise the request waits in the always-visible editor.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
         editingSavedID = nil
         current.path = path
         current.query = operation.queryParameters
             .filter(\.required)
             .map { QueryParam(name: $0.name, value: $0.suggestedValue) }
-        if current.query.contains(where: { $0.value.isEmpty }) {
-            revealParameters()
-        } else {
+        if current.query.allSatisfy({ !$0.value.isEmpty }) {
             send(to: server)
         }
-    }
-
-    func revealParameters() {
-        parametersRevealToken &+= 1
     }
 
     var canGoBack: Bool { !backStack.isEmpty }
@@ -207,15 +201,61 @@ final class RequestStore {
         let type: String
     }
 
+    /// A value a placeholder can take, listed from the server.
+    struct PlaceholderOption: Identifiable, Hashable, Sendable {
+        var id: String { key }
+        let key: String
+        let title: String
+        /// Set when options span several sources (a collection's library).
+        var group: String? = nil
+    }
+
+    /// Placeholders whose values the server can list, so the placeholder
+    /// sheet offers a picker instead of asking for an id from memory.
+    nonisolated static let listablePlaceholders: [String] = ["sectionId", "playlistId", "collectionId", "deviceId"]
+
     private(set) var sectionsByServer: [String: [SectionOption]] = [:]
+    private(set) var optionsByServer: [String: [String: [PlaceholderOption]]] = [:]
+    private(set) var loadedOptions: [String: Set<String>] = [:]
 
     func sections(for server: ConnectedServer) -> [SectionOption] {
         sectionsByServer[server.machineID] ?? []
     }
 
-    /// Warm the section cache so placeholder pickers fill without a fetch. A
-    /// miss fetches; an existing cache is kept unless `force`. A failed fetch
-    /// returns empty and is never cached, so it retries next time.
+    func options(for placeholder: String, server: ConnectedServer) -> [PlaceholderOption] {
+        if placeholder == "sectionId" {
+            return sections(for: server).map { PlaceholderOption(key: $0.key, title: $0.title) }
+        }
+        return optionsByServer[server.machineID]?[placeholder] ?? []
+    }
+
+    /// Warm every listable placeholder for a server so the sheet's pickers
+    /// fill without a fetch. Sections first: collections are listed per section.
+    func preloadOptions(on server: ConnectedServer) async {
+        await preloadSections(on: server)
+        await withTaskGroup(of: Void.self) { group in
+            for name in Self.listablePlaceholders where name != "sectionId" {
+                group.addTask { await self.preloadOptions(for: name, on: server) }
+            }
+        }
+    }
+
+    /// A miss fetches; a completed fetch (even empty) is kept unless `force`;
+    /// a failed fetch is not recorded, so it retries next time.
+    func preloadOptions(for placeholder: String, on server: ConnectedServer, force: Bool = false) async {
+        if placeholder == "sectionId" {
+            await preloadSections(on: server, force: force)
+            return
+        }
+        let machineID = server.machineID
+        if !force, loadedOptions[machineID]?.contains(placeholder) == true { return }
+        guard let fetched = await fetchOptions(for: placeholder, on: server) else { return }
+        optionsByServer[machineID, default: [:]][placeholder] = fetched
+        loadedOptions[machineID, default: []].insert(placeholder)
+    }
+
+    /// Warm the section cache. A miss fetches; an existing cache is kept
+    /// unless `force`. A failed fetch returns empty and is never cached.
     func preloadSections(on server: ConnectedServer, force: Bool = false) async {
         if !force, sectionsByServer[server.machineID]?.isEmpty == false { return }
         let fetched = await fetchSections(on: server)
@@ -224,15 +264,69 @@ final class RequestStore {
     }
 
     func fetchSections(on server: ConnectedServer) async -> [SectionOption] {
-        var request = PlexRequest(path: "/library/sections")
-        request.accept = .json
-        guard let response = try? await http.send(request, to: server), response.status == 200,
-              let root = JSONNodeParser.parse(response.body)
-        else { return [] }
+        guard let root = await fetchRoot("/library/sections", on: server) else { return [] }
         return root.children.compactMap { child in
             guard let key = child["key"], let title = child["title"] else { return nil }
             return SectionOption(key: key, title: title, type: child["type"] ?? "")
         }
+    }
+
+    /// `nil` means the request failed; an empty array means the server has none.
+    private func fetchOptions(for placeholder: String, on server: ConnectedServer) async -> [PlaceholderOption]? {
+        switch placeholder {
+        case "playlistId":
+            guard let root = await fetchRoot("/playlists", on: server) else { return nil }
+            return Self.itemOptions(from: root)
+        case "collectionId":
+            await preloadSections(on: server)
+            let sections = sections(for: server)
+            guard !sections.isEmpty else { return [] }
+            var failed = false
+            var options: [PlaceholderOption] = []
+            await withTaskGroup(of: [PlaceholderOption]?.self) { group in
+                for section in sections {
+                    group.addTask {
+                        let root = await self.fetchRoot("/library/sections/\(section.key)/collections", on: server)
+                        return root.map { Self.itemOptions(from: $0, group: section.title) }
+                    }
+                }
+                for await result in group {
+                    if let result { options += result } else { failed = true }
+                }
+            }
+            return failed && options.isEmpty ? nil : options
+        case "deviceId":
+            guard let root = await fetchRoot("/media/grabbers/devices", on: server) else { return nil }
+            return Self.deviceOptions(from: root)
+        default:
+            return nil
+        }
+    }
+
+    /// Library items (playlists, collections): `ratingKey` is the id.
+    nonisolated static func itemOptions(from root: Node, group: String? = nil) -> [PlaceholderOption] {
+        root.children.compactMap { item in
+            guard let key = item["ratingKey"] else { return nil }
+            return PlaceholderOption(key: key, title: item["title"] ?? key, group: group)
+        }
+    }
+
+    /// Tuner devices: the id attribute and a display name vary by grabber, so
+    /// fall back through the names Plex uses.
+    nonisolated static func deviceOptions(from root: Node) -> [PlaceholderOption] {
+        root.children.compactMap { device in
+            guard let key = device["key"] ?? device["uuid"] ?? device["id"] else { return nil }
+            let title = device["title"]
+                ?? [device["make"], device["model"]].compactMap { $0 }.joined(separator: " ")
+            return PlaceholderOption(key: key, title: title.isEmpty ? key : title)
+        }
+    }
+
+    private func fetchRoot(_ path: String, on server: ConnectedServer) async -> Node? {
+        var request = PlexRequest(path: path)
+        request.accept = .json
+        guard let response = try? await http.send(request, to: server), response.status == 200 else { return nil }
+        return JSONNodeParser.parse(response.body)
     }
 
     func cancel() {
@@ -272,27 +366,6 @@ final class RequestStore {
         CurlExporter.command(for: current, base: server.baseURL, identityHeaders: http.identity.headers)
     }
 
-    /// Adds `value` to the comma-separated query param `name`, creating the
-    /// param if needed. Used by the response-shape menus.
-    func appendToListParameter(_ name: String, value: String) {
-        if let index = current.query.firstIndex(where: { $0.name == name }) {
-            var values = current.query[index].value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            guard !values.contains(value) else { return }
-            values.append(value)
-            current.query[index].value = values.joined(separator: ",")
-            current.query[index].enabled = true
-        } else {
-            current.query.append(QueryParam(name: name, value: value))
-        }
-        revealParameters()
-    }
-
-    /// Values already in the comma-separated query param `name`.
-    func listParameterValues(_ name: String) -> Set<String> {
-        guard let param = current.query.first(where: { $0.name == name }) else { return [] }
-        return Set(param.value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
-    }
-
     /// Restores the path, params, and headers; the response format follows
     /// the app-wide setting, not what the request was last sent with.
     func load(_ request: PlexRequest) {
@@ -317,6 +390,10 @@ final class RequestStore {
     func clearHistory(where predicate: (HistoryEntry) -> Bool) {
         history.removeAll(where: predicate)
         AppSupportStore.save(history, name: Self.historyFile)
+    }
+
+    func deleteHistoryEntry(_ id: HistoryEntry.ID) {
+        clearHistory { $0.id == id }
     }
 
     private func record(_ request: PlexRequest, server: ConnectedServer, status: Int?, duration: Duration?, error: String?) {

@@ -8,17 +8,11 @@ struct RequestBarView: View {
     @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showParameters = false
     @State private var showDocs = false
     @State private var showSave = false
 
     private var operation: SpecOperation? {
         spec.operation(matching: requests.current.path)
-    }
-
-    /// Names seen in the last response, for the include/exclude menus.
-    private var shape: ResponseShape? {
-        requests.document?.tree.map(ResponseShape.init(root:))
     }
 
     /// The saved request the bar was loaded from, while that session lasts.
@@ -75,23 +69,16 @@ struct RequestBarView: View {
                 .disabled(server == nil || requests.isSending)
             }
 
-            DisclosureGroup(isExpanded: $showParameters) {
-                VStack(alignment: .leading, spacing: 8) {
-                    KeyValueEditor(
-                        items: $requests.current.query,
-                        namePlaceholder: "name",
-                        valuePlaceholder: "value",
-                        suggestions: operation?.queryParameters ?? []
-                    ) { name, value in
-                        QueryParam(name: name, value: value)
-                    }
-                    if let shape, !shape.isEmpty {
-                        ResponseShapeRow(shape: shape)
-                    }
-                }
-                .padding(.top, 6)
-            } label: {
+            VStack(alignment: .leading, spacing: 6) {
                 sectionLabel("Parameters", count: requests.current.query.filter(\.enabled).count)
+                KeyValueEditor(
+                    items: $requests.current.query,
+                    namePlaceholder: "name",
+                    valuePlaceholder: "value",
+                    suggestions: operation?.queryParameters ?? []
+                ) { name, value in
+                    QueryParam(name: name, value: value)
+                }
             }
 
             HStack(spacing: 8) {
@@ -138,9 +125,6 @@ struct RequestBarView: View {
         .padding(12)
         .onChange(of: requests.pathFocusToken) { _, _ in
             pathFocused = true
-        }
-        .onChange(of: requests.parametersRevealToken) { _, _ in
-            showParameters = true
         }
         .onChange(of: requests.saveRequestToken) { _, _ in
             if server != nil { showSave = true }
@@ -208,56 +192,6 @@ struct RequestBarView: View {
         guard let server, let command = requests.curl(for: server) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(command, forType: .string)
-    }
-}
-
-/// Four pull-downs — include/exclude fields and elements — listing the names
-/// the last response actually contained. Picking one appends to that param's
-/// comma list, so it shows up as an ordinary row in the editor above.
-private struct ResponseShapeRow: View {
-    let shape: ResponseShape
-
-    @Environment(RequestStore.self) private var requests
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text("Shape")
-                .foregroundStyle(.secondary)
-                .help("Plex trims the response to the fields and elements you name: includeFields=title,year or excludeElements=Media.")
-            menu("includeFields", names: shape.fields)
-            menu("excludeFields", names: shape.fields)
-            menu("includeElements", names: shape.elements)
-            menu("excludeElements", names: shape.elements)
-            Spacer(minLength: 0)
-        }
-        .font(.caption)
-        .controlSize(.small)
-    }
-
-    @ViewBuilder
-    private func menu(_ parameter: String, names: [String]) -> some View {
-        let chosen = requests.listParameterValues(parameter)
-        if !names.isEmpty {
-            Menu {
-                ForEach(names, id: \.self) { name in
-                    Button {
-                        requests.appendToListParameter(parameter, value: name)
-                    } label: {
-                        if chosen.contains(name) {
-                            Label(name, systemImage: "checkmark")
-                        } else {
-                            Text(name)
-                        }
-                    }
-                    .disabled(chosen.contains(name))
-                }
-            } label: {
-                Text(chosen.isEmpty ? parameter : "\(parameter) (\(chosen.count))")
-                    .font(.code(.caption))
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-        }
     }
 }
 

@@ -4,6 +4,7 @@ enum ServerSection: String, CaseIterable, Identifiable {
     case endpoints = "Endpoints"
     case history = "History"
     case activity = "Activity"
+    case mediaQuery = "Media"
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ enum ServerSection: String, CaseIterable, Identifiable {
         case .endpoints: "book.closed"
         case .history: "clock"
         case .activity: "dot.radiowaves.left.and.right"
+        case .mediaQuery: "line.3.horizontal.decrease.circle"
         }
     }
 }
@@ -46,16 +48,22 @@ struct MainSplitView: View {
             }
             .navigationSplitViewColumnWidth(min: 340, ideal: 440, max: 600)
         } detail: {
-            if section == .activity {
+            switch section {
+            case .activity:
                 ActivityEventsView()
-            } else {
+            case .mediaQuery:
+                MediaResultsView(server: connected)
+            case .endpoints, .history:
                 WorkspaceView(editable: section == .endpoints)
             }
         }
         .task(id: connected?.machineID) {
-            if let connected { await requests.preloadSections(on: connected) }
+            if let connected { await requests.preloadOptions(on: connected) }
         }
         .onChange(of: section) { _, _ in
+            requests.reset()
+        }
+        .onChange(of: servers.selectedID) { _, _ in
             requests.reset()
         }
     }

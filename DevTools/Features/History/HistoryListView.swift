@@ -90,8 +90,14 @@ struct HistoryListView: View {
             HistoryRow(entry: entry)
                 .tag(entry.id)
                 .listRowSeparator(.hidden)
+                .contextMenu {
+                    Button("Delete", role: .destructive) { delete(entry.id) }
+                }
         }
         .listStyle(.inset)
+        .onDeleteCommand {
+            if let selection { delete(selection) }
+        }
         .onChange(of: selection) { _, id in
             guard let entry = rows.first(where: { $0.id == id }), let connected else { return }
             requests.replay(entry, on: connected)
@@ -129,6 +135,7 @@ struct HistoryListView: View {
             }
         }
         .focusedSceneValue(\.clearHistory, filtered.isEmpty ? nil : ClearHistoryAction(serverID: serverID) { confirmingClear = true })
+        .focusedSceneValue(\.deleteHistoryEntry, selection.map { id in DeleteHistoryEntryAction(id: id) { delete(id) } })
         .confirmationDialog(
             isFiltered ? "Clear the \(filtered.count) shown requests?" : "Clear all history for this server?",
             isPresented: $confirmingClear,
@@ -154,6 +161,17 @@ struct HistoryListView: View {
             if statusFilter != .any, !options.contains(statusFilter) {
                 statusFilter = .any
             }
+        }
+    }
+
+    /// Removes one entry. If it was the one being shown, the workspace is
+    /// cleared rather than left displaying a response that no longer has a row.
+    private func delete(_ id: HistoryEntry.ID) {
+        let wasShowing = selection == id
+        requests.deleteHistoryEntry(id)
+        if wasShowing {
+            selection = nil
+            requests.reset()
         }
     }
 }

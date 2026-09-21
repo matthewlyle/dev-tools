@@ -39,6 +39,8 @@ struct ServerDetailView: View {
                 HistoryListView(serverID: entry.id)
             case .activity:
                 ActivityControlsView()
+            case .mediaQuery:
+                MediaQueryBuilderView(server: connected)
             }
         }
         .navigationTitle(entry.resource.name)

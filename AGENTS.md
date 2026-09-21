@@ -22,7 +22,7 @@ A `///` on a type or function is fine when it meets the bar above; most don't. W
 
 ## Load-bearing decisions
 
-- **Tokens are never shown and never in a URL.** `X-Plex-Token` travels only as a header; `PlexRequest.url(base:)` cannot emit it; cURL export uses `$PLEX_TOKEN`; masked values have no copy path. Do not add a reveal, toggle, or query-string option.
+- **Tokens are never shown and never in a URL.** `X-Plex-Token` travels only as a header; `PlexRequest.url(base:)` cannot emit it; cURL export uses `$PLEX_TOKEN`; masked values have no copy path. Artwork goes through `ImageStore` → `PlexHTTP` for the same reason — never `AsyncImage` with a token in the query string. Do not add a reveal, toggle, or query-string option.
 - **The server is the navigation context.** Sidebar = servers only. Endpoints / History / Activity are views onto the selected server, never peers of it. Saved requests are a pinned group *inside* the endpoint list, not a section or a scope.
 - **Every toolbar item has a menu bar command** (`AppCommands.swift`). Un-undoable destructive actions confirm.
 - **Code face is Commit Mono** through `Typeface` / `Font.code(_:)`. Never `.monospaced()` or `NSFont.monospacedSystemFont` directly.
@@ -43,7 +43,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Sheets for short targeted input (save, placeholders); popovers for reference (endpoint docs); never a popover for a warning. No auxiliary windows.
 
 **Toolbar placement** — decide this when adding the control, not at review.
-- The toolbar is for things that act on *what the column shows*: switching the view, filtering or searching it, sorting it, clearing it. If a control acts on the *object being edited* — the request's path, params, headers, send, save, copy — it lives beside that object in the request bar. If it acts on a sub-pane (Raw view's wrap, fold, copy body), it lives in that pane's own header row.
+- The toolbar is for things that act on *what the column shows*: switching the view, filtering or searching it, sorting it, clearing it. If a control acts on the *object being edited* — the request's path, params, headers, send, save, copy — it lives beside that object in the request bar. If it acts on a sub-pane (the Response pane's wrap, fold, copy body), it lives in that pane's own header row.
 - Values and preferences are never toolbar items: a pop-up in the body, or Settings if app-wide.
 - Status and information never go in the toolbar. Title and `navigationSubtitle` are the only text there.
 - Each section owns the trailing slot and declares its own items from its view; when the section changes, its items go with it. Aim for at most three trailing items before the search field.
@@ -56,7 +56,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Order within a menu: most frequent first; group related items with separators; keep menus short; submenus sparingly and one level deep.
 - Labels are verb phrases in Title Case with no articles. Trailing `…` when the command needs more input before acting. A command that toggles uses a checkmark (inline `Picker`/`Toggle`) or a changeable label (Show/Hide); never both.
 - Unavailable commands are *dimmed*, never removed — the menu's shape stays stable. Gate on state (`activeServer == nil`, `!requests.isSending`); for commands that act on the visible section, publish a `FocusedValues` action from that view and disable when it's absent.
-- Shortcuts: `⌘` primary; `⇧⌘` for the sibling of a `⌘` command; `⌥` rarely; `⌃` never. Only frequent commands get one. Never repurpose a standard shortcut (`⌘Z X C V A F S W N Q ,` and the system's `⌘Space`, `⌘Tab`, `⌘←→`). Taken here: `⌘1/2/3` sections · `⌘R` Refresh Servers · `⌘S` Save Request… · `⇧⌘C` Copy as cURL · `⌘↩` Send · `⌘.` Cancel · `⌘L` Focus Path · `⌘[` `⌘]` Back/Forward · `⌘,` Settings · `⌘F` find in body (system). Add new ones to this list.
+- Shortcuts: `⌘` primary; `⇧⌘` for the sibling of a `⌘` command; `⌥` rarely; `⌃` never. Only frequent commands get one. Never repurpose a standard shortcut (`⌘Z X C V A F S W N Q ,` and the system's `⌘Space`, `⌘Tab`, `⌘←→`). Taken here: `⌘1/2/3/4` sections · `⌘R` Refresh Servers · `⌘S` Save Request… · `⇧⌘C` Copy as cURL · `⌘↩` Send (runs the built query in Media) · `⌘⌫` Delete History Item · `⌘I` Show/Hide Info (Media poster) · `⌘.` Cancel · `⌘L` Focus Path · `⌘[` `⌘]` Back/Forward · `⌘,` Settings · `⌘F` find in body (system). Add new ones to this list.
 - Menu item icons: none, unless a whole group gets them.
 
 **Liquid Glass**

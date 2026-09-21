@@ -34,7 +34,7 @@ struct WorkspaceView: View {
 /// The request as a read-only URL: History replays past requests without
 /// exposing the path or parameter editors, and selecting an entry runs it,
 /// so there is nothing to send here.
-private struct RequestSummaryBar: View {
+struct RequestSummaryBar: View {
     let server: ConnectedServer?
 
     @Environment(RequestStore.self) private var requests
