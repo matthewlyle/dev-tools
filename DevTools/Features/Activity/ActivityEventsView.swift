@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Live event list with a payload inspector beside it.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
 
@@ -59,7 +58,6 @@ private struct EventRow: View {
     }
 }
 
-/// Pretty-printed, highlighted, foldable payload of the selected event.
 private struct EventInspector: View {
     let event: NotificationEvent?
 

@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// The detail column: request bar on top, breadcrumbs, response below.
 struct WorkspaceView: View {
     @Environment(ServerStore.self) private var servers
 

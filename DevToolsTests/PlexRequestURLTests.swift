@@ -38,8 +38,6 @@ struct PlexRequestURLTests {
         var request = PlexRequest(path: "/x")
         #expect(request.url(base: base)?.query == nil)
 
-        // Even a token typed into the path is just an ordinary query item; the
-        // real credential only ever travels as a header.
         request.path = "/x?X-Plex-Token=typed"
         #expect(request.url(base: base)?.query == "X-Plex-Token=typed")
     }

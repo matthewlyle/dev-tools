@@ -13,11 +13,9 @@ final class ServerStore {
         var reachable: [ProbeResult] { probes.filter(\.outcome.isOK) }
     }
 
-    /// What we persist so the sidebar is populated instantly on next launch.
     private struct Snapshot: Codable {
         var resources: [PlexResource]
         var selectedID: String?
-        /// Friend id → avatar URL, keyed as strings for tidy JSON.
         var ownerAvatars: [String: URL]?
     }
 
@@ -53,8 +51,6 @@ final class ServerStore {
         entries.first { $0.id == id }
     }
 
-    /// Sidebar order: local, then remote, then relay, then still-probing,
-    /// then unreachable; alphabetical within each group.
     var sortedEntries: [Entry] {
         func rank(_ entry: Entry) -> Int {
             if let probe = activeProbe(for: entry) {
@@ -72,8 +68,6 @@ final class ServerStore {
             return lhs.resource.name.localizedStandardCompare(rhs.resource.name) == .orderedAscending
         }
     }
-
-    // MARK: Refresh
 
     func refresh(token: String) async {
         isRefreshing = true
@@ -98,15 +92,12 @@ final class ServerStore {
         } catch {
             errorMessage = error.localizedDescription
         }
-        // Avatars are decoration; a failure here keeps the last known set.
         if let avatars = try? await avatarsTask { ownerAvatars = avatars }
         persist()
 
         await probeAll()
     }
 
-    /// Owner avatar for a shared server: the friend's real thumb when known,
-    /// else plex.tv's generated placeholder for that id.
     func ownerAvatar(for resource: PlexResource) -> URL? {
         guard let ownerId = resource.ownerId else { return nil }
         return ownerAvatars[ownerId] ?? resource.ownerAvatarURL
@@ -130,9 +121,6 @@ final class ServerStore {
         entries[current].isProbing = false
     }
 
-    // MARK: Connection choice
-
-    /// The best-ranked reachable connection.
     func activeProbe(for entry: Entry) -> ProbeResult? {
         entry.reachable.first
     }

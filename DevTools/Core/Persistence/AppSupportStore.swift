@@ -1,8 +1,6 @@
 import Foundation
 import os
 
-/// Small JSON files under Application Support. Failures are logged, not thrown:
-/// nothing persisted here is load-bearing for correctness, only for convenience.
 enum AppSupportStore {
     private static let log = Logger(subsystem: "mldgg.devtools", category: "persistence")
 

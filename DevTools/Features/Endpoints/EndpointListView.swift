@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Every documented GET operation, grouped by tag, searchable. Selecting one
-/// loads it into the request bar (prompting for path placeholders) and sends.
 struct EndpointListView: View {
     let server: ConnectedServer?
 

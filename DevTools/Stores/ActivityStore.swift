@@ -24,16 +24,12 @@ final class ActivityStore {
     private(set) var status: Status = .disconnected
     private(set) var server: ConnectedServer?
     private(set) var events: [NotificationEvent] = []
-    /// Messages received on the wire since connect, before any filtering.
     private(set) var receivedCount = 0
     private(set) var lastError: String?
-    /// Every type seen since the last clear, with counts — drives the filter list.
     private(set) var typeCounts: [String: Int] = [:]
     var hiddenTypes: Set<String> = []
     var selectedEventID: UUID?
 
-    /// While paused, incoming events are held back so the list stays still;
-    /// the socket keeps running. Resuming flushes them.
     var isPaused = false {
         didSet {
             if !isPaused, !pausedBuffer.isEmpty {
@@ -61,8 +57,6 @@ final class ActivityStore {
         return events.first { $0.id == selectedEventID }
     }
 
-    // MARK: Connection
-
     func connect(to server: ConnectedServer) {
         connection?.cancel()
         self.server = server
@@ -88,7 +82,6 @@ final class ActivityStore {
                             self.receive(message)
                         }
                     }
-                    // The stream ended without an error: treat like a drop.
                     throw NotificationTransportError.closed
                 } catch is CancellationError {
                     return
@@ -126,8 +119,6 @@ final class ActivityStore {
         if hiddenTypes.contains(type) { hiddenTypes.remove(type) } else { hiddenTypes.insert(type) }
     }
 
-    // MARK: Ingest
-
     private func receive(_ text: String) {
         let event = NotificationEvent.make(raw: text)
         if isPaused {
@@ -143,7 +134,6 @@ final class ActivityStore {
         for event in incoming {
             typeCounts[event.type, default: 0] += 1
         }
-        // Newest first; the list never needs to scroll to follow.
         events.insert(contentsOf: incoming.reversed(), at: 0)
         if events.count > Self.capacity {
             events.removeLast(events.count - Self.capacity)

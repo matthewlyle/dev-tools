@@ -1,7 +1,5 @@
 import Foundation
 
-/// The `X-Plex-*` headers that identify this app to plex.tv and to servers.
-/// `clientIdentifier` is persisted so plex.tv sees one stable device across launches.
 struct ClientIdentity: Sendable, Hashable {
     let clientIdentifier: String
     let product: String

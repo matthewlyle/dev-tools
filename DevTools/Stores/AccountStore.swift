@@ -28,8 +28,6 @@ final class AccountStore {
         return nil
     }
 
-    /// Restore a saved token. A network failure keeps the token and reports
-    /// the error; a 401 clears it.
     func restore() async {
         guard let saved = TokenStore.load() else {
             state = .signedOut

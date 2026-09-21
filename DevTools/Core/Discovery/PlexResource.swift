@@ -1,6 +1,5 @@
 import Foundation
 
-/// One entry from `GET https://plex.tv/api/v2/resources`.
 struct PlexResource: Sendable, Codable, Hashable, Identifiable {
     var id: String { clientIdentifier }
 
@@ -26,22 +25,15 @@ struct PlexResource: Sendable, Codable, Hashable, Identifiable {
         provides.split(separator: ",").contains("server")
     }
 
-    /// Avatar of the server's owner for shared servers; owned servers use the
-    /// signed-in account's thumb instead.
     var ownerAvatarURL: URL? {
         guard !owned, let ownerId else { return nil }
         return URL(string: "https://plex.tv/users/\(ownerId)/avatar")
     }
 
-    /// What the server runs on, in words: device when it's more specific
-    /// than the OS ("Docker Container", "Synology"), else the platform.
     var hostDescription: String? {
         [device, platform].compactMap { $0 }.first { !$0.isEmpty }
     }
 
-    /// The mark for what the server runs on. Brand logos where we have
-    /// them (bundled Simple Icons + the Apple SF Symbol); device wins over
-    /// platform because "Docker Container" on Linux is the more useful fact.
     enum HostMark: Sendable, Hashable {
         case symbol(String)
         case asset(String)
@@ -89,7 +81,6 @@ struct Connection: Sendable, Codable, Hashable, Identifiable {
         return local ? .local : .remote
     }
 
-    /// Lower ranks are preferred: local https, local http, remote https, remote http, relay.
     var rank: Int {
         switch (relay, local, isHTTPS) {
         case (true, _, _): 4

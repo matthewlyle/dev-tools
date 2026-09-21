@@ -1,10 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The code face for paths, payloads, headers, and values: Commit Mono
-/// (bundled under the SIL OFL; see Resources/Fonts). Its disambiguated
-/// `0O` / `1lI` earn their keep in raw Plex payloads. Registered on first
-/// use; if that fails, the system mono — never a proportional face.
 enum Typeface {
     static let family = "CommitMono"
 
@@ -15,7 +11,6 @@ enum Typeface {
         return NSFont(name: "\(family)-Regular", size: 12) != nil
     }()
 
-    /// Regular and Bold are the only bundled faces; semibold and up map to Bold.
     static func code(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
         let face = weight.rawValue >= NSFont.Weight.semibold.rawValue ? "\(family)-Bold" : "\(family)-Regular"
         if isAvailable, let font = NSFont(name: face, size: size) { return font }
@@ -24,7 +19,6 @@ enum Typeface {
 }
 
 extension Font {
-    /// Code face at a text style's size, so it sits beside system text.
     static func code(_ style: Font.TextStyle = .body, weight: Font.Weight = .regular) -> Font {
         code(size: NSFont.preferredFont(forTextStyle: style.nsTextStyle).pointSize, weight: weight)
     }

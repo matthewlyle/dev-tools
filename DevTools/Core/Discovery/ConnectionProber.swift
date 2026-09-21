@@ -1,6 +1,5 @@
 import Foundation
 
-/// Outcome of hitting `/identity` on one connection.
 struct ProbeResult: Sendable, Hashable, Identifiable {
     var id: String { connection.uri }
 
@@ -18,8 +17,6 @@ struct ProbeResult: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Probes every connection of a resource concurrently and reports each result,
-/// so the UI can show latency per connection and let the user pin one.
 struct ConnectionProber: Sendable {
     private let http: PlexHTTP
     private let timeout: TimeInterval

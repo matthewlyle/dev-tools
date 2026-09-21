@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Collects values for `{placeholder}` segments before opening a templated
-/// path. `sectionId` offers the server's libraries as a picker.
 struct PlaceholderSheet: View {
     let operation: SpecOperation
     let server: ConnectedServer?

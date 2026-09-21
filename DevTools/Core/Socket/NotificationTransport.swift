@@ -2,9 +2,7 @@ import Foundation
 import os
 
 enum StreamEvent: Sendable {
-    /// The connection is established (handshake done), before any message.
     case opened
-    /// One frame, as text.
     case message(String)
 }
 
@@ -22,8 +20,6 @@ enum NotificationTransportError: Error, LocalizedError {
     }
 }
 
-/// Opens the server's WebSocket notification feed and streams frames until
-/// the consumer stops iterating or the connection fails.
 enum NotificationTransport {
     static let log = Logger(subsystem: "mldgg.devtools", category: "activity")
 
@@ -42,8 +38,6 @@ enum NotificationTransport {
         for (name, value) in identity.headers {
             request.setValue(value, forHTTPHeaderField: name)
         }
-        // Plain requests send the token as a header; do the same on the
-        // upgrade so the socket is authenticated the same way they are.
         request.setValue(server.accessToken, forHTTPHeaderField: "X-Plex-Token")
         return request
     }
@@ -72,7 +66,6 @@ enum NotificationTransport {
             let task = session.webSocketTask(with: request)
             task.resume()
 
-            // A pong proves the handshake completed; there's no delegate here.
             task.sendPing { error in
                 if let error {
                     let resolved = handshakeError(error, task: task)

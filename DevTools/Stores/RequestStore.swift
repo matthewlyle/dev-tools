@@ -6,15 +6,11 @@ import Observation
 final class RequestStore {
     var current = PlexRequest(path: "/")
     private(set) var response: PlexResponse?
-    /// Parsed form of `response`; nil while parsing or when there's no response.
     private(set) var document: ResponseDocument?
     private(set) var errorMessage: String?
     private(set) var isSending = false
     private(set) var history: [HistoryEntry] = []
 
-    /// Response format asked for on every request (the `Accept` header).
-    /// App-wide by choice: a playground wants one answer, not a per-request
-    /// knob competing with Send. Persisted.
     var acceptFormat: AcceptFormat {
         didSet {
             UserDefaults.standard.set(acceptFormat.rawValue, forKey: Self.acceptKey)
@@ -32,26 +28,19 @@ final class RequestStore {
         "token", "authToken", "accessToken", "authenticationToken", "transientToken", "X-Plex-Token",
     ]
 
-    /// `value` with the server's token masked out.
     func redacted(_ value: String, token: String?) -> String {
         guard let token, !token.isEmpty else { return value }
         return value.replacingOccurrences(of: token, with: Self.mask)
     }
 
-    /// Whether an attribute's value is a credential and must be shown masked.
     func shouldMask(attributeNamed name: String) -> Bool {
         Self.tokenAttributeNames.contains(name)
     }
 
-    /// Bumped by the ⌘L command; the request bar observes it to grab focus.
     private(set) var pathFocusToken = 0
 
-    /// Bumped when an operation needs parameters filled in before sending;
-    /// the request bar expands its Parameters section.
     private(set) var parametersRevealToken = 0
 
-    /// Browser-style history of sent requests. `lastSent` is the request the
-    /// current response answers; sending something different pushes it back.
     private(set) var backStack: [PlexRequest] = []
     private(set) var forwardStack: [PlexRequest] = []
     private var lastSent: PlexRequest?
@@ -69,8 +58,6 @@ final class RequestStore {
         history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
     }
 
-    /// Headers `PlexHTTP` adds to every request beyond the user's own:
-    /// identity, Accept, and the token (when sent as a header).
     func implicitHeaders(for server: ConnectedServer?) -> [(name: String, value: String)] {
         var headers = http.identity.headers.sorted { $0.key < $1.key }.map { (name: $0.key, value: $0.value) }
         headers.insert((name: "Accept", value: current.accept.rawValue), at: 0)
@@ -79,8 +66,6 @@ final class RequestStore {
         }
         return headers
     }
-
-    // MARK: Sending
 
     func send(to server: ConnectedServer) {
         let request = current
@@ -91,17 +76,12 @@ final class RequestStore {
         perform(request, on: server)
     }
 
-    /// Replace the current path (dropping any params) and send. Used by quick
-    /// links and hyperlinked responses.
     func open(path: String, on server: ConnectedServer) {
         current.path = path
         current.query = []
         send(to: server)
     }
 
-    /// Loads a documented operation at `path`. Required query parameters are
-    /// pre-filled from the spec; if any is still blank the request is left
-    /// in the bar for the user to complete instead of being sent.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
         current.path = path
         current.query = operation.queryParameters
@@ -114,7 +94,6 @@ final class RequestStore {
         }
     }
 
-    /// Asks the request bar to expand its Parameters section.
     func revealParameters() {
         parametersRevealToken &+= 1
     }
@@ -169,9 +148,6 @@ final class RequestStore {
         }
     }
 
-    // MARK: Header upserts
-
-    /// Sets a header by name; nil or empty removes it.
     func setHeader(_ name: String, to value: String?) {
         if let value, !value.isEmpty {
             if let index = current.headers.firstIndex(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
@@ -185,21 +161,16 @@ final class RequestStore {
         }
     }
 
-    // MARK: Pagination
-
     var pagination: PaginationInfo? {
         guard let response, response.status == 200 else { return nil }
         return PaginationInfo(response: response, root: document?.tree)
     }
 
-    /// Re-sends the last request with container headers for the given page.
     func page(start: Int, size: Int, on server: ConnectedServer) {
         setHeader("X-Plex-Container-Start", to: String(max(start, 0)))
         setHeader("X-Plex-Container-Size", to: String(size))
         send(to: server)
     }
-
-    // MARK: Inline expansion
 
     struct Peek: Sendable {
         let document: ResponseDocument
@@ -216,8 +187,6 @@ final class RequestStore {
         }
     }
 
-    /// Fetches `path` for in-place expansion in the Pretty view. Doesn't
-    /// touch the address bar, history, or navigation stacks.
     func peek(path: String, on server: ConnectedServer, start: Int = 0, size: Int = 100) async throws -> Peek {
         var request = PlexRequest(path: path)
         request.accept = current.accept
@@ -231,8 +200,6 @@ final class RequestStore {
         return Peek(document: document, pagination: PaginationInfo(response: response, root: document.tree))
     }
 
-    // MARK: Lookups for the catalog
-
     struct SectionOption: Identifiable, Hashable, Sendable {
         var id: String { key }
         let key: String
@@ -240,7 +207,6 @@ final class RequestStore {
         let type: String
     }
 
-    /// Library sections on `server`, for filling `{sectionId}` placeholders.
     func fetchSections(on server: ConnectedServer) async -> [SectionOption] {
         var request = PlexRequest(path: "/library/sections")
         request.accept = .json
@@ -263,24 +229,16 @@ final class RequestStore {
         pathFocusToken &+= 1
     }
 
-    // MARK: URL preview
-
-    /// The full URL string. The token is a header, so there's nothing to mask.
     func previewURL(for server: ConnectedServer?) -> String {
         guard let server else { return "No server selected" }
         return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
     }
 
-    // MARK: History
-
-    /// Restores the path, params, and headers; the response format follows
-    /// the app-wide setting, not what the entry was sent with.
     func load(_ entry: HistoryEntry) {
         current = entry.request
         current.accept = acceptFormat
     }
 
-    /// Removes every entry matching `predicate`.
     func clearHistory(where predicate: (HistoryEntry) -> Bool) {
         history.removeAll(where: predicate)
         AppSupportStore.save(history, name: Self.historyFile)

@@ -1,6 +1,5 @@
 import Foundation
 
-/// A server plus the specific connection we're talking to it over.
 struct ConnectedServer: Sendable, Hashable, Identifiable {
     var id: String { machineID }
 

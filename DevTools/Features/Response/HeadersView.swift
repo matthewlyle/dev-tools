@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Request headers (editable) on top, response headers below.
 struct HeadersView: View {
     let response: PlexResponse?
     let server: ConnectedServer?

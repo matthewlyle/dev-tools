@@ -1,7 +1,5 @@
 import Foundation
 
-/// The slice of the bundled OpenAPI 3.1 document we use. Everything else in
-/// the file is ignored by `Decodable`.
 struct OpenAPISpec: Decodable, Sendable {
     struct Info: Decodable, Sendable {
         let title: String

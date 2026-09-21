@@ -13,7 +13,6 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
     @Binding var items: [Item]
     let namePlaceholder: String
     let valuePlaceholder: String
-    /// Documented names offered in the Add menu; empty → plain Add button.
     var suggestions: [SpecParameter] = []
     let makeItem: (_ name: String, _ value: String) -> Item
 
@@ -25,7 +24,6 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                         .toggleStyle(.checkbox)
                         .labelsHidden()
                     if let description = description(for: item.name) {
-                        // Documented name: fixed label, description on hover.
                         Text(item.name)
                             .font(.code(.body))
                             .padding(.horizontal, 7)
@@ -102,8 +100,6 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         return suggestions.filter { !present.contains($0.name.lowercased()) }
     }
 
-    /// Non-nil when `name` is documented for this operation; the text is the
-    /// description (or a generic note) for the tooltip.
     private func description(for name: String) -> String? {
         guard !name.isEmpty, let parameter = suggestions.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else { return nil }
         return parameter.description ?? "Documented \(parameter.location.rawValue) parameter"

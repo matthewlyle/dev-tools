@@ -1,8 +1,5 @@
 import Foundation
 
-/// Everything the response tabs need, derived once per response off the
-/// main actor: raw text (pretty-printed if JSON), highlight tokens, and the
-/// parsed `Node` tree for Pretty/Tree.
 struct ResponseDocument: Sendable {
     enum Format: Sendable {
         case json, xml, image, text

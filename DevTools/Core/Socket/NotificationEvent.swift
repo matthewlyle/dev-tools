@@ -1,11 +1,9 @@
 import Foundation
 
-/// One message from the server's notification feed.
 struct NotificationEvent: Identifiable, Sendable, Hashable {
     let id: UUID
     let receivedAt: Date
     let type: String
-    /// The message exactly as received.
     let raw: String
     let node: Node?
     let summary: String
@@ -28,7 +26,6 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
         )
     }
 
-    /// Attributes worth surfacing in a one-line summary, in priority order.
     private static let summaryAttributes = [
         "state", "event", "title", "message", "description", "key", "ratingKey", "viewOffset", "progress", "queueID", "reachability", "identifier", "clientIdentifier",
     ]

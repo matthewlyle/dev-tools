@@ -189,8 +189,6 @@ indirect enum JSONValue: Sendable, Hashable {
             return nil
         }
 
-        /// Called with `index` on the `u`; consumes `uXXXX` and a trailing
-        /// low surrogate escape when present.
         private mutating func parseUnicodeEscape() -> Unicode.Scalar? {
             func hex4(at start: Int) -> UInt32? {
                 guard start + 4 <= bytes.count else { return nil }

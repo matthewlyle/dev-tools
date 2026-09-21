@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Connection status and type filters for the notification feed.
 struct ActivityControlsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
 
-    /// The feed is a view onto the selected server, like Endpoints and History.
     private var selectedServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
@@ -98,8 +96,6 @@ struct ActivityControlsView: View {
         }
         .listStyle(.inset)
         .onChange(of: servers.selectedID) { _, id in
-            // The feed belongs to the server it was opened on; a different
-            // server is a fresh context, not a place to show stale events.
             guard let connected = activity.server, connected.machineID != id else { return }
             activity.disconnect()
             activity.clear()
@@ -126,9 +122,6 @@ struct ActivityControlsView: View {
     }
 }
 
-/// A coloured capsule for an event type. The colour is a stable hash of the
-/// name into the system palette, so it adapts to dark mode and increased
-/// contrast like every other colour in the app.
 struct EventTypeBadge: View {
     let type: String
 

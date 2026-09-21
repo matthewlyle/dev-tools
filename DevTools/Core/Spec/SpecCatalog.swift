@@ -1,6 +1,5 @@
 import Foundation
 
-/// A documented parameter, resolved and flattened for the UI.
 struct SpecParameter: Sendable, Hashable, Identifiable {
     enum Location: String, Sendable {
         case path, query, header
@@ -17,13 +16,11 @@ struct SpecParameter: Sendable, Hashable, Identifiable {
     let defaultValue: String?
     let example: String?
 
-    /// A sensible starting value when the user adds this parameter.
     var suggestedValue: String {
         defaultValue ?? example ?? enumValues.first ?? ""
     }
 }
 
-/// One GET operation from the spec.
 struct SpecOperation: Sendable, Hashable, Identifiable {
     var id: String { template }
 
@@ -39,7 +36,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     var queryParameters: [SpecParameter] { parameters.filter { $0.location == .query } }
     var headerParameters: [SpecParameter] { parameters.filter { $0.location == .header } }
 
-    /// `{name}` placeholders in template order.
     var placeholders: [String] {
         var result: [String] = []
         var rest = template[...]
@@ -50,7 +46,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
         return result
     }
 
-    /// Substitutes placeholders; missing values are left as-is.
     func path(filling values: [String: String]) -> String {
         var result = template
         for (name, value) in values where !value.isEmpty {
@@ -102,7 +97,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Operations grouped by tag plus lookups the request bar needs.
 struct SpecCatalog: Sendable {
     struct TagGroup: Sendable, Identifiable {
         var id: String { name }
@@ -113,7 +107,6 @@ struct SpecCatalog: Sendable {
     let version: String
     let operations: [SpecOperation]
     let groups: [TagGroup]
-    /// Header parameters documented anywhere, plus the pagination headers.
     let documentedHeaders: [SpecParameter]
 
     init(spec: OpenAPISpec) {
@@ -172,7 +165,6 @@ struct SpecCatalog: Sendable {
         documentedHeaders = headers.sorted { $0.name < $1.name }
     }
 
-    /// The most specific operation whose template matches `path`.
     func match(path: String) -> SpecOperation? {
         let pure = PlexRequest.splitPath(path).path
         let trimmed = pure.count > 1 && pure.hasSuffix("/") ? String(pure.dropLast()) : pure
@@ -181,8 +173,6 @@ struct SpecCatalog: Sendable {
             .min { $0.placeholders.count < $1.placeholders.count }
     }
 
-    /// Groups whose operations match `needle` on template, summary, or tag;
-    /// blank returns everything. Empty groups are dropped.
     func groups(matching needle: String) -> [TagGroup] {
         let needle = needle.trimmingCharacters(in: .whitespaces)
         guard !needle.isEmpty else { return groups }
@@ -195,8 +185,6 @@ struct SpecCatalog: Sendable {
             return hits.isEmpty ? nil : TagGroup(name: group.name, operations: hits)
         }
     }
-
-    // MARK: Building
 
     private static func flatten(_ parameter: OpenAPISpec.Parameter) -> SpecParameter? {
         let location: SpecParameter.Location

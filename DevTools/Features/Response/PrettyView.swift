@@ -62,13 +62,9 @@ struct PrettyView: View {
     }
 }
 
-/// One item: headline, badges, thumbnail, collapsible attributes, nested
-/// elements grouped by name — and, when the item has a `key`, click-to-expand
-/// that fetches the key in place and renders its items as nested cards.
 struct NodeCard: View {
     let node: Node
     let server: ConnectedServer?
-    /// Path the node came from; relative keys resolve against it.
     let basePath: String
 
     @Environment(RequestStore.self) private var requests
@@ -205,8 +201,6 @@ struct NodeCard: View {
         .onHover { hovering = $0 }
     }
 
-    // MARK: Expansion
-
     @ViewBuilder
     private var expansion: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -292,8 +286,6 @@ struct NodeCard: View {
         }
     }
 
-    /// Wraps `content` in a click-to-expand button when the node has a
-    /// server `key`; otherwise renders it plainly.
     @ViewBuilder
     private func expandable<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         if let keyPath {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Everything you do with one server: its endpoint catalog, its request
-/// history, its live activity feed. Switching section keeps the server.
 struct ServerDetailView: View {
     let entry: ServerStore.Entry
     @Binding var section: ServerSection
@@ -12,8 +10,6 @@ struct ServerDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The window title already names the server; this line is what
-            // it runs on. The glyph carries the host in tooltip and VoiceOver.
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     hostMark

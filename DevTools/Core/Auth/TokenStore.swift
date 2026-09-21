@@ -1,7 +1,6 @@
 import Foundation
 import Security
 
-/// Generic-password Keychain item holding the plex.tv account token.
 enum TokenStore {
     private static let service = "mldgg.devtools"
     private static let account = "plex.tv"

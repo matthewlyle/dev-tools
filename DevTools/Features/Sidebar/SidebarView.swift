@@ -73,7 +73,6 @@ private struct ServerRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
-            // The subtitle already says it in words; the dot is redundant colour.
             Circle()
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
@@ -133,7 +132,6 @@ private struct AccountFooter: View {
 
                     Spacer(minLength: 0)
 
-                    // Signing out forces a fresh PIN flow, so it asks first.
                     Menu {
                         Button("Sign Out…", role: .destructive) { confirmingSignOut = true }
                     } label: {

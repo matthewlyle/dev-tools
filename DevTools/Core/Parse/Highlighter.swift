@@ -13,7 +13,6 @@ enum TokenKind: Sendable, Hashable {
     case processingInstruction
 }
 
-/// A highlighted span in UTF-16 offsets, so it maps straight onto `NSRange`.
 struct Token: Sendable, Hashable {
     let location: Int
     let length: Int
@@ -22,11 +21,7 @@ struct Token: Sendable, Hashable {
     var nsRange: NSRange { NSRange(location: location, length: length) }
 }
 
-/// Hand-rolled tokenizers for the two formats Plex speaks. They only need to
-/// be good enough to colour well-formed server output; they never fail, they
-/// just stop emitting tokens on input they don't understand.
 enum Highlighter {
-    // UTF-16 code units for the ASCII we care about.
     private static let quote: UInt16 = 0x22
     private static let backslash: UInt16 = 0x5C
     private static let colon: UInt16 = 0x3A
@@ -55,8 +50,6 @@ enum Highlighter {
     private static func isLetter(_ c: UInt16) -> Bool {
         (c >= 0x61 && c <= 0x7A) || (c >= 0x41 && c <= 0x5A)
     }
-
-    // MARK: JSON
 
     static func json(_ text: String) -> [Token] {
         let u = Array(text.utf16)
@@ -98,8 +91,6 @@ enum Highlighter {
         }
         return tokens
     }
-
-    // MARK: XML
 
     static func xml(_ text: String) -> [Token] {
         let u = Array(text.utf16)
@@ -155,7 +146,6 @@ enum Highlighter {
                 continue
             }
             if i + 1 < n, u[i + 1] == exclamation {
-                // <!DOCTYPE …>
                 var end = i
                 while end < n, u[end] != greaterThan { end += 1 }
                 end = min(end + 1, n)
@@ -164,7 +154,6 @@ enum Highlighter {
                 continue
             }
 
-            // Opening or closing tag.
             tokens.append(Token(location: i, length: 1, kind: .punctuation))
             i += 1
             if i < n, u[i] == slash {
@@ -177,7 +166,6 @@ enum Highlighter {
                 tokens.append(Token(location: nameStart, length: i - nameStart, kind: .tagName))
             }
 
-            // Attributes until '>' or '/>'.
             while i < n {
                 while i < n, isWhitespace(u[i]) { i += 1 }
                 guard i < n else { break }

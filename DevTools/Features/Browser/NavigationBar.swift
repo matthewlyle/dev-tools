@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Back/forward plus a breadcrumb trail of the current path. Each crumb is a
-/// prefix of the path and opens it.
 struct NavigationBar: View {
     let server: ConnectedServer?
 

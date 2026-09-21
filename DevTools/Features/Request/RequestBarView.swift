@@ -45,8 +45,6 @@ struct RequestBarView: View {
                     }
                 }
 
-                // The in-flight indicator lives on the control that started
-                // the request; the previous response stays readable.
                 Button(action: send) {
                     Label {
                         Text("Send")
@@ -132,7 +130,6 @@ struct RequestBarView: View {
     }
 }
 
-/// Spec description and parameter table for the matched operation.
 private struct OperationDocs: View {
     let operation: SpecOperation
 

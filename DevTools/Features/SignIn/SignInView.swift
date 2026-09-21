@@ -29,7 +29,6 @@ struct SignInView: View {
             }
         }
         .padding(40)
-        // Content layer, not chrome: standard material, not Liquid Glass.
         .background(.regularMaterial, in: .rect(cornerRadius: 28))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -65,8 +64,6 @@ struct SignInView: View {
                 .padding(.vertical, 10)
                 .background(.quaternary, in: .rect(cornerRadius: 12))
 
-            // "Approve this sign-in in your browser." above already says
-            // what's happening; HIG: don't label a spinner.
             ProgressView()
                 .controlSize(.small)
 

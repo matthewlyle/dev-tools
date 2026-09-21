@@ -20,12 +20,10 @@ struct PaginationInfo: Hashable, Sendable {
         self.size = root?["size"].flatMap(Int.init) ?? root?.children.count ?? 0
     }
 
-    /// Exclusive end index.
     var end: Int { min(start + size, total) }
     var hasPrevious: Bool { start > 0 }
     var hasNext: Bool { end < total }
 
-    /// Page size to keep using; a count-only response (size 0) gets the default.
     var pageSize: Int { size > 0 ? size : Self.defaultPageSize }
 
     var label: String {

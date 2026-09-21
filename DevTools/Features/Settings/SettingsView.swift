@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// ⌘, — one home for defaults that used to be scattered across menus and
-/// view chrome. Tabbed from day one so new groups have somewhere to go.
 struct SettingsView: View {
     @Environment(RequestStore.self) private var requests
     @AppStorage("rawWrapLines") private var wrapLines = true

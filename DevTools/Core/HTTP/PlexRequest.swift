@@ -28,8 +28,6 @@ enum AcceptFormat: String, Codable, Sendable, CaseIterable, Identifiable {
     }
 }
 
-/// An editable GET request against a Plex server. Everything the request
-/// builder can change lives here; `PlexHTTP` turns it into a `URLRequest`.
 struct PlexRequest: Hashable, Codable, Sendable {
     var path: String
     var query: [QueryParam] = []
@@ -40,7 +38,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         self.path = path
     }
 
-    /// `path` plus enabled params, for compact display.
     var summary: String {
         let enabled = query.filter(\.enabled)
         guard !enabled.isEmpty else { return path }
@@ -63,7 +60,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return components.url
     }
 
-    /// Separates `/library/sections?type=1` into `/library/sections` and `[type=1]`.
     static func splitPath(_ raw: String) -> (path: String, query: [URLQueryItem]) {
         guard let qIndex = raw.firstIndex(of: "?") else { return (raw, []) }
         let path = String(raw[..<qIndex])

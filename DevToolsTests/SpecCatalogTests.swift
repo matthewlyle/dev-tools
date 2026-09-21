@@ -23,14 +23,12 @@ struct SpecCatalogTests {
     @Test func groupsFilterByTemplateSummaryOrTag() {
         #expect(catalog.groups(matching: "   ").count == catalog.groups.count)
 
-        // Template hit: only matching operations survive, empty groups vanish.
         let sections = catalog.groups(matching: "library/sections")
         #expect(!sections.isEmpty)
         #expect(sections.allSatisfy { group in
             group.operations.allSatisfy { $0.template.localizedCaseInsensitiveContains("library/sections") }
         })
 
-        // Tag hit keeps the whole group, even operations whose template doesn't match.
         let library = catalog.groups(matching: "library").first { $0.name == "Library" }
         #expect(library?.operations.count == catalog.groups.first { $0.name == "Library" }?.operations.count)
 

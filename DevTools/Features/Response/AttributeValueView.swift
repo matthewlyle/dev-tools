@@ -1,11 +1,8 @@
 import SwiftUI
 
-/// Renders one attribute value: a navigable button for server paths, a
-/// `Link` for external URLs, else text with a friendlier form when known.
 struct AttributeValueView: View {
     let attribute: Attribute
     let server: ConnectedServer?
-    /// Request path relative keys resolve against; defaults to the address bar.
     var basePath: String? = nil
 
     @Environment(RequestStore.self) private var requests
@@ -60,7 +57,6 @@ struct AttributeValueView: View {
     }
 }
 
-/// Two-column name/value grid for a node's attributes.
 struct AttributeGrid: View {
     let attributes: [Attribute]
     let server: ConnectedServer?

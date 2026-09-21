@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// What you're doing with the selected server. The server is the context;
-/// these are views onto it, never peers of it.
 enum ServerSection: String, CaseIterable, Identifiable {
     case endpoints = "Endpoints"
     case history = "History"

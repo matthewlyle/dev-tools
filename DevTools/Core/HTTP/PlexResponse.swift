@@ -1,7 +1,5 @@
 import Foundation
 
-/// The raw outcome of one request. Bytes are the source of truth; every view
-/// derives from `body` + `contentType`.
 struct PlexResponse: Sendable, Hashable {
     let url: URL
     let status: Int

@@ -1,15 +1,11 @@
 import Foundation
 
-/// Decides which attributes are navigable and resolves their values.
 enum LinkDetector {
     enum Link: Hashable {
-        /// A path on the current server.
         case server(path: String)
-        /// An absolute URL we can't browse in-app (metadata CDN, `view://`, …).
         case external(URL)
     }
 
-    /// Attributes whose values address server resources.
     static let navigableAttributes: Set<String> = [
         "key", "parentKey", "grandparentKey", "librarySectionKey", "hubKey",
         "thumb", "parentThumb", "grandparentThumb",
@@ -18,7 +14,6 @@ enum LinkDetector {
         "composite", "banner",
     ]
 
-    /// Attributes that address images, rendered inline in the Pretty view.
     static let imageAttributes: Set<String> = [
         "thumb", "parentThumb", "grandparentThumb",
         "art", "parentArt", "grandparentArt",
@@ -46,8 +41,6 @@ enum LinkDetector {
         return .server(path: joined.hasPrefix("/") ? joined : "/" + joined)
     }
 
-    /// A URL that renders the image at `value` using the server's transcoder
-    /// for server paths, or directly for absolute URLs.
     static func imageURL(for value: String, server: ConnectedServer, height: Int) -> URL? {
         if value.contains("://") { return URL(string: value) }
         var components = URLComponents(url: server.baseURL, resolvingAgainstBaseURL: false)!

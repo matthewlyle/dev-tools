@@ -1,10 +1,6 @@
 import Foundation
 
-/// Human-friendly renderings of well-known Plex attributes. Name-based
-/// heuristics: the API is untyped on the wire, but its naming is consistent.
 enum ValueFormatter {
-    /// Returns a display string if `attribute` has a known richer form,
-    /// otherwise nil (caller shows the raw value).
     static func display(_ attribute: Attribute) -> String? {
         let name = attribute.name
         let value = attribute.value

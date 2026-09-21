@@ -29,7 +29,6 @@ enum PlexTVError: Error, LocalizedError {
     }
 }
 
-/// Talks to plex.tv: PIN auth, the signed-in account, and the resource list.
 struct PlexTVClient: Sendable {
     static let host = URL(string: "https://plex.tv")!
 
@@ -44,8 +43,6 @@ struct PlexTVClient: Sendable {
         self.identity = identity
     }
 
-    // MARK: PIN auth
-
     func createPIN() async throws -> PlexPIN {
         var components = URLComponents(url: Self.host.appending(path: "api/v2/pins"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "strong", value: "true")]
@@ -54,13 +51,11 @@ struct PlexTVClient: Sendable {
         return try await decode(PlexPIN.self, from: request)
     }
 
-    /// Returns the PIN with `authToken` populated once the user approves.
     func pollPIN(id: Int) async throws -> PlexPIN {
         let request = makeRequest(Self.host.appending(path: "api/v2/pins/\(id)"))
         return try await decode(PlexPIN.self, from: request)
     }
 
-    /// URL the user opens to approve a PIN.
     func approvalURL(for pin: PlexPIN) -> URL {
         var fragment = URLComponents()
         fragment.queryItems = [
@@ -74,14 +69,10 @@ struct PlexTVClient: Sendable {
         return url.url!
     }
 
-    // MARK: Account
-
     func currentUser(token: String) async throws -> PlexUser {
         let request = makeRequest(Self.host.appending(path: "api/v2/user"), token: token)
         return try await decode(PlexUser.self, from: request)
     }
-
-    // MARK: Resources
 
     func resources(token: String) async throws -> [PlexResource] {
         var components = URLComponents(url: Self.host.appending(path: "api/v2/resources"), resolvingAgainstBaseURL: false)!
@@ -112,8 +103,6 @@ struct PlexTVClient: Sendable {
         }
         return avatars
     }
-
-    // MARK: Plumbing
 
     private func makeRequest(_ url: URL, token: String? = nil) -> URLRequest {
         var request = URLRequest(url: url)

@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Requests sent to one server, newest first, filterable by status.
 struct HistoryListView: View {
     let serverID: String
 
@@ -13,7 +12,6 @@ struct HistoryListView: View {
     private enum StatusFilter: Hashable {
         case any
         case code(Int)
-        /// No response at all: transport error, timeout, cancelled.
         case failed
 
         func matches(_ entry: HistoryEntry) -> Bool {
@@ -33,12 +31,10 @@ struct HistoryListView: View {
         }
     }
 
-    /// This server's entries, before the status filter.
     private var scoped: [HistoryEntry] {
         requests.history.filter { $0.serverID == serverID }
     }
 
-    /// Status codes that appear in this server's history, ascending, then Failed if any.
     private var statusOptions: [StatusFilter] {
         var codes = Set<Int>()
         var anyFailed = false
@@ -61,8 +57,6 @@ struct HistoryListView: View {
         }
     }
 
-    /// Column layout is too narrow for a multicolumn table (Mail makes the
-    /// same call), so rows carry two lines and sorting lives in a menu.
     private enum Sort: String, CaseIterable, Identifiable {
         case newest = "Newest First"
         case oldest = "Oldest First"
@@ -93,16 +87,12 @@ struct HistoryListView: View {
         }
         .listStyle(.inset)
         .onChange(of: selection) { _, id in
-            // Selecting a row loads it into the request bar, like picking a
-            // message in Mail; nothing is sent until you press Send.
             guard let entry = rows.first(where: { $0.id == id }) else { return }
             requests.load(entry)
         }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
         .toolbar {
             ToolbarItem {
-                // One menu for sort + status so the column's toolbar section
-                // stays uncrowded; checkmarks show the state in effect.
                 Menu {
                     Picker("Sort By", selection: $sort) {
                         ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
@@ -159,9 +149,6 @@ struct HistoryListView: View {
     }
 }
 
-/// Status and path on the first line, timing on the second. The path has
-/// any token masked: the server's own wherever it appears, plus
-/// `X-Plex-Token=…` pairs typed into the path.
 private struct HistoryRow: View {
     let entry: HistoryEntry
 

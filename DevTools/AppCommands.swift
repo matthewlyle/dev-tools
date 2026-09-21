@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Published by the History section while it has something to clear;
-/// absent → the menu command is disabled. Equatable by scope so the menu
-/// isn't invalidated every time the list re-renders.
 struct ClearHistoryAction: Equatable {
     let serverID: String
     let run: () -> Void
@@ -14,8 +11,6 @@ extension FocusedValues {
     @Entry var clearHistory: ClearHistoryAction?
 }
 
-/// Menu bar. Every toolbar item has a command here — toolbars are
-/// customizable and hideable, so they can't be a command's only home.
 struct AppCommands: Commands {
     let account: AccountStore
     let servers: ServerStore
@@ -30,7 +25,6 @@ struct AppCommands: Commands {
     }
 
     var body: some Commands {
-        // View menu: which section of the server is showing, and display toggles.
         CommandGroup(after: .sidebar) {
             Divider()
             Picker("Section", selection: $section) {

@@ -52,7 +52,6 @@ enum JSONFormatter {
                 out.append(c)
                 let closer = c == openBrace ? closeBrace : closeBracket
                 if nextNonWhitespace(after: i + 1) == closer {
-                    // Empty container: emit "{}" / "[]" on one line.
                     var j = i + 1
                     while j < n, isWhitespace(input[j]) { j += 1 }
                     out.append(closer)

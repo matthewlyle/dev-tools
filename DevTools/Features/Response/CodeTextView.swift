@@ -1,17 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// Read-only monospaced text with token colouring and code folding.
-/// NSTextView handles multi-megabyte bodies, selection, and ⌘F where SwiftUI
-/// `Text` can't. Folding is rendered by substituting collapsed spans with a
-/// `⋯ N` placeholder; openers and placeholders carry `fold://` links.
 struct CodeTextView: NSViewRepresentable {
     let text: String
     let tokens: [Token]
     let folds: [FoldRegion]
     @Binding var collapsed: Set<Int>
     let wrap: Bool
-    /// Changes when the underlying response changes.
     let version: Date
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -62,7 +57,6 @@ struct CodeTextView: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.minSize = .zero
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        // Links keep the token colour; only the cursor gives them away.
         textView.linkTextAttributes = [.cursor: NSCursor.pointingHand]
         return scrollView
     }
@@ -85,7 +79,6 @@ struct CodeTextView: NSViewRepresentable {
                 let rendered = await Task.detached(priority: .userInitiated) {
                     Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed)
                 }.value
-                // A newer response or fold change superseded this render.
                 guard !Task.isCancelled,
                       coordinator.appliedVersion == version,
                       coordinator.appliedCollapsed == collapsed
@@ -107,8 +100,6 @@ struct CodeTextView: NSViewRepresentable {
         }
     }
 
-    // MARK: Rendering
-
     private static let font = Typeface.code(size: 12)
     private static let placeholderAttributes: [NSAttributedString.Key: Any] = [
         .font: font,
@@ -116,9 +107,6 @@ struct CodeTextView: NSViewRepresentable {
         .backgroundColor: NSColor.quaternaryLabelColor.withAlphaComponent(0.25),
     ]
 
-    /// Builds the displayed string: original text with each effective
-    /// collapsed region replaced by a placeholder, token colours re-applied at
-    /// shifted offsets, and fold links on anchors and placeholders.
     private nonisolated static func render(text: String, tokens: [Token], folds: [FoldRegion], collapsed: Set<Int>) -> Rendered {
         let source = text as NSString
         let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
@@ -147,7 +135,6 @@ struct CodeTextView: NSViewRepresentable {
             tokenIndex = index
         }
 
-        // Anchors are clickable whether or not their region is collapsed.
         var anchorOffsets: [(region: FoldRegion, offset: Int)] = []
         var anchorIndex = 0
         let anchorsByStart = folds.sorted { $0.anchor.location < $1.anchor.location }
@@ -170,7 +157,6 @@ struct CodeTextView: NSViewRepresentable {
             placeholder.addAttribute(.link, value: URL(string: "fold://\(region.id)")!, range: NSRange(location: 0, length: placeholder.length))
             result.append(placeholder)
             cursor = region.hiddenEnd
-            // Skip anchors that were inside the hidden span.
             while anchorIndex < anchorsByStart.count, anchorsByStart[anchorIndex].anchor.location < cursor { anchorIndex += 1 }
         }
         let tailOffset = result.length - cursor
