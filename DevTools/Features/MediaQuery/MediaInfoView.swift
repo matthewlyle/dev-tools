@@ -66,7 +66,7 @@ struct MediaInfoView: View {
                             GridRow {
                                 Text(group.name)
                                     .foregroundStyle(.secondary)
-                                    .gridColumnAlignment(.trailing)
+                                    .gridColumnAlignment(.leading)
                                 Text(group.tags.joined(separator: ", "))
                                     .textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,7 +137,7 @@ private struct AttributeTable: View {
                     Text(attribute.name)
                         .font(.body)
                         .foregroundStyle(.secondary)
-                        .gridColumnAlignment(.trailing)
+                        .gridColumnAlignment(.leading)
                     value(for: attribute)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
