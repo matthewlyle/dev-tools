@@ -18,7 +18,12 @@ enum ServerSection: String, CaseIterable, Identifiable {
 
 struct MainSplitView: View {
     @Environment(ServerStore.self) private var servers
+    @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
+
+    private var connected: ConnectedServer? {
+        servers.selected.flatMap { servers.connectedServer(for: $0) }
+    }
 
     var body: some View {
         @Bindable var servers = servers
@@ -44,8 +49,14 @@ struct MainSplitView: View {
             if section == .activity {
                 ActivityEventsView()
             } else {
-                WorkspaceView()
+                WorkspaceView(editable: section == .endpoints)
             }
+        }
+        .task(id: connected?.machineID) {
+            if let connected { await requests.preloadSections(on: connected) }
+        }
+        .onChange(of: section) { _, _ in
+            requests.reset()
         }
     }
 }

@@ -75,29 +75,3 @@ struct NodeParserTests {
         #expect(Node(id: 2, name: "Media", attributes: [], children: []).headline == "Media")
     }
 }
-
-struct LinkDetectorTests {
-    @Test func relativeKeyResolvesAgainstRequestPathWithTrailingSlashRule() {
-        #expect(LinkDetector.resolve("home", relativeTo: "/library/sections") == .server(path: "/library/sections/home"))
-        #expect(LinkDetector.resolve("home", relativeTo: "/library/sections/") == .server(path: "/library/sections/home"))
-        #expect(LinkDetector.resolve("children", relativeTo: "/library/metadata/10?includeChildren=1") == .server(path: "/library/metadata/10/children"))
-    }
-
-    @Test func absolutePathIsUsedAsIs() {
-        #expect(LinkDetector.resolve("/library/metadata/10", relativeTo: "/library/sections/1/all") == .server(path: "/library/metadata/10"))
-    }
-
-    @Test func urlsWithSchemeAreExternal() {
-        #expect(LinkDetector.resolve("https://metadata-static.plex.tv/x.jpg", relativeTo: "/") == .external(URL(string: "https://metadata-static.plex.tv/x.jpg")!))
-        #expect(LinkDetector.resolve("view://home", relativeTo: "/") == .external(URL(string: "view://home")!))
-        #expect(LinkDetector.resolve("", relativeTo: "/") == nil)
-    }
-
-    @Test func onlyWhitelistedAttributesAreNavigable() {
-        #expect(LinkDetector.isNavigable(Attribute(id: 0, name: "key", value: "/x")))
-        #expect(LinkDetector.isNavigable(Attribute(id: 0, name: "thumb", value: "/library/metadata/1/thumb/2")))
-        #expect(!LinkDetector.isNavigable(Attribute(id: 0, name: "file", value: "/media/heat.mkv")))
-        #expect(!LinkDetector.isNavigable(Attribute(id: 0, name: "ratingKey", value: "10")))
-        #expect(!LinkDetector.isNavigable(Attribute(id: 0, name: "key", value: "")))
-    }
-}

@@ -92,6 +92,13 @@ final class RequestStore {
         perform(request, on: server)
     }
 
+    /// Re-runs a request chosen from history: shows the response without
+    /// recording a new history entry for the replay.
+    func replay(_ entry: HistoryEntry, on server: ConnectedServer) {
+        load(entry)
+        perform(current, on: server, recordHistory: false)
+    }
+
     func open(path: String, on server: ConnectedServer) {
         editingSavedID = nil
         current.path = path
@@ -135,7 +142,7 @@ final class RequestStore {
         perform(next, on: server)
     }
 
-    private func perform(_ request: PlexRequest, on server: ConnectedServer) {
+    private func perform(_ request: PlexRequest, on server: ConnectedServer, recordHistory: Bool = true) {
         sendTask?.cancel()
         isSending = true
         errorMessage = nil
@@ -147,7 +154,7 @@ final class RequestStore {
                 guard !Task.isCancelled else { return }
                 response = result
                 document = nil
-                record(request, server: server, status: result.status, duration: result.duration, error: nil)
+                if recordHistory { record(request, server: server, status: result.status, duration: result.duration, error: nil) }
                 isSending = false
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
@@ -163,7 +170,7 @@ final class RequestStore {
                 document = nil
                 let message = (error as? URLError)?.shortDescription ?? error.localizedDescription
                 errorMessage = message
-                record(request, server: server, status: nil, duration: nil, error: message)
+                if recordHistory { record(request, server: server, status: nil, duration: nil, error: message) }
                 isSending = false
             }
         }
@@ -193,40 +200,27 @@ final class RequestStore {
         send(to: server)
     }
 
-    struct Peek: Sendable {
-        let document: ResponseDocument
-        let pagination: PaginationInfo?
-    }
-
-    enum PeekError: Error, LocalizedError {
-        case status(Int)
-
-        var errorDescription: String? {
-            switch self {
-            case .status(let code): "HTTP \(code)"
-            }
-        }
-    }
-
-    func peek(path: String, on server: ConnectedServer, start: Int = 0, size: Int = 100) async throws -> Peek {
-        var request = PlexRequest(path: path)
-        request.accept = current.accept
-        request.headers = [
-            HeaderField(name: "X-Plex-Container-Start", value: String(start)),
-            HeaderField(name: "X-Plex-Container-Size", value: String(size)),
-        ]
-        let response = try await http.send(request, to: server)
-        guard response.status == 200 else { throw PeekError.status(response.status) }
-        let document = await ResponseDocument.make(from: response)
-        if let root = document.tree { memory.record(root: root, serverID: server.machineID) }
-        return Peek(document: document, pagination: PaginationInfo(response: response, root: document.tree))
-    }
-
     struct SectionOption: Identifiable, Hashable, Sendable {
         var id: String { key }
         let key: String
         let title: String
         let type: String
+    }
+
+    private(set) var sectionsByServer: [String: [SectionOption]] = [:]
+
+    func sections(for server: ConnectedServer) -> [SectionOption] {
+        sectionsByServer[server.machineID] ?? []
+    }
+
+    /// Warm the section cache so placeholder pickers fill without a fetch. A
+    /// miss fetches; an existing cache is kept unless `force`. A failed fetch
+    /// returns empty and is never cached, so it retries next time.
+    func preloadSections(on server: ConnectedServer, force: Bool = false) async {
+        if !force, sectionsByServer[server.machineID]?.isEmpty == false { return }
+        let fetched = await fetchSections(on: server)
+        guard !fetched.isEmpty else { return }
+        sectionsByServer[server.machineID] = fetched
     }
 
     func fetchSections(on server: ConnectedServer) async -> [SectionOption] {
@@ -245,6 +239,22 @@ final class RequestStore {
         sendTask?.cancel()
         sendTask = nil
         isSending = false
+    }
+
+    /// Returns the workspace to a clean request: default path, no response,
+    /// no navigation history. Used when the visible section changes so stale
+    /// results don't linger under a different tab.
+    func reset() {
+        cancel()
+        current = PlexRequest(path: "/")
+        current.accept = acceptFormat
+        response = nil
+        document = nil
+        errorMessage = nil
+        lastSent = nil
+        backStack = []
+        forwardStack = []
+        editingSavedID = nil
     }
 
     func requestPathFocus() {

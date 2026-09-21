@@ -35,6 +35,7 @@ struct EndpointListView: View {
                 Section("Saved") {
                     ForEach(savedRows) { item in
                         SavedRequestRow(item: item, serverID: serverID, disabled: server == nil)
+                            .listRowSeparator(.hidden)
                     }
                 }
             }
@@ -44,6 +45,7 @@ struct EndpointListView: View {
                         EndpointRow(operation: operation, disabled: server == nil, shared: server?.owned == false) {
                             open(operation)
                         }
+                        .listRowSeparator(.hidden)
                     }
                 }
             }
@@ -79,9 +81,9 @@ struct EndpointListView: View {
     }
 }
 
-/// One catalog row. Admin-only operations carry a lock; on a server you
-/// don't own they're dimmed with the reason, but still clickable — seeing
-/// the 403 is part of exploring the API.
+/// One catalog row. On a server you don't own, admin-only operations carry a
+/// lock and are dimmed with the reason, but stay clickable — seeing the 403 is
+/// part of exploring the API.
 private struct EndpointRow: View {
     let operation: SpecOperation
     let disabled: Bool
@@ -98,7 +100,7 @@ private struct EndpointRow: View {
                         .font(.code(.callout))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    if operation.access == .admin {
+                    if lockedOut {
                         Image(systemName: "lock")
                             .font(.caption)
                             .foregroundStyle(.secondary)

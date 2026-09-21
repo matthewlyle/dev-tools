@@ -2,6 +2,12 @@ import SwiftUI
 
 struct SignInView: View {
     @Environment(AccountStore.self) private var account
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isAwaitingApproval: Bool {
+        if case .awaitingApproval = account.state { return true }
+        return false
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -13,12 +19,15 @@ struct SignInView: View {
             Text("Plex Dev Tools")
                 .font(.largeTitle.weight(.semibold))
 
-            switch account.state {
-            case .awaitingApproval(let pin):
-                approval(pin)
-            default:
-                signedOut
+            Group {
+                switch account.state {
+                case .awaitingApproval(let pin):
+                    approval(pin)
+                default:
+                    signedOut
+                }
             }
+            .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: isAwaitingApproval)
 
             if let message = account.errorMessage {
                 Text(message)

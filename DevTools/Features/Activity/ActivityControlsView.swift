@@ -46,50 +46,41 @@ struct ActivityControlsView: View {
                             .disabled(selectedServer == nil)
                         }
                         Spacer()
-                        Button {
-                            activity.isPaused.toggle()
-                        } label: {
-                            Label(activity.isPaused ? "Resume" : "Pause", systemImage: activity.isPaused ? "play.fill" : "pause.fill")
+                        if !activity.events.isEmpty {
+                            Button {
+                                activity.clear()
+                            } label: {
+                                Label("Clear", systemImage: "trash")
+                            }
                         }
-                        .help(activity.isPaused ? "Resume and show \(activity.pausedCount) held events" : "Freeze the list; the connection stays open")
-                        Button {
-                            activity.clear()
-                        } label: {
-                            Label("Clear", systemImage: "trash")
-                        }
-                        .disabled(activity.events.isEmpty)
                     }
                     .controlSize(.small)
-
-                    if activity.isPaused, activity.pausedCount > 0 {
-                        Text("\(activity.pausedCount) events held while paused")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
                 }
                 .padding(.vertical, 4)
             }
 
-            Section("Event Types") {
-                if activity.typeCounts.isEmpty {
-                    Text("No events yet")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(activity.typeCounts.sorted { $0.key < $1.key }, id: \.key) { type, count in
-                        Toggle(isOn: Binding(
-                            get: { !activity.hiddenTypes.contains(type) },
-                            set: { _ in activity.toggle(type: type) }
-                        )) {
-                            HStack {
-                                EventTypeBadge(type: type)
-                                Spacer()
-                                Text(count.formatted())
-                                    .font(.code(.caption))
-                                    .foregroundStyle(.secondary)
+            if !activity.typeCounts.isEmpty || activity.status.isActive {
+                Section("Event Types") {
+                    if activity.typeCounts.isEmpty {
+                        Text("No events yet")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(activity.typeCounts.sorted { $0.key < $1.key }, id: \.key) { type, count in
+                            Toggle(isOn: Binding(
+                                get: { !activity.hiddenTypes.contains(type) },
+                                set: { _ in activity.toggle(type: type) }
+                            )) {
+                                HStack {
+                                    EventTypeBadge(type: type)
+                                    Spacer()
+                                    Text(count.formatted())
+                                        .font(.code(.caption))
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .toggleStyle(.checkbox)
                         }
-                        .toggleStyle(.checkbox)
                     }
                 }
             }

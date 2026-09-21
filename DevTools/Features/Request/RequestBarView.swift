@@ -7,6 +7,7 @@ struct RequestBarView: View {
     @Environment(SpecStore.self) private var spec
     @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showParameters = false
     @State private var showDocs = false
     @State private var showSave = false
@@ -70,6 +71,7 @@ struct RequestBarView: View {
                     }
                 }
                 .buttonStyle(.glassProminent)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.15), value: requests.isSending)
                 .disabled(server == nil || requests.isSending)
             }
 

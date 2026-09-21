@@ -23,14 +23,6 @@ struct ServerDetailView: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
-                    if entry.resource.owned {
-                        Text("Owned")
-                            .font(.caption2.weight(.medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.tint.opacity(0.15), in: .capsule)
-                            .foregroundStyle(.tint)
-                    }
                 }
                 connectionLine
             }

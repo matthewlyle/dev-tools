@@ -3,6 +3,7 @@ import SwiftUI
 struct HeadersView: View {
     let response: PlexResponse?
     let server: ConnectedServer?
+    var editable: Bool = true
 
     @Environment(RequestStore.self) private var requests
     @Environment(SpecStore.self) private var spec
@@ -28,13 +29,34 @@ struct HeadersView: View {
                 Text("Request")
                     .font(.headline)
 
-                KeyValueEditor(
-                    items: $requests.current.headers,
-                    namePlaceholder: "Header-Name",
-                    valuePlaceholder: "value",
-                    suggestions: spec.catalog?.documentedHeaders ?? []
-                ) { name, value in
-                    HeaderField(name: name, value: value)
+                if editable {
+                    KeyValueEditor(
+                        items: $requests.current.headers,
+                        namePlaceholder: "Header-Name",
+                        valuePlaceholder: "value",
+                        suggestions: spec.catalog?.documentedHeaders ?? []
+                    ) { name, value in
+                        HeaderField(name: name, value: value)
+                    }
+                } else {
+                    let sent = requests.current.headers.filter(\.enabled)
+                    if sent.isEmpty {
+                        Text("No custom headers")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 3) {
+                            ForEach(sent, id: \.name) { header in
+                                GridRow {
+                                    Text(header.name)
+                                        .foregroundStyle(.secondary)
+                                    Text(header.value)
+                                        .font(.code(.caption))
+                                        .textSelection(.enabled)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 DisclosureGroup(isExpanded: $showImplicit) {

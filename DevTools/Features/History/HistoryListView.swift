@@ -4,6 +4,11 @@ struct HistoryListView: View {
     let serverID: String
 
     @Environment(RequestStore.self) private var requests
+    @Environment(ServerStore.self) private var servers
+
+    private var connected: ConnectedServer? {
+        servers.entry(id: serverID).flatMap { servers.connectedServer(for: $0) }
+    }
 
     @State private var statusFilter: StatusFilter = .any
     @State private var search = ""
@@ -84,11 +89,15 @@ struct HistoryListView: View {
         List(rows, selection: $selection) { entry in
             HistoryRow(entry: entry)
                 .tag(entry.id)
+                .listRowSeparator(.hidden)
         }
         .listStyle(.inset)
         .onChange(of: selection) { _, id in
-            guard let entry = rows.first(where: { $0.id == id }) else { return }
-            requests.load(entry)
+            guard let entry = rows.first(where: { $0.id == id }), let connected else { return }
+            requests.replay(entry, on: connected)
+        }
+        .onAppear {
+            if selection == nil { selection = rows.first?.id }
         }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
         .toolbar {

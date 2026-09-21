@@ -6,27 +6,35 @@ struct ActivityEventsView: View {
     var body: some View {
         @Bindable var activity = activity
 
-        HSplitView {
-            List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
-                EventRow(event: event)
-                    .tag(event.id)
-            }
-            .listStyle(.inset)
-            .frame(minWidth: 320, idealWidth: 460)
-            .overlay {
-                if activity.visibleEvents.isEmpty {
-                    ContentUnavailableView(
-                        activity.status.isActive ? "Waiting for Events" : "Not Connected",
-                        systemImage: "dot.radiowaves.left.and.right",
-                        description: Text(activity.status.isActive
-                            ? "Start playback or a library scan on any client."
-                            : "Connect in the Activity panel to stream notifications.")
-                    )
+        Group {
+            if activity.events.isEmpty, !activity.status.isActive {
+                // Disconnected with nothing captured: the Connect button in the
+                // Activity panel is the only affordance, so this pane stays empty.
+                Color.clear
+            } else {
+                HSplitView {
+                    List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
+                        EventRow(event: event)
+                            .tag(event.id)
+                    }
+                    .listStyle(.inset)
+                    .frame(minWidth: 320, idealWidth: 460)
+                    .overlay {
+                        if activity.visibleEvents.isEmpty, activity.status.isActive {
+                            ContentUnavailableView(
+                                "Waiting for Events",
+                                systemImage: "dot.radiowaves.left.and.right",
+                                description: Text("Start playback or a library scan on any client.")
+                            )
+                        }
+                    }
+
+                    if !activity.visibleEvents.isEmpty {
+                        EventInspector(event: activity.selectedEvent)
+                            .frame(minWidth: 320)
+                    }
                 }
             }
-
-            EventInspector(event: activity.selectedEvent)
-                .frame(minWidth: 320)
         }
         .navigationTitle("Activity")
         .navigationSubtitle(subtitle)
@@ -35,7 +43,6 @@ struct ActivityEventsView: View {
     private var subtitle: String {
         var parts = ["\(activity.events.count.formatted()) events"]
         if !activity.hiddenTypes.isEmpty { parts.append("\(activity.visibleEvents.count.formatted()) shown") }
-        if activity.isPaused { parts.append("paused") }
         return parts.joined(separator: " · ")
     }
 }

@@ -96,12 +96,16 @@ struct PlaceholderSheet: View {
                     ?? server.flatMap { memory.lastUsed(placeholder: name, serverID: $0.machineID) }
                     ?? ""
             }
+            if let server { sections = requests.sections(for: server) }
         }
         .task {
             guard needsSections, let server else { return }
-            loadingSections = true
-            sections = await requests.fetchSections(on: server)
-            loadingSections = false
+            if sections.isEmpty {
+                loadingSections = true
+                await requests.preloadSections(on: server, force: true)
+                sections = requests.sections(for: server)
+                loadingSections = false
+            }
             if sections.count == 1, values["sectionId", default: ""].isEmpty {
                 values["sectionId"] = sections[0].key
             }

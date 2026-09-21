@@ -30,17 +30,6 @@ final class ActivityStore {
     var hiddenTypes: Set<String> = []
     var selectedEventID: UUID?
 
-    var isPaused = false {
-        didSet {
-            if !isPaused, !pausedBuffer.isEmpty {
-                append(pausedBuffer)
-                pausedBuffer.removeAll()
-            }
-        }
-    }
-    private(set) var pausedCount = 0
-    private var pausedBuffer: [NotificationEvent] = []
-
     private let identity: ClientIdentity
     private var connection: Task<Void, Never>?
 
@@ -109,8 +98,6 @@ final class ActivityStore {
 
     func clear() {
         events.removeAll()
-        pausedBuffer.removeAll()
-        pausedCount = 0
         typeCounts.removeAll()
         selectedEventID = nil
     }
@@ -120,14 +107,7 @@ final class ActivityStore {
     }
 
     private func receive(_ text: String) {
-        let event = NotificationEvent.make(raw: text)
-        if isPaused {
-            pausedBuffer.append(event)
-            if pausedBuffer.count > Self.capacity { pausedBuffer.removeFirst() }
-            pausedCount = pausedBuffer.count
-        } else {
-            append([event])
-        }
+        append([NotificationEvent.make(raw: text)])
     }
 
     private func append(_ incoming: [NotificationEvent]) {
@@ -138,6 +118,5 @@ final class ActivityStore {
         if events.count > Self.capacity {
             events.removeLast(events.count - Self.capacity)
         }
-        pausedCount = 0
     }
 }

@@ -2,7 +2,6 @@ import SwiftUI
 
 enum ResponseTab: String, CaseIterable, Identifiable {
     case raw = "Raw"
-    case pretty = "Pretty"
     case headers = "Headers"
 
     var id: String { rawValue }
@@ -10,6 +9,7 @@ enum ResponseTab: String, CaseIterable, Identifiable {
 
 struct ResponseView: View {
     let server: ConnectedServer?
+    let editable: Bool
 
     @Environment(RequestStore.self) private var requests
     @Environment(SpecStore.self) private var spec
@@ -38,65 +38,64 @@ struct ResponseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                if let response = requests.response {
+            if let response = requests.response {
+                HStack(spacing: 10) {
                     ResponseStatusBar(response: response)
-                }
-                if let pagination = requests.pagination {
-                    PaginationControls(pagination: pagination, server: server)
-                }
-                Spacer()
-                Picker("View", selection: $tab) {
-                    ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            Divider()
-
-            if tab == .headers {
-                HeadersView(response: requests.response, server: server)
-            } else if let response = requests.response {
-                if let hint = missingParameterHint {
-                    MissingParametersHint(parameters: hint) {
-                        for parameter in hint where requests.current.query.allSatisfy({ $0.name != parameter.name }) {
-                            requests.current.query.append(QueryParam(name: parameter.name, value: parameter.suggestedValue))
-                        }
-                        requests.revealParameters()
+                    if let pagination = requests.pagination {
+                        PaginationControls(pagination: pagination, server: server)
                     }
+                    Spacer()
+                    Picker("View", selection: $tab) {
+                        ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                if let operation = adminOnlyHint {
-                    AccessHint(operation: operation)
-                }
-                if let document = requests.document {
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
+                Divider()
+
+                Group {
+                    if let hint = missingParameterHint {
+                        MissingParametersHint(parameters: hint) {
+                            for parameter in hint where requests.current.query.allSatisfy({ $0.name != parameter.name }) {
+                                requests.current.query.append(QueryParam(name: parameter.name, value: parameter.suggestedValue))
+                            }
+                            requests.revealParameters()
+                        }
+                    }
+                    if let operation = adminOnlyHint {
+                        AccessHint(operation: operation)
+                    }
                     switch tab {
                     case .raw:
-                        RawResponseView(document: document, response: response)
-                    case .pretty:
-                        PrettyView(document: document, response: response, server: server)
+                        if let document = requests.document {
+                            RawResponseView(document: document, response: response)
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     case .headers:
-                        EmptyView()
+                        HeadersView(response: response, server: server, editable: editable)
                     }
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = requests.errorMessage {
                 ContentUnavailableView(
                     "Request Failed",
                     systemImage: "exclamationmark.triangle",
                     description: Text(error)
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     "No Response",
                     systemImage: "paperplane",
                     description: Text("Send a request to see the response here.")
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
