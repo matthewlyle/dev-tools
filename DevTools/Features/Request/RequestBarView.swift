@@ -20,6 +20,11 @@ struct RequestBarView: View {
         requests.document?.tree.map(ResponseShape.init(root:))
     }
 
+    /// The saved request the bar was loaded from, while that session lasts.
+    private var editingSaved: SavedRequest? {
+        requests.editingSavedID.flatMap { id in saved.saved.first { $0.id == id } }
+    }
+
     var body: some View {
         @Bindable var requests = requests
 
@@ -98,12 +103,12 @@ struct RequestBarView: View {
                 Button {
                     showSave = true
                 } label: {
-                    Label("Save Request", systemImage: "bookmark")
+                    Label(editingSaved == nil ? "Save Request" : "Update Saved Request", systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.borderless)
                 .disabled(server == nil)
-                .help("Save this request (⌘S)")
+                .help(editingSaved.map { "Editing “\($0.name)” — update it or save as new (⌘S)" } ?? "Save this request (⌘S)")
                 Menu {
                     Button("Copy as cURL") { copyCurl() }
                 } label: {
@@ -130,14 +135,32 @@ struct RequestBarView: View {
             if server != nil { showSave = true }
         }
         .sheet(isPresented: $showSave) {
-            SaveRequestSheet(
-                title: "Save Request",
-                name: operation?.summary ?? requests.current.path,
-                notes: "",
-                action: "Save"
-            ) { name, notes in
-                guard let server else { return }
-                saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+            if let server {
+                let summary = requests.redactedSummary(of: requests.current, token: server.accessToken)
+                if let editing = editingSaved {
+                    SaveRequestSheet(
+                        title: "Update Request",
+                        name: editing.name,
+                        notes: editing.notes,
+                        summary: summary,
+                        action: "Update",
+                        secondary: ("Save as New", { name, notes in
+                            saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+                        })
+                    ) { name, notes in
+                        saved.update(id: editing.id, name: name, notes: notes, request: requests.current)
+                    }
+                } else {
+                    SaveRequestSheet(
+                        title: "Save Request",
+                        name: operation?.summary ?? requests.current.path,
+                        notes: "",
+                        summary: summary,
+                        action: "Save"
+                    ) { name, notes in
+                        saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+                    }
+                }
             }
         }
     }

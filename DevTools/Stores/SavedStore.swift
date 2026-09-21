@@ -25,10 +25,11 @@ final class SavedStore {
         return item
     }
 
-    func update(id: UUID, name: String, notes: String) {
+    func update(id: UUID, name: String, notes: String, request: PlexRequest? = nil) {
         guard let index = saved.firstIndex(where: { $0.id == id }) else { return }
         saved[index].name = name
         saved[index].notes = notes
+        if let request { saved[index].request = request }
         persist()
     }
 

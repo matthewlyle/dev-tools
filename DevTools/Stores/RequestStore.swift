@@ -91,12 +91,14 @@ final class RequestStore {
     }
 
     func open(path: String, on server: ConnectedServer) {
+        editingSavedID = nil
         current.path = path
         current.query = []
         send(to: server)
     }
 
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
+        editingSavedID = nil
         current.path = path
         current.query = operation.queryParameters
             .filter(\.required)
@@ -118,6 +120,7 @@ final class RequestStore {
     func goBack(on server: ConnectedServer) {
         guard let previous = backStack.popLast() else { return }
         if let lastSent { forwardStack.append(lastSent) }
+        editingSavedID = nil
         current = previous
         perform(previous, on: server)
     }
@@ -125,6 +128,7 @@ final class RequestStore {
     func goForward(on server: ConnectedServer) {
         guard let next = forwardStack.popLast() else { return }
         if let lastSent { backStack.append(lastSent) }
+        editingSavedID = nil
         current = next
         perform(next, on: server)
     }
@@ -278,8 +282,18 @@ final class RequestStore {
     /// Restores the path, params, and headers; the response format follows
     /// the app-wide setting, not what the request was last sent with.
     func load(_ request: PlexRequest) {
+        editingSavedID = nil
         current = request
         current.accept = acceptFormat
+    }
+
+    /// The saved request the bar was loaded from, if any. Edits keep it;
+    /// navigating anywhere else ends it. ⌘S offers Update while it's set.
+    private(set) var editingSavedID: UUID?
+
+    func load(saved item: SavedRequest) {
+        load(item.request)
+        editingSavedID = item.id
     }
 
     func load(_ entry: HistoryEntry) {

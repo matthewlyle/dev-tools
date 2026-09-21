@@ -124,12 +124,9 @@ dev-tools/
 
 ## Liquid Glass usage
 
-- Sidebar and inspector get system glass via `NavigationSplitView` automatically.
-- Floating response status bar: `.glassEffect(.regular, in: .capsule)`.
-- Query param chips and activity filter chips: `GlassEffectContainer` grouping so adjacent chips merge.
-- Toolbar: standard `ToolbarItem`s; system handles glass. No custom backgrounds behind toolbars.
-- Avoid stacking glass on glass; content areas (raw text, tree) stay opaque for readability.
-
+- Only where the system puts it: sidebar and toolbar via `NavigationSplitView`, the segmented section switcher and search field as toolbar items, and the Send button (`.glassProminent`).
+- No custom `glassEffect` anywhere. The HIG reserves glass for the controls/navigation layer floating above content; the response status readout, pagination, badges, and cards are content, so they use standard fills (`.fill.tertiary`, `.quaternary`).
+- Content areas (raw text, cards) stay opaque for readability.
 ## Milestones
 
 Each ends with a smoke-test proof, not a test suite.

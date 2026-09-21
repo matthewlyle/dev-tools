@@ -18,7 +18,7 @@ struct SavedRequestRow: View {
 
     var body: some View {
         Button {
-            requests.load(item.request)
+            requests.load(saved: item)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "bookmark.fill")
@@ -58,23 +58,39 @@ struct SavedRequestRow: View {
     }
 }
 
-/// Name and notes for a saved request — new or renamed.
+/// Name and notes for a saved request — new, renamed, or updated. Shows the
+/// request being kept so you can see what you're saving, not just its title.
 struct SaveRequestSheet: View {
     let title: String
     @State var name: String
     @State var notes: String
+    /// Path + params being saved; nil when only renaming.
+    var summary: String? = nil
     let action: String
+    /// An alternative commit, e.g. "Save as New" beside "Update".
+    var secondary: (title: String, commit: (_ name: String, _ notes: String) -> Void)? = nil
     let commit: (_ name: String, _ notes: String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @FocusState private var nameFocused: Bool
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
+    private var trimmedNotes: String { notes.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                if let summary {
+                    Text(summary)
+                        .font(.code(.callout))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+            }
 
             Form {
                 TextField("Name", text: $name)
@@ -89,8 +105,15 @@ struct SaveRequestSheet: View {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                if let secondary {
+                    Button(secondary.title) {
+                        secondary.commit(trimmedName, trimmedNotes)
+                        dismiss()
+                    }
+                    .disabled(trimmedName.isEmpty)
+                }
                 Button(action) {
-                    commit(trimmedName, notes.trimmingCharacters(in: .whitespacesAndNewlines))
+                    commit(trimmedName, trimmedNotes)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -99,7 +122,7 @@ struct SaveRequestSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: 460)
         .onAppear { nameFocused = true }
     }
 }

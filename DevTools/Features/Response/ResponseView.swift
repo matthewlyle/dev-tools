@@ -30,15 +30,11 @@ struct ResponseView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                GlassEffectContainer(spacing: 10) {
-                    HStack(spacing: 10) {
-                        if let response = requests.response {
-                            ResponseStatusBar(response: response)
-                        }
-                        if let pagination = requests.pagination {
-                            PaginationControls(pagination: pagination, server: server)
-                        }
-                    }
+                if let response = requests.response {
+                    ResponseStatusBar(response: response)
+                }
+                if let pagination = requests.pagination {
+                    PaginationControls(pagination: pagination, server: server)
                 }
                 Spacer()
                 Picker("View", selection: $tab) {
@@ -144,6 +140,7 @@ private struct PaginationControls: View {
             Text(pagination.label)
                 .font(.code(.callout))
                 .foregroundStyle(.secondary)
+                .contentTransition(.numericText(value: Double(pagination.start)))
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
             Button {
@@ -159,29 +156,39 @@ private struct PaginationControls: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        // Content layer, not chrome: a standard fill, not Liquid Glass.
+        .background(.fill.tertiary, in: .capsule)
+        .animation(.snappy, value: pagination.start)
     }
 }
 
 struct ResponseStatusBar: View {
     let response: PlexResponse
 
+    /// Digits roll in the direction they moved (200→404 up, 943 ms→5 ms
+    /// down) whenever a new response lands.
     var body: some View {
         HStack(spacing: 12) {
             Text(String(response.status))
                 .fontWeight(.semibold)
                 .foregroundStyle(statusColor)
+                .contentTransition(.numericText(value: Double(response.status)))
             Text(response.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow)))
+                .contentTransition(.numericText(value: Double(response.duration.milliseconds)))
             Text(response.byteCount.formatted(.byteCount(style: .file)))
+                .contentTransition(.numericText(value: Double(response.byteCount)))
             if let type = shortContentType {
                 Text(type)
+                    .contentTransition(.interpolate)
             }
         }
         .font(.code(.callout))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .glassEffect(.regular, in: .capsule)
+        // Content layer, not chrome: a standard fill, not Liquid Glass.
+        .background(.fill.tertiary, in: .capsule)
+        .animation(.snappy, value: response.receivedAt)
     }
 
     private var statusColor: Color {
