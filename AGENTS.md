@@ -82,7 +82,6 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 **Spec**
 - The OpenAPI spec is a guide, not truth. `required` is frequently absent, so a documented-but-unsent parameter shows as a hint on a 400, not a block on sending. Documented params feed autocomplete; users can still type anything.
 
-
 ## Feature definition of done
 
 A feature is complete when every line below is true, in the same commit. This is what makes app-wide reviews unnecessary.
@@ -99,6 +98,7 @@ A feature is complete when every line below is true, in the same commit. This is
 10. **Verified on screen** by launching the built app, not by reading the code back.
 11. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
 12. **One commit**, message explains why.
+
 ## Working here
 
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
