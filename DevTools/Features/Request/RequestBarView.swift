@@ -19,14 +19,14 @@ struct RequestBarView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Text("GET")
-                    .font(.caption.weight(.semibold).monospaced())
+                    .font(.code(.caption, weight: .semibold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(.quaternary, in: .rect(cornerRadius: 5))
 
                 TextField("/library/sections", text: $requests.current.path)
                     .textFieldStyle(.roundedBorder)
-                    .font(.body.monospaced())
+                    .font(.code(.body))
                     .focused($pathFocused)
                     .onSubmit(send)
                     .autocorrectionDisabled()
@@ -105,7 +105,7 @@ struct RequestBarView: View {
 
             HStack(spacing: 8) {
                 Text(requests.previewURL(for: server))
-                    .font(.caption.monospaced())
+                    .font(.code(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -183,7 +183,7 @@ private struct OperationDocs: View {
                 Text(operation.summary)
                     .font(.headline)
                 Text(operation.template)
-                    .font(.callout.monospaced())
+                    .font(.code(.callout))
                     .foregroundStyle(.secondary)
                 if let description = operation.description, !description.isEmpty {
                     Text(description)
@@ -195,7 +195,7 @@ private struct OperationDocs: View {
                             GridRow {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(parameter.name)
-                                        .font(.callout.monospaced())
+                                        .font(.code(.callout))
                                     Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
                                         .font(.caption2)
                                         .foregroundStyle(.tertiary)

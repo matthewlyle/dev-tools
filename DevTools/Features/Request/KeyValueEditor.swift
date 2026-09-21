@@ -27,7 +27,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                     if let description = description(for: item.name) {
                         // Documented name: fixed label, description on hover.
                         Text(item.name)
-                            .font(.body.monospaced())
+                            .font(.code(.body))
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
                             .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 5))
@@ -36,12 +36,12 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                     } else {
                         TextField(namePlaceholder, text: $item.name)
                             .textFieldStyle(.roundedBorder)
-                            .font(.body.monospaced())
+                            .font(.code(.body))
                             .frame(minWidth: 120, idealWidth: 180, maxWidth: 260)
                     }
                     TextField(valuePlaceholder, text: $item.value)
                         .textFieldStyle(.roundedBorder)
-                        .font(.body.monospaced())
+                        .font(.code(.body))
                     if let values = enumValues(for: item.name) {
                         Menu {
                             ForEach(values, id: \.self) { value in

@@ -107,7 +107,7 @@ private struct MissingParametersHint: View {
                 Text("Bad Request — this endpoint documents \(parameters.count) parameter\(parameters.count == 1 ? "" : "s") you haven't sent.")
                     .font(.callout)
                 Text(parameters.map(\.name).joined(separator: ", "))
-                    .font(.caption.monospaced())
+                    .font(.code(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -142,7 +142,7 @@ private struct PaginationControls: View {
             .help("Previous page")
 
             Text(pagination.label)
-                .font(.callout.monospaced())
+                .font(.code(.callout))
                 .foregroundStyle(.secondary)
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
@@ -177,7 +177,7 @@ struct ResponseStatusBar: View {
                 Text(type)
             }
         }
-        .font(.callout.monospaced())
+        .font(.code(.callout))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

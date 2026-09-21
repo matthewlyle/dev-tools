@@ -61,7 +61,7 @@ struct NavigationBar: View {
                             requests.open(path: crumb.path, on: server)
                         }
                         .buttonStyle(.plain)
-                        .font(.callout.monospaced())
+                        .font(.code(.callout))
                         .foregroundStyle(crumb.id == crumbs.count - 1 ? .primary : .secondary)
                         .disabled(server == nil)
                     }

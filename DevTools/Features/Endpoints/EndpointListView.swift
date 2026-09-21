@@ -68,7 +68,7 @@ private struct EndpointRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(operation.template)
-                        .font(.callout.monospaced())
+                        .font(.code(.callout))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if operation.supportsMediaQuery {

@@ -13,7 +13,7 @@ struct AttributeValueView: View {
     var body: some View {
         if requests.shouldMask(attributeNamed: attribute.name), !attribute.value.isEmpty {
             Text(RequestStore.mask)
-                .font(.callout.monospaced())
+                .font(.code(.callout))
                 .foregroundStyle(.secondary)
                 .help("Hidden — toggle redaction to reveal")
                 .contextMenu {
@@ -28,7 +28,7 @@ struct AttributeValueView: View {
                     requests.open(path: path, on: server)
                 }
                 .buttonStyle(.link)
-                .font(.callout.monospaced())
+                .font(.code(.callout))
                 .disabled(server == nil)
                 .help(path)
                 .contextMenu {
@@ -36,7 +36,7 @@ struct AttributeValueView: View {
                 }
             case .external(let url):
                 Link(attribute.value, destination: url)
-                    .font(.callout.monospaced())
+                    .font(.code(.callout))
                     .contextMenu {
                         Button("Copy URL") { copy(url.absoluteString) }
                     }
@@ -50,7 +50,7 @@ struct AttributeValueView: View {
                 }
         } else {
             Text(attribute.value)
-                .font(.callout.monospaced())
+                .font(.code(.callout))
                 .textSelection(.enabled)
                 .lineLimit(4)
         }
@@ -73,7 +73,7 @@ struct AttributeGrid: View {
             ForEach(attributes) { attribute in
                 GridRow {
                     Text(attribute.name)
-                        .font(.caption.monospaced())
+                        .font(.code(.caption))
                         .foregroundStyle(.secondary)
                         .gridColumnAlignment(.trailing)
                     AttributeValueView(attribute: attribute, server: server, basePath: basePath)

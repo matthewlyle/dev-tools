@@ -58,7 +58,7 @@ struct HeadersView: View {
                             }
                         }
                     }
-                    .font(.caption.monospaced())
+                    .font(.code(.caption))
                     .padding(.top, 4)
                 } label: {
                     Text("Always sent (\(requests.implicitHeaders(for: server).count))")
@@ -86,14 +86,14 @@ struct HeadersView: View {
             Table(responseRows) {
                 TableColumn("Header") { row in
                     Text(row.name)
-                        .font(.body.monospaced())
+                        .font(.code(.body))
                         .textSelection(.enabled)
                 }
                 .width(min: 160, ideal: 260)
 
                 TableColumn("Value") { row in
                     Text(row.value)
-                        .font(.body.monospaced())
+                        .font(.code(.body))
                         .textSelection(.enabled)
                 }
             }

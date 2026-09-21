@@ -139,13 +139,13 @@ private struct HistoryRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(entry.status.map(String.init) ?? "ERR")
-                .font(.caption.weight(.semibold).monospaced())
+                .font(.code(.caption, weight: .semibold))
                 .foregroundStyle(entry.succeeded ? .green : .red)
                 .frame(width: 32, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary)
-                    .font(.callout.monospaced())
+                    .font(.code(.callout))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(subtitle)

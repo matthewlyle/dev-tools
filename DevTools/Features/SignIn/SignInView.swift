@@ -59,8 +59,7 @@ struct SignInView: View {
                 .foregroundStyle(.secondary)
 
             Text(pin.code)
-                .font(.system(size: 34, weight: .medium, design: .monospaced))
-                .tracking(4)
+                .font(.code(size: 34, weight: .medium))
                 .textSelection(.enabled)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)

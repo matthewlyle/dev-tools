@@ -26,7 +26,7 @@ struct PlaceholderSheet: View {
                 Text(operation.summary)
                     .font(.headline)
                 Text(operation.template)
-                    .font(.callout.monospaced())
+                    .font(.code(.callout))
                     .foregroundStyle(.secondary)
             }
 
@@ -41,7 +41,7 @@ struct PlaceholderSheet: View {
                         }
                     } else {
                         TextField(name, text: binding(name), prompt: Text(prompt(for: name)))
-                            .font(.body.monospaced())
+                            .font(.code(.body))
                             .autocorrectionDisabled()
                     }
                 }

@@ -109,7 +109,7 @@ struct CodeTextView: NSViewRepresentable {
 
     // MARK: Rendering
 
-    private static let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    private static let font = Typeface.code(size: 12)
     private static let placeholderAttributes: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: NSColor.secondaryLabelColor,

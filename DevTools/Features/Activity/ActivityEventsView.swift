@@ -47,7 +47,7 @@ private struct EventRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(event.receivedAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3))))
-                .font(.caption.monospaced())
+                .font(.code(.caption))
                 .foregroundStyle(.secondary)
             EventTypeBadge(type: event.type)
             Text(event.summary)
@@ -72,7 +72,7 @@ private struct EventInspector: View {
                 HStack(spacing: 10) {
                     EventTypeBadge(type: event.type)
                     Text(event.receivedAt.formatted(.dateTime.hour().minute().second().secondFraction(.fractional(3))))
-                        .font(.caption.monospaced())
+                        .font(.code(.caption))
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {

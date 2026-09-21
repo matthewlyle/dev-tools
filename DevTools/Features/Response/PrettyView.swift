@@ -50,7 +50,7 @@ struct PrettyView: View {
                         .frame(maxWidth: 800, maxHeight: 800)
                         .clipShape(.rect(cornerRadius: 8))
                     Text("\(Int(image.size.width)) × \(Int(image.size.height))")
-                        .font(.caption.monospaced())
+                        .font(.code(.caption))
                         .foregroundStyle(.secondary)
                 }
                 .padding(24)
@@ -218,7 +218,7 @@ struct NodeCard: View {
                 HStack(spacing: 6) {
                     if let keyPath {
                         Text(keyPath)
-                            .font(.caption.monospaced())
+                            .font(.code(.caption))
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                             .truncationMode(.middle)

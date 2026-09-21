@@ -22,7 +22,7 @@ struct ServerDetailView: View {
                         .accessibilityLabel(entry.resource.hostDescription ?? "Unknown platform")
                     if let version = entry.resource.productVersion {
                         Text("v\(version)")
-                            .font(.callout.monospaced())
+                            .font(.code(.callout))
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
@@ -88,7 +88,7 @@ struct ServerDetailView: View {
             .foregroundStyle(.secondary)
         } else if let probe = servers.activeProbe(for: entry), case .ok(let latency) = probe.outcome {
             Text("\(probe.connection.kind.rawValue) · \(probe.connection.uri) · \(latency.milliseconds) ms")
-                .font(.caption.monospaced())
+                .font(.code(.caption))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)

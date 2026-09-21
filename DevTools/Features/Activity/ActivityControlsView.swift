@@ -29,7 +29,7 @@ struct ActivityControlsView: View {
                         Spacer()
                         if activity.status.isActive {
                             Text("\(activity.receivedCount.formatted()) received")
-                                .font(.caption.monospaced())
+                                .font(.code(.caption))
                                 .foregroundStyle(.secondary)
                                 .help("Messages received on the wire since connecting")
                         }
@@ -98,7 +98,7 @@ struct ActivityControlsView: View {
                                 EventTypeBadge(type: type)
                                 Spacer()
                                 Text(count.formatted())
-                                    .font(.caption.monospaced())
+                                    .font(.code(.caption))
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -154,7 +154,7 @@ struct EventTypeBadge: View {
 
     var body: some View {
         Text(type)
-            .font(.caption2.weight(.semibold).monospaced())
+            .font(.code(.caption2, weight: .semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color.opacity(0.18), in: .capsule)
