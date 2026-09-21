@@ -1,0 +1,163 @@
+import Foundation
+import Observation
+
+@MainActor
+@Observable
+final class ActivityStore {
+    enum Status: Equatable {
+        case disconnected
+        case connecting
+        case connected
+        case reconnecting(attempt: Int, delay: Int)
+        case failed(String)
+
+        var isActive: Bool {
+            switch self {
+            case .connecting, .connected, .reconnecting: true
+            case .disconnected, .failed: false
+            }
+        }
+    }
+
+    static let capacity = 2000
+
+    private(set) var status: Status = .disconnected
+    private(set) var server: ConnectedServer?
+    private(set) var events: [NotificationEvent] = []
+    /// Messages received on the wire since connect, before any filtering.
+    private(set) var receivedCount = 0
+    private(set) var lastError: String?
+    /// Every type seen since the last clear, with counts — drives the filter list.
+    private(set) var typeCounts: [String: Int] = [:]
+    var hiddenTypes: Set<String> = []
+    var selectedEventID: UUID?
+    /// Server the Connect button targets. Independent of the sidebar
+    /// selection so browsing one server doesn't retarget the feed.
+    var targetServerID: String?
+
+    var transport: ActivityTransport {
+        didSet { UserDefaults.standard.set(transport.rawValue, forKey: Self.transportKey) }
+    }
+
+    /// While paused, incoming events are held back so the list stays still;
+    /// the socket keeps running. Resuming flushes them.
+    var isPaused = false {
+        didSet {
+            if !isPaused, !pausedBuffer.isEmpty {
+                append(pausedBuffer)
+                pausedBuffer.removeAll()
+            }
+        }
+    }
+    private(set) var pausedCount = 0
+    private var pausedBuffer: [NotificationEvent] = []
+
+    private let identity: ClientIdentity
+    private var connection: Task<Void, Never>?
+    private static let transportKey = "activityTransport"
+
+    init(identity: ClientIdentity) {
+        self.identity = identity
+        transport = UserDefaults.standard.string(forKey: Self.transportKey).flatMap(ActivityTransport.init(rawValue:)) ?? .webSocket
+    }
+
+    var visibleEvents: [NotificationEvent] {
+        hiddenTypes.isEmpty ? events : events.filter { !hiddenTypes.contains($0.type) }
+    }
+
+    var selectedEvent: NotificationEvent? {
+        guard let selectedEventID else { return nil }
+        return events.first { $0.id == selectedEventID }
+    }
+
+    // MARK: Connection
+
+    func connect(to server: ConnectedServer) {
+        connection?.cancel()
+        self.server = server
+        status = .connecting
+        receivedCount = 0
+        lastError = nil
+        let transport = transport
+        let identity = identity
+
+        connection = Task { [weak self] in
+            var attempt = 0
+            while !Task.isCancelled {
+                do {
+                    let stream = NotificationTransport.stream(transport, server: server, identity: identity)
+                    for try await event in stream {
+                        guard let self else { return }
+                        switch event {
+                        case .opened:
+                            attempt = 0
+                            self.status = .connected
+                        case .message(let message):
+                            self.status = .connected
+                            self.receivedCount += 1
+                            self.receive(message)
+                        }
+                    }
+                    // The stream ended without an error: treat like a drop.
+                    throw NotificationTransportError.closed
+                } catch is CancellationError {
+                    return
+                } catch {
+                    guard let self, !Task.isCancelled else { return }
+                    self.lastError = error.localizedDescription
+                    attempt += 1
+                    if attempt > 8 {
+                        self.status = .failed(error.localizedDescription)
+                        return
+                    }
+                    let delay = min(1 << (attempt - 1), 30)
+                    self.status = .reconnecting(attempt: attempt, delay: delay)
+                    try? await Task.sleep(for: .seconds(delay))
+                }
+            }
+        }
+    }
+
+    func disconnect() {
+        connection?.cancel()
+        connection = nil
+        status = .disconnected
+    }
+
+    func clear() {
+        events.removeAll()
+        pausedBuffer.removeAll()
+        pausedCount = 0
+        typeCounts.removeAll()
+        selectedEventID = nil
+    }
+
+    func toggle(type: String) {
+        if hiddenTypes.contains(type) { hiddenTypes.remove(type) } else { hiddenTypes.insert(type) }
+    }
+
+    // MARK: Ingest
+
+    private func receive(_ message: RawNotification) {
+        let event = NotificationEvent.make(raw: message.data, eventName: message.eventName)
+        if isPaused {
+            pausedBuffer.append(event)
+            if pausedBuffer.count > Self.capacity { pausedBuffer.removeFirst() }
+            pausedCount = pausedBuffer.count
+        } else {
+            append([event])
+        }
+    }
+
+    private func append(_ incoming: [NotificationEvent]) {
+        for event in incoming {
+            typeCounts[event.type, default: 0] += 1
+        }
+        // Newest first; the list never needs to scroll to follow.
+        events.insert(contentsOf: incoming.reversed(), at: 0)
+        if events.count > Self.capacity {
+            events.removeLast(events.count - Self.capacity)
+        }
+        pausedCount = 0
+    }
+}

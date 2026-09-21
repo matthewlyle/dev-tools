@@ -1,0 +1,122 @@
+import SwiftUI
+
+protocol KeyValueItem: Identifiable, Hashable {
+    var name: String { get set }
+    var value: String { get set }
+    var enabled: Bool { get set }
+}
+
+extension QueryParam: KeyValueItem {}
+extension HeaderField: KeyValueItem {}
+
+struct KeyValueEditor<Item: KeyValueItem>: View {
+    @Binding var items: [Item]
+    let namePlaceholder: String
+    let valuePlaceholder: String
+    /// Documented names offered in the Add menu; empty → plain Add button.
+    var suggestions: [SpecParameter] = []
+    let makeItem: (_ name: String, _ value: String) -> Item
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach($items) { $item in
+                HStack(spacing: 8) {
+                    Toggle("Enabled", isOn: $item.enabled)
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                    if let description = description(for: item.name) {
+                        // Documented name: fixed label, description on hover.
+                        Text(item.name)
+                            .font(.body.monospaced())
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 5))
+                            .frame(minWidth: 120, idealWidth: 180, maxWidth: 260, alignment: .leading)
+                            .help(description)
+                    } else {
+                        TextField(namePlaceholder, text: $item.name)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body.monospaced())
+                            .frame(minWidth: 120, idealWidth: 180, maxWidth: 260)
+                    }
+                    TextField(valuePlaceholder, text: $item.value)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospaced())
+                    if let values = enumValues(for: item.name) {
+                        Menu {
+                            ForEach(values, id: \.self) { value in
+                                Button(value) { item.value = value }
+                            }
+                        } label: {
+                            Image(systemName: "list.bullet")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .help("Documented values")
+                    }
+                    Button {
+                        items.removeAll { $0.id == item.id }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove")
+                }
+                .autocorrectionDisabled()
+            }
+
+            if suggestions.isEmpty {
+                Button {
+                    items.append(makeItem("", ""))
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            } else {
+                Menu {
+                    Button("Custom…") { items.append(makeItem("", "")) }
+                    Divider()
+                    ForEach(unused) { parameter in
+                        Button {
+                            items.append(makeItem(parameter.name, parameter.suggestedValue))
+                        } label: {
+                            Text(menuTitle(parameter))
+                        }
+                    }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .menuStyle(.borderlessButton)
+                .controlSize(.small)
+                .fixedSize()
+            }
+        }
+    }
+
+    private var unused: [SpecParameter] {
+        let present = Set(items.map { $0.name.lowercased() })
+        return suggestions.filter { !present.contains($0.name.lowercased()) }
+    }
+
+    /// Non-nil when `name` is documented for this operation; the text is the
+    /// description (or a generic note) for the tooltip.
+    private func description(for name: String) -> String? {
+        guard !name.isEmpty, let parameter = suggestions.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else { return nil }
+        return parameter.description ?? "Documented \(parameter.location.rawValue) parameter"
+    }
+
+    private func enumValues(for name: String) -> [String]? {
+        let values = suggestions.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.enumValues ?? []
+        return values.isEmpty ? nil : values
+    }
+
+    private func menuTitle(_ parameter: SpecParameter) -> String {
+        guard let description = parameter.description?.split(separator: "\n").first, !description.isEmpty else {
+            return parameter.name
+        }
+        let short = description.count > 70 ? String(description.prefix(67)) + "…" : String(description)
+        return "\(parameter.name) — \(short)"
+    }
+}

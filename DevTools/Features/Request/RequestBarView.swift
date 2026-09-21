@@ -1,0 +1,206 @@
+import SwiftUI
+
+struct RequestBarView: View {
+    let server: ConnectedServer?
+
+    @Environment(RequestStore.self) private var requests
+    @Environment(SpecStore.self) private var spec
+    @FocusState private var pathFocused: Bool
+    @State private var showParameters = false
+    @State private var showDocs = false
+
+    private var operation: SpecOperation? {
+        spec.operation(matching: requests.current.path)
+    }
+
+    var body: some View {
+        @Bindable var requests = requests
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("GET")
+                    .font(.caption.weight(.semibold).monospaced())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.quaternary, in: .rect(cornerRadius: 5))
+
+                TextField("/library/sections", text: $requests.current.path)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.body.monospaced())
+                    .focused($pathFocused)
+                    .onSubmit(send)
+                    .autocorrectionDisabled()
+
+                Picker("Accept", selection: $requests.current.accept) {
+                    ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .help("Accept header")
+
+                Button(action: send) {
+                    Label("Send", systemImage: "paperplane.fill")
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(server == nil || requests.isSending)
+            }
+
+            if let operation {
+                HStack(spacing: 6) {
+                    Image(systemName: "book.closed")
+                        .foregroundStyle(.secondary)
+                    Text(operation.summary)
+                        .lineLimit(1)
+                    Text(operation.tag)
+                        .foregroundStyle(.tertiary)
+                    if operation.supportsMediaQuery {
+                        Text("media queries")
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.tint.opacity(0.15), in: .capsule)
+                            .foregroundStyle(.tint)
+                    }
+                    Button {
+                        showDocs.toggle()
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .popover(isPresented: $showDocs, arrowEdge: .bottom) {
+                        OperationDocs(operation: operation)
+                    }
+                    Spacer()
+                }
+                .font(.caption)
+            }
+
+            DisclosureGroup(isExpanded: $showParameters) {
+                KeyValueEditor(
+                    items: $requests.current.query,
+                    namePlaceholder: "name",
+                    valuePlaceholder: "value",
+                    suggestions: operation?.queryParameters ?? []
+                ) { name, value in
+                    QueryParam(name: name, value: value)
+                }
+                .padding(.top, 6)
+            } label: {
+                sectionLabel("Parameters", count: requests.current.query.filter(\.enabled).count)
+            }
+
+            HStack(spacing: 8) {
+                Text(requests.previewURL(for: server))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                Spacer(minLength: 0)
+                Button {
+                    requests.redactToken.toggle()
+                } label: {
+                    Image(systemName: requests.redactToken ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.borderless)
+                .help(requests.redactToken ? "Tokens hidden — click to reveal" : "Tokens visible — click to hide")
+                Menu {
+                    Button("Copy URL with Token") { copyURL(includeToken: true) }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                } primaryAction: {
+                    copyURL(includeToken: !requests.redactToken)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(server == nil)
+                .help(requests.redactToken ? "Copy URL (token masked). Long-press to copy with token." : "Copy URL")
+            }
+        }
+        .padding(12)
+        .onChange(of: requests.pathFocusToken) { _, _ in
+            pathFocused = true
+        }
+        .onChange(of: requests.parametersRevealToken) { _, _ in
+            showParameters = true
+        }
+    }
+
+    private func sectionLabel(_ title: String, count: Int) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+            if count > 0 {
+                Text(String(count))
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.tint.opacity(0.18), in: .capsule)
+                    .foregroundStyle(.tint)
+            }
+        }
+        .font(.callout)
+    }
+
+    private func send() {
+        guard let server else { return }
+        requests.send(to: server)
+    }
+
+    private func copyURL(includeToken: Bool) {
+        guard let server, let url = requests.current.url(base: server.baseURL, token: server.accessToken) else { return }
+        let text = includeToken
+            ? url.absoluteString
+            : url.absoluteString.replacingOccurrences(of: server.accessToken, with: RequestStore.mask)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+}
+
+/// Spec description and parameter table for the matched operation.
+private struct OperationDocs: View {
+    let operation: SpecOperation
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(operation.summary)
+                    .font(.headline)
+                Text(operation.template)
+                    .font(.callout.monospaced())
+                    .foregroundStyle(.secondary)
+                if let description = operation.description, !description.isEmpty {
+                    Text(description)
+                        .font(.callout)
+                }
+                if !operation.parameters.isEmpty {
+                    Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 6) {
+                        ForEach(operation.parameters) { parameter in
+                            GridRow {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(parameter.name)
+                                        .font(.callout.monospaced())
+                                    Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Text(parameter.description ?? "")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                }
+                if operation.supportsMediaQuery {
+                    Text("Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 520)
+        .frame(maxHeight: 480)
+    }
+}
