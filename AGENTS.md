@@ -50,6 +50,15 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Toolbar items are icon-only `Label`s, no bezels, standard SF Symbols. Every one must also exist as a menu bar command — the toolbar is never a command's only home, because users can hide or customise it.
 - The Probe/Connect/Refresh class of rare actions belongs in the menu bar only; the toolbar is for what you do repeatedly.
 
+**Menu bar** — Apple's rules, as they land in `AppCommands.swift`.
+- The menu bar lists *every* command the app has. Toolbar buttons, context-menu items, and keyboard shortcuts are conveniences on top of a menu item, never substitutes for one.
+- Put a command in the menu people expect: **App** (About, Settings… ⌘,), **File** (documents: save/open/close), **Edit** (text and clipboard), **View** (what's shown and how — section switcher, Wrap Lines), **Window**, **Help**. App-specific commands go in custom menus between View and Window: **Server** (act on the selected server: Refresh, Probe/Connect, Clear History…) and **Request** (act on the request in the bar: Save, Copy as cURL, Send, Cancel, Focus Path, Back, Forward). Don't invent a third menu when one of these fits.
+- Order within a menu: most frequent first; group related items with separators; keep menus short; submenus sparingly and one level deep.
+- Labels are verb phrases in Title Case with no articles. Trailing `…` when the command needs more input before acting. A command that toggles uses a checkmark (inline `Picker`/`Toggle`) or a changeable label (Show/Hide); never both.
+- Unavailable commands are *dimmed*, never removed — the menu's shape stays stable. Gate on state (`activeServer == nil`, `!requests.isSending`); for commands that act on the visible section, publish a `FocusedValues` action from that view and disable when it's absent.
+- Shortcuts: `⌘` primary; `⇧⌘` for the sibling of a `⌘` command; `⌥` rarely; `⌃` never. Only frequent commands get one. Never repurpose a standard shortcut (`⌘Z X C V A F S W N Q ,` and the system's `⌘Space`, `⌘Tab`, `⌘←→`). Taken here: `⌘1/2/3` sections · `⌘R` Refresh Servers · `⌘S` Save Request… · `⇧⌘C` Copy as cURL · `⌘↩` Send · `⌘.` Cancel · `⌘L` Focus Path · `⌘[` `⌘]` Back/Forward · `⌘,` Settings · `⌘F` find in body (system). Add new ones to this list.
+- Menu item icons: none, unless a whole group gets them.
+
 **Liquid Glass**
 - Never apply `glassEffect` yourself. Glass is the system's controls/navigation layer — toolbar, sidebar, `.glassProminent` on Send. Everything in a content pane (status readouts, pagination, badges, cards, the sign-in card) uses standard fills: `.fill.tertiary`, `.quaternary`, `.regularMaterial`.
 
@@ -73,6 +82,23 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 **Spec**
 - The OpenAPI spec is a guide, not truth. `required` is frequently absent, so a documented-but-unsent parameter shows as a hint on a 400, not a block on sending. Documented params feed autocomplete; users can still type anything.
 
+
+## Feature definition of done
+
+A feature is complete when every line below is true, in the same commit. This is what makes app-wide reviews unnecessary.
+
+1. **Placement decided** by the toolbar rule above: column → toolbar; object → request bar; sub-pane → its header. Nothing repeats what the title bar shows.
+2. **Menu bar command** in the right menu, dimmed (not hidden) when unavailable, shortcut only if frequent and not taken.
+3. **Controls chosen by kind**: segmented for views, pop-up for values, Settings for app-wide preferences, checkbox for a single body option, `role: .destructive` on destructive actions, confirmation only if un-undoable.
+4. **Accessible**: icon-only controls are `Label` + `.iconOnly`; decorative symbols hidden; colour never the only signal; a `.help` tooltip on every icon-only control.
+5. **States covered**: empty (`ContentUnavailableView` with a next step), loading (unlabelled spinner, nothing blocked), error (inline, says what to do), and disabled when there's no server.
+6. **Copy**: Title Case controls, sentence-case descriptions, verbs on buttons, `…` on commands that ask first.
+7. **Token policy** holds: nothing new shows, copies, or URL-encodes a credential.
+8. **Persistence** through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
+9. **Tests** for any new contract — parsing, URL/string building, matching, redaction — none for plumbing.
+10. **Verified on screen** by launching the built app, not by reading the code back.
+11. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
+12. **One commit**, message explains why.
 ## Working here
 
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
