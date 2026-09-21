@@ -197,8 +197,6 @@ private struct ImageStrip: View {
 
     @Environment(LightboxStore.self) private var lightbox
 
-    static let thumbSize = CGSize(width: 130, height: 90)
-
     private var items: [LightboxItem] {
         nodes.compactMap { node in
             guard let url = node["url"], !url.isEmpty else { return nil }
@@ -221,7 +219,7 @@ private struct ImageStrip: View {
                 ForEach(items) { item in
                     Thumbnail(item: item, server: server) { frame in
                         guard let server else { return }
-                        lightbox.open(item, on: server, from: frame)
+                        lightbox.open(item, on: server, from: frame, preview: Thumbnail.requestPixelSize)
                     }
                 }
             }
@@ -233,17 +231,36 @@ private struct ImageStrip: View {
         let server: ConnectedServer?
         let open: (CGRect) -> Void
 
+        @Environment(ImageStore.self) private var images
+        @State private var image: NSImage?
         @State private var frame: CGRect = .zero
+
+        private static let width: CGFloat = 130
+        private static let maxHeight: CGFloat = 195
+        /// What the thumbnail fetches at (2×); the lightbox opens from the same pixels.
+        static let requestPixelSize = CGSize(width: width * 2, height: maxHeight * 2)
+
+        /// The image's own aspect at a fixed width, so the corners hug the
+        /// picture; a 16:9 placeholder until it loads.
+        private var size: CGSize {
+            guard let image, image.size.width > 0 else { return CGSize(width: Self.width, height: Self.width * 9 / 16) }
+            let height = Self.width * image.size.height / image.size.width
+            return CGSize(width: Self.width, height: min(height, Self.maxHeight))
+        }
 
         var body: some View {
             Button {
                 open(frame)
             } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                    RemoteImage(value: item.url, server: server, size: ImageStrip.thumbSize, fit: true) {
-                        Rectangle().fill(.quaternary)
+                    Group {
+                        if let image {
+                            Image(nsImage: image).resizable().scaledToFit()
+                        } else {
+                            Rectangle().fill(.quaternary)
+                        }
                     }
-                    .background(.quaternary.opacity(0.4))
+                    .frame(width: size.width, height: size.height)
                     .clipShape(.rect(cornerRadius: 8))
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
                     Text(item.title)
@@ -255,6 +272,12 @@ private struct ImageStrip: View {
             }
             .buttonStyle(.plain)
             .help(item.url)
+            .task(id: "\(server?.machineID ?? "")|\(item.url)") {
+                image = nil
+                guard let server else { return }
+                image = await images.image(for: item.url, server: server, width: Int(Self.requestPixelSize.width), height: Int(Self.requestPixelSize.height))
+            }
+            .onDisappear { image = nil }
         }
     }
 }

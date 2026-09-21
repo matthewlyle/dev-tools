@@ -19,12 +19,15 @@ final class LightboxStore {
         let server: ConnectedServer
         /// The thumbnail's frame in window coordinates.
         let sourceFrame: CGRect
+        /// The pixel size the thumbnail was fetched at, so the lightbox's first
+        /// frame is a cache hit on the same pixels.
+        let previewPixelSize: CGSize
     }
 
     private(set) var presentation: Presentation?
 
-    func open(_ item: LightboxItem, on server: ConnectedServer, from frame: CGRect) {
-        presentation = Presentation(item: item, server: server, sourceFrame: frame)
+    func open(_ item: LightboxItem, on server: ConnectedServer, from frame: CGRect, preview: CGSize) {
+        presentation = Presentation(item: item, server: server, sourceFrame: frame, previewPixelSize: preview)
     }
 
     func close() {

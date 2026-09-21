@@ -58,7 +58,8 @@ struct LightboxOverlay: View {
                 .task(id: presentation.item.id) {
                     let server = presentation.server
                     let url = presentation.item.url
-                    image = await images.image(for: url, server: server, width: Int(source.width * 2), height: Int(source.height * 2))
+                    let preview = presentation.previewPixelSize
+                    image = await images.image(for: url, server: server, width: Int(preview.width), height: Int(preview.height))
                     image = await images.image(for: url, server: server, width: 1920, height: 1280)
                 }
             }
