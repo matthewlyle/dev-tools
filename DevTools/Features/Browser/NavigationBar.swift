@@ -31,7 +31,8 @@ struct NavigationBar: View {
                 guard let server else { return }
                 requests.goBack(on: server)
             } label: {
-                Image(systemName: "chevron.left")
+                Label("Back", systemImage: "chevron.left")
+                    .labelStyle(.iconOnly)
             }
             .disabled(!requests.canGoBack || server == nil)
             .help("Back (⌘[)")
@@ -40,7 +41,8 @@ struct NavigationBar: View {
                 guard let server else { return }
                 requests.goForward(on: server)
             } label: {
-                Image(systemName: "chevron.right")
+                Label("Forward", systemImage: "chevron.right")
+                    .labelStyle(.iconOnly)
             }
             .disabled(!requests.canGoForward || server == nil)
             .help("Forward (⌘])")
@@ -52,6 +54,7 @@ struct NavigationBar: View {
                             Image(systemName: "chevron.compact.right")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
                         }
                         Button(crumb.label) {
                             guard let server else { return }

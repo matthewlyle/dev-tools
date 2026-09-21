@@ -6,8 +6,9 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: "terminal")
-                .font(.system(size: 44, weight: .light))
+                .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
             Text("Plex Dev Tools")
                 .font(.largeTitle.weight(.semibold))
@@ -28,7 +29,8 @@ struct SignInView: View {
             }
         }
         .padding(40)
-        .glassEffect(.regular, in: .rect(cornerRadius: 28))
+        // Content layer, not chrome: standard material, not Liquid Glass.
+        .background(.regularMaterial, in: .rect(cornerRadius: 28))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

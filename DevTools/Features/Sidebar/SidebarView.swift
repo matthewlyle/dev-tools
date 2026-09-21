@@ -59,6 +59,7 @@ private struct ServerRow: View {
             .frame(width: 24, height: 24)
             .background(.quaternary, in: .circle)
             .clipShape(.circle)
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.resource.name)
                     .lineLimit(1)
@@ -68,11 +69,14 @@ private struct ServerRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            // The subtitle already says it in words; the dot is redundant colour.
             Circle()
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
     }
 
     private var subtitle: String {
@@ -95,6 +99,7 @@ private struct ServerRow: View {
 private struct AccountFooter: View {
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
+    @State private var confirmingSignOut = false
 
     var body: some View {
         if let user = account.user {
@@ -110,6 +115,7 @@ private struct AccountFooter: View {
                     }
                     .frame(width: 28, height: 28)
                     .clipShape(.circle)
+                    .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(user.title)
@@ -123,17 +129,24 @@ private struct AccountFooter: View {
 
                     Spacer(minLength: 0)
 
+                    // Signing out forces a fresh PIN flow, so it asks first.
                     Menu {
-                        Button("Sign Out", role: .destructive) {
-                            account.signOut()
-                            servers.clear()
-                        }
+                        Button("Sign Out…", role: .destructive) { confirmingSignOut = true }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Label("Account", systemImage: "ellipsis.circle")
+                            .labelStyle(.iconOnly)
                     }
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
                     .fixedSize()
+                    .confirmationDialog("Sign out of \(user.title)?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+                        Button("Sign Out", role: .destructive) {
+                            account.signOut()
+                            servers.clear()
+                        }
+                    } message: {
+                        Text("You'll need to approve a new sign-in on plex.tv to use the app again.")
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)

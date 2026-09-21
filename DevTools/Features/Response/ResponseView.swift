@@ -91,14 +91,6 @@ struct ResponseView: View {
                 )
             }
         }
-        .overlay {
-            if requests.isSending {
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.background.opacity(0.6))
-            }
-        }
     }
 }
 
@@ -110,6 +102,7 @@ private struct MissingParametersHint: View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Bad Request — this endpoint documents \(parameters.count) parameter\(parameters.count == 1 ? "" : "s") you haven't sent.")
                     .font(.callout)
@@ -142,7 +135,8 @@ private struct PaginationControls: View {
                 guard let server else { return }
                 requests.page(start: pagination.start - pagination.pageSize, size: pagination.pageSize, on: server)
             } label: {
-                Image(systemName: "chevron.left")
+                Label("Previous Page", systemImage: "chevron.left")
+                    .labelStyle(.iconOnly)
             }
             .disabled(!pagination.hasPrevious || server == nil)
             .help("Previous page")
@@ -156,7 +150,8 @@ private struct PaginationControls: View {
                 guard let server else { return }
                 requests.page(start: pagination.end, size: pagination.pageSize, on: server)
             } label: {
-                Image(systemName: "chevron.right")
+                Label("Next Page", systemImage: "chevron.right")
+                    .labelStyle(.iconOnly)
             }
             .disabled(!pagination.hasNext || server == nil)
             .help("Next page")

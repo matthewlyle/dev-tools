@@ -31,13 +31,15 @@ struct RawResponseView: View {
                     Button {
                         collapsed = Set(document.folds.filter { $0.depth >= 1 }.map(\.id))
                     } label: {
-                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        Label("Collapse All", systemImage: "arrow.down.right.and.arrow.up.left")
+                            .labelStyle(.iconOnly)
                     }
                     .help("Collapse all")
                     Button {
                         collapsed = []
                     } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        Label("Expand All", systemImage: "arrow.up.left.and.arrow.down.right")
+                            .labelStyle(.iconOnly)
                     }
                     .help("Expand all")
                     .disabled(collapsed.isEmpty)
@@ -46,15 +48,16 @@ struct RawResponseView: View {
                     get: { wrap || wrapForced },
                     set: { wrap = $0 }
                 ))
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
+                    .toggleStyle(.checkbox)
+                    .controlSize(.small)
                     .disabled(wrapForced)
                     .help(wrapForced ? "Bodies over \(Self.wrapForcedAbove.formatted(.byteCount(style: .file))) are always wrapped; unwrapped layout would stall." : "Wrap long lines")
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(document.text.isEmpty ? response.bodyText : document.text, forType: .string)
                 } label: {
-                    Image(systemName: "doc.on.doc")
+                    Label("Copy Body", systemImage: "doc.on.doc")
+                        .labelStyle(.iconOnly)
                 }
                 .help("Copy body")
             }

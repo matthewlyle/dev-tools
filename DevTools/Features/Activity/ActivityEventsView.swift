@@ -79,7 +79,8 @@ private struct EventInspector: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(document?.text ?? event.raw, forType: .string)
                     } label: {
-                        Image(systemName: "doc.on.doc")
+                        Label("Copy Payload", systemImage: "doc.on.doc")
+                            .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.borderless)
                     .help("Copy payload")

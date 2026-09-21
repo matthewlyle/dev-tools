@@ -31,16 +31,28 @@ struct RequestBarView: View {
                     .onSubmit(send)
                     .autocorrectionDisabled()
 
+                // A setting, not a view switch: a pop-up shows the value
+                // without competing with Send for prominence.
                 Picker("Accept", selection: $requests.current.accept) {
                     ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .pickerStyle(.menu)
                 .fixedSize()
                 .help("Accept header")
 
+                // The in-flight indicator lives on the control that started
+                // the request; the previous response stays readable.
                 Button(action: send) {
-                    Label("Send", systemImage: "paperplane.fill")
+                    Label {
+                        Text("Send")
+                    } icon: {
+                        if requests.isSending {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                        }
+                    }
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(server == nil || requests.isSending)
@@ -50,6 +62,7 @@ struct RequestBarView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "book.closed")
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text(operation.summary)
                         .lineLimit(1)
                     Text(operation.tag)
@@ -64,7 +77,8 @@ struct RequestBarView: View {
                     Button {
                         showDocs.toggle()
                     } label: {
-                        Image(systemName: "info.circle")
+                        Label("Documentation", systemImage: "info.circle")
+                            .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.borderless)
                     .popover(isPresented: $showDocs, arrowEdge: .bottom) {
@@ -100,14 +114,16 @@ struct RequestBarView: View {
                 Button {
                     requests.redactToken.toggle()
                 } label: {
-                    Image(systemName: requests.redactToken ? "eye.slash" : "eye")
+                    Label(requests.redactToken ? "Reveal Tokens" : "Hide Tokens", systemImage: requests.redactToken ? "eye.slash" : "eye")
+                        .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.borderless)
                 .help(requests.redactToken ? "Tokens hidden — click to reveal" : "Tokens visible — click to hide")
                 Menu {
                     Button("Copy URL with Token") { copyURL(includeToken: true) }
                 } label: {
-                    Image(systemName: "doc.on.doc")
+                    Label("Copy URL", systemImage: "doc.on.doc")
+                        .labelStyle(.iconOnly)
                 } primaryAction: {
                     copyURL(includeToken: !requests.redactToken)
                 }

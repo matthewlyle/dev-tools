@@ -76,6 +76,7 @@ private struct EndpointRow: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .help("Supports media queries")
+                            .accessibilityLabel("Supports media queries")
                     }
                 }
                 Text(operation.summary)

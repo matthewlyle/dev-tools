@@ -48,7 +48,8 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                                 Button(value) { item.value = value }
                             }
                         } label: {
-                            Image(systemName: "list.bullet")
+                            Label("Documented Values", systemImage: "list.bullet")
+                                .labelStyle(.iconOnly)
                         }
                         .menuStyle(.borderlessButton)
                         .menuIndicator(.hidden)
@@ -58,7 +59,8 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                     Button {
                         items.removeAll { $0.id == item.id }
                     } label: {
-                        Image(systemName: "minus.circle")
+                        Label("Remove", systemImage: "minus.circle")
+                            .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.borderless)
                     .help("Remove")
