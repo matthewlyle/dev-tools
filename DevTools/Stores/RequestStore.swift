@@ -60,13 +60,15 @@ final class RequestStore {
     private var lastSent: PlexRequest?
 
     private let http: PlexHTTP
+    private let memory: ValueMemory
     private var sendTask: Task<Void, Never>?
 
     private static let historyFile = "history.json"
     private static let historyCap = 500
 
-    init(http: PlexHTTP) {
+    init(http: PlexHTTP, memory: ValueMemory) {
         self.http = http
+        self.memory = memory
         acceptFormat = UserDefaults.standard.string(forKey: Self.acceptKey).flatMap(AcceptFormat.init(rawValue:)) ?? .json
         current.accept = acceptFormat
         history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
@@ -150,6 +152,7 @@ final class RequestStore {
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
                 document = parsed
+                if let root = parsed.tree { memory.record(root: root, serverID: server.machineID) }
             } catch is CancellationError {
                 return
             } catch let error as URLError where error.code == .cancelled {
@@ -215,6 +218,7 @@ final class RequestStore {
         let response = try await http.send(request, to: server)
         guard response.status == 200 else { throw PeekError.status(response.status) }
         let document = await ResponseDocument.make(from: response)
+        if let root = document.tree { memory.record(root: root, serverID: server.machineID) }
         return Peek(document: document, pagination: PaginationInfo(response: response, root: document.tree))
     }
 

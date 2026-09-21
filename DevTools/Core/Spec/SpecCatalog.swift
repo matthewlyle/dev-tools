@@ -200,6 +200,18 @@ struct SpecCatalog: Sendable {
         }
     }
 
+    /// Operations whose path takes `placeholder`, most specific first (fewest
+    /// other placeholders), then by template.
+    func operations(taking placeholder: String) -> [SpecOperation] {
+        operations
+            .filter { $0.placeholders.contains(placeholder) }
+            .sorted { a, b in
+                a.placeholders.count != b.placeholders.count
+                    ? a.placeholders.count < b.placeholders.count
+                    : a.template < b.template
+            }
+    }
+
     private static func flatten(_ parameter: OpenAPISpec.Parameter) -> SpecParameter? {
         let location: SpecParameter.Location
         switch parameter.in {

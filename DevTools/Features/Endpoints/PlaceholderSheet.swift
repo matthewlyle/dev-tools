@@ -1,11 +1,16 @@
 import SwiftUI
 
+/// Fills an operation's `{placeholders}` before opening it. Sections come
+/// from the server; everything else offers values seen in earlier responses
+/// and remembers what you last used.
 struct PlaceholderSheet: View {
     let operation: SpecOperation
     let server: ConnectedServer?
+    var prefilled: [String: String] = [:]
     let open: (String) -> Void
 
     @Environment(RequestStore.self) private var requests
+    @Environment(ValueMemory.self) private var memory
     @Environment(\.dismiss) private var dismiss
 
     @State private var values: [String: String] = [:]
@@ -38,9 +43,15 @@ struct PlaceholderSheet: View {
                             }
                         }
                     } else {
-                        TextField(name, text: binding(name), prompt: Text(prompt(for: name)))
-                            .font(.code(.body))
-                            .autocorrectionDisabled()
+                        LabeledContent(name) {
+                            HStack(spacing: 6) {
+                                TextField(name, text: binding(name), prompt: Text(prompt(for: name)))
+                                    .labelsHidden()
+                                    .font(.code(.body))
+                                    .autocorrectionDisabled()
+                                recentMenu(for: name)
+                            }
+                        }
                     }
                 }
             }
@@ -62,6 +73,13 @@ struct PlaceholderSheet: View {
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Open") {
+                    if let server {
+                        for name in operation.placeholders {
+                            if let value = values[name], !value.isEmpty {
+                                memory.remember(placeholder: name, value: value, serverID: server.machineID)
+                            }
+                        }
+                    }
                     open(operation.path(filling: values))
                     dismiss()
                 }
@@ -71,7 +89,14 @@ struct PlaceholderSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .frame(width: 480)
+        .onAppear {
+            for name in operation.placeholders {
+                values[name] = prefilled[name]
+                    ?? server.flatMap { memory.lastUsed(placeholder: name, serverID: $0.machineID) }
+                    ?? ""
+            }
+        }
         .task {
             guard needsSections, let server else { return }
             loadingSections = true
@@ -80,6 +105,30 @@ struct PlaceholderSheet: View {
             if sections.count == 1, values["sectionId", default: ""].isEmpty {
                 values["sectionId"] = sections[0].key
             }
+        }
+    }
+
+    /// Values seen in earlier responses that plausibly fit `name`.
+    @ViewBuilder
+    private func recentMenu(for name: String) -> some View {
+        let candidates = server.map { memory.candidates(for: name, serverID: $0.machineID) } ?? []
+        if !candidates.isEmpty {
+            Menu {
+                ForEach(candidates.prefix(30)) { seen in
+                    Button {
+                        values[name] = seen.value
+                    } label: {
+                        Text("\(seen.title)  ·  \(seen.element).\(seen.attribute) = \(seen.value)")
+                    }
+                }
+            } label: {
+                Label("Recently Seen", systemImage: "clock.arrow.circlepath")
+                    .labelStyle(.iconOnly)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Values from responses you've already received")
         }
     }
 

@@ -68,8 +68,31 @@ struct NodeCard: View {
     let basePath: String
 
     @Environment(RequestStore.self) private var requests
+    @Environment(SpecStore.self) private var spec
     @State private var showAttributes = false
     @State private var hovering = false
+    @State private var openWith: OpenWithTarget?
+
+    /// Which spec placeholders this item's identifiers can fill. Derived
+    /// from the attributes it carries, not from any table: `ratingKey` fills
+    /// the metadata-id family; a numeric `Directory.key` is a section; an
+    /// `id` fills `{<element>Id}` when the spec has such a placeholder.
+    private var identifierFills: [(placeholder: String, value: String)] {
+        guard let catalog = spec.catalog else { return [] }
+        let known = Set(catalog.operations.flatMap(\.placeholders))
+        var fills: [(String, String)] = []
+        if let ratingKey = node["ratingKey"] {
+            for name in ["ids", "metadataId", "itemId"] where known.contains(name) { fills.append((name, ratingKey)) }
+        }
+        if node.name == "Directory", let key = node["key"], key.allSatisfy(\.isNumber), known.contains("sectionId") {
+            fills.append(("sectionId", key))
+        }
+        if let id = node["id"] {
+            let candidate = node.name.prefix(1).lowercased() + node.name.dropFirst() + "Id"
+            if known.contains(candidate) { fills.append((candidate, id)) }
+        }
+        return fills
+    }
 
     @State private var expanded = false
     @State private var loading = false
@@ -199,6 +222,35 @@ struct NodeCard: View {
         }
         .padding(.vertical, 4)
         .onHover { hovering = $0 }
+        .contextMenu {
+            if let catalog = spec.catalog, !identifierFills.isEmpty {
+                Menu("Open With") {
+                    ForEach(identifierFills, id: \.placeholder) { fill in
+                        Section("{\(fill.placeholder)} = \(fill.value)") {
+                            ForEach(catalog.operations(taking: fill.placeholder)) { operation in
+                                Button(operation.template) {
+                                    openWith = OpenWithTarget(operation: operation, values: [fill.placeholder: fill.value])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(item: $openWith) { target in
+            PlaceholderSheet(operation: target.operation, server: server, prefilled: target.values) { path in
+                guard let server else { return }
+                requests.open(target.operation, path: path, on: server)
+            }
+        }
+    }
+
+    /// An operation to open with one placeholder already filled from this
+    /// item; the sheet collects the rest, or just confirms.
+    private struct OpenWithTarget: Identifiable {
+        var id: String { operation.template }
+        let operation: SpecOperation
+        let values: [String: String]
     }
 
     @ViewBuilder

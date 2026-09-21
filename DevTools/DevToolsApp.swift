@@ -8,6 +8,7 @@ struct DevToolsApp: App {
     @State private var spec = SpecStore()
     @State private var activity: ActivityStore
     @State private var saved: SavedStore
+    @State private var memory: ValueMemory
 
     init() {
         let identity = ClientIdentity.current()
@@ -15,7 +16,9 @@ struct DevToolsApp: App {
         let http = PlexHTTP(identity: identity)
         _account = State(initialValue: AccountStore(plexTV: plexTV))
         _servers = State(initialValue: ServerStore(plexTV: plexTV, prober: ConnectionProber(http: http)))
-        _requests = State(initialValue: RequestStore(http: http))
+        let memory = ValueMemory()
+        _memory = State(initialValue: memory)
+        _requests = State(initialValue: RequestStore(http: http, memory: memory))
         _activity = State(initialValue: ActivityStore(identity: identity))
         _saved = State(initialValue: SavedStore())
     }
@@ -29,6 +32,7 @@ struct DevToolsApp: App {
                 .environment(spec)
                 .environment(activity)
                 .environment(saved)
+                .environment(memory)
                 .task { await spec.load() }
         }
         .defaultSize(width: 1400, height: 860)
