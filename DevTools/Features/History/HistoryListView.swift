@@ -1,11 +1,11 @@
 import SwiftUI
 
+/// Requests sent to one server, newest first, filterable by status.
 struct HistoryListView: View {
-    @Environment(RequestStore.self) private var requests
-    @Environment(ServerStore.self) private var servers
+    let serverID: String
 
-    /// Machine ID of the server to show, or nil for all.
-    @State private var serverFilter: String?
+    @Environment(RequestStore.self) private var requests
+
     @State private var statusFilter: StatusFilter = .any
 
     private enum StatusFilter: Hashable {
@@ -31,26 +31,16 @@ struct HistoryListView: View {
         }
     }
 
-    private struct ServerOption: Identifiable, Hashable {
-        let id: String
-        let name: String
+    /// This server's entries, before the status filter.
+    private var scoped: [HistoryEntry] {
+        requests.history.filter { $0.serverID == serverID }
     }
 
-    /// Servers that appear in history, by name.
-    private var serverOptions: [ServerOption] {
-        var seen: [String: String] = [:]
-        for entry in requests.history where seen[entry.serverID] == nil {
-            seen[entry.serverID] = entry.serverName
-        }
-        return seen.map { ServerOption(id: $0.key, name: $0.value) }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
-
-    /// Status codes that appear in history, ascending, then Failed if any.
+    /// Status codes that appear in this server's history, ascending, then Failed if any.
     private var statusOptions: [StatusFilter] {
         var codes = Set<Int>()
         var anyFailed = false
-        for entry in requests.history {
+        for entry in scoped {
             if let status = entry.status { codes.insert(status) } else { anyFailed = true }
         }
         var options = codes.sorted().map(StatusFilter.code)
@@ -58,21 +48,16 @@ struct HistoryListView: View {
         return options
     }
 
-    private var isFiltered: Bool { serverFilter != nil || statusFilter != .any }
+    private var isFiltered: Bool { statusFilter != .any }
 
     private var filtered: [HistoryEntry] {
-        requests.history.filter { entry in
-            (serverFilter == nil || entry.serverID == serverFilter) && statusFilter.matches(entry)
-        }
+        isFiltered ? scoped.filter(statusFilter.matches) : scoped
     }
 
     var body: some View {
         List(filtered) { entry in
             Button {
                 requests.load(entry)
-                if servers.entry(id: entry.serverID) != nil {
-                    servers.selectedID = entry.serverID
-                }
             } label: {
                 HistoryRow(entry: entry)
             }
@@ -81,14 +66,6 @@ struct HistoryListView: View {
         .listStyle(.inset)
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack(spacing: 8) {
-                Picker("Server", selection: $serverFilter) {
-                    Text("All Servers").tag(String?.none)
-                    ForEach(serverOptions) { option in
-                        Text(option.name).tag(String?.some(option.id))
-                    }
-                }
-                .labelsHidden()
-                .frame(maxWidth: 220)
                 Picker("Status", selection: $statusFilter) {
                     Text(StatusFilter.any.label).tag(StatusFilter.any)
                     ForEach(statusOptions, id: \.self) { option in
@@ -116,14 +93,8 @@ struct HistoryListView: View {
                 ContentUnavailableView(
                     "No History",
                     systemImage: "clock",
-                    description: Text(isFiltered ? "No requests match these filters." : "Requests you send show up here.")
+                    description: Text(isFiltered ? "No requests with this status." : "Requests you send to this server show up here.")
                 )
-            }
-        }
-        .navigationTitle("History")
-        .onChange(of: serverOptions) { _, options in
-            if let serverFilter, !options.contains(where: { $0.id == serverFilter }) {
-                self.serverFilter = nil
             }
         }
         .onChange(of: statusOptions) { _, options in

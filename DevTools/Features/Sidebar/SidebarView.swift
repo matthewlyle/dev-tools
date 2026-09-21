@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SidebarView: View {
-    @Binding var selection: SidebarItem?
+    @Binding var selection: String?
 
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
@@ -15,7 +15,7 @@ struct SidebarView: View {
                         active: servers.activeProbe(for: entry),
                         avatarURL: entry.resource.owned ? account.user?.thumbURL : servers.ownerAvatar(for: entry.resource)
                     )
-                        .tag(SidebarItem.server(entry.id))
+                        .tag(entry.id)
                 }
                 if servers.entries.isEmpty {
                     Text(servers.isRefreshing ? "Loading…" : (servers.errorMessage ?? "No servers"))
@@ -23,22 +23,8 @@ struct SidebarView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
-            Section("Library") {
-                Label("Endpoints", systemImage: "book.closed")
-                    .tag(SidebarItem.endpoints)
-                Label("History", systemImage: "clock")
-                    .tag(SidebarItem.history)
-                Label("Activity", systemImage: "dot.radiowaves.left.and.right")
-                    .tag(SidebarItem.activity)
-            }
         }
         .listStyle(.sidebar)
-        .onChange(of: selection) { _, item in
-            if case .server(let id) = item {
-                servers.selectedID = id
-            }
-        }
         .toolbar {
             ToolbarItem {
                 Button {

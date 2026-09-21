@@ -9,14 +9,9 @@ struct ActivityControlsView: View {
     /// Shown in the standalone window, where there's no main window to open.
     var showsOpenWindow = true
 
-    /// The picker's value: an explicit choice, else whatever is connected,
-    /// else the sidebar's server as a sensible first default.
-    private var targetID: String? {
-        activity.targetServerID ?? activity.server?.machineID ?? servers.selectedID
-    }
-
-    private var targetServer: ConnectedServer? {
-        targetID.flatMap(servers.entry(id:)).flatMap(servers.connectedServer(for:))
+    /// The feed is a view onto the selected server, like Endpoints and History.
+    private var selectedServer: ConnectedServer? {
+        servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
 
     var body: some View {
@@ -45,17 +40,6 @@ struct ActivityControlsView: View {
                             .foregroundStyle(.red)
                     }
 
-                    Picker("Server", selection: Binding(
-                        get: { targetID },
-                        set: { activity.targetServerID = $0 }
-                    )) {
-                        ForEach(servers.sortedEntries) { entry in
-                            Text(entry.resource.name)
-                                .tag(String?.some(entry.id))
-                        }
-                    }
-                    .disabled(activity.status.isActive)
-
                     Picker("Transport", selection: $activity.transport) {
                         ForEach(ActivityTransport.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -68,11 +52,11 @@ struct ActivityControlsView: View {
                             Button("Disconnect", role: .destructive) { activity.disconnect() }
                         } else {
                             Button("Connect") {
-                                guard let targetServer else { return }
-                                activity.connect(to: targetServer)
+                                guard let selectedServer else { return }
+                                activity.connect(to: selectedServer)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(targetServer == nil)
+                            .disabled(selectedServer == nil)
                         }
                         Spacer()
                         Button {
@@ -124,7 +108,6 @@ struct ActivityControlsView: View {
             }
         }
         .listStyle(.inset)
-        .navigationTitle("Activity")
         .toolbar {
             if showsOpenWindow {
                 ToolbarItem {
@@ -135,6 +118,13 @@ struct ActivityControlsView: View {
                     }
                 }
             }
+        }
+        .onChange(of: servers.selectedID) { _, id in
+            // The feed belongs to the server it was opened on; a different
+            // server is a fresh context, not a place to show stale events.
+            guard let connected = activity.server, connected.machineID != id else { return }
+            activity.disconnect()
+            activity.clear()
         }
     }
 

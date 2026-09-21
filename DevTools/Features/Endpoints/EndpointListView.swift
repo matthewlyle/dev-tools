@@ -2,10 +2,8 @@ import SwiftUI
 
 /// Every documented GET operation, grouped by tag, searchable. Selecting one
 /// loads it into the request bar (prompting for path placeholders) and sends.
-/// `header` renders above the groups; the server page uses it for its card.
-struct EndpointListView<Header: View>: View {
+struct EndpointListView: View {
     let server: ConnectedServer?
-    @ViewBuilder let header: Header
 
     @Environment(SpecStore.self) private var spec
     @Environment(RequestStore.self) private var requests
@@ -19,7 +17,6 @@ struct EndpointListView<Header: View>: View {
 
     var body: some View {
         List {
-            header
             ForEach(groups) { group in
                 Section(group.name) {
                     ForEach(group.operations) { operation in
@@ -58,22 +55,6 @@ struct EndpointListView<Header: View>: View {
         } else {
             pending = operation
         }
-    }
-}
-
-/// The Endpoints sidebar item: the catalog against the sidebar's server.
-struct EndpointCatalogView: View {
-    @Environment(SpecStore.self) private var spec
-    @Environment(ServerStore.self) private var servers
-
-    private var server: ConnectedServer? {
-        servers.selected.flatMap { servers.connectedServer(for: $0) }
-    }
-
-    var body: some View {
-        EndpointListView(server: server) { EmptyView() }
-            .navigationTitle("Endpoints")
-            .navigationSubtitle(spec.catalog.map { "API v\($0.version) · \($0.operations.count) GET operations" } ?? "")
     }
 }
 

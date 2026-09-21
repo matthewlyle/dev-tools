@@ -1,15 +1,18 @@
 import SwiftUI
 
+/// Everything you do with one server: its endpoint catalog, its request
+/// history, its live activity feed. Switching section keeps the server.
 struct ServerDetailView: View {
     let entry: ServerStore.Entry
+    @Binding var section: ServerSection
 
     @Environment(ServerStore.self) private var servers
 
     private var connected: ConnectedServer? { servers.connectedServer(for: entry) }
 
     var body: some View {
-        EndpointListView(server: connected) {
-            Section {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(entry.resource.name)
@@ -28,7 +31,28 @@ struct ServerDetailView: View {
                         .foregroundStyle(.secondary)
                     connectionLine
                 }
-                .padding(.vertical, 4)
+
+                Picker("Section", selection: $section) {
+                    ForEach(ServerSection.allCases) { section in
+                        Label(section.rawValue, systemImage: section.systemImage).tag(section)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+
+            Divider()
+
+            switch section {
+            case .endpoints:
+                EndpointListView(server: connected)
+            case .history:
+                HistoryListView(serverID: entry.id)
+            case .activity:
+                ActivityControlsView()
             }
         }
         .navigationTitle(entry.resource.name)

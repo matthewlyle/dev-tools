@@ -1,65 +1,64 @@
 import SwiftUI
 
-enum SidebarItem: Hashable {
-    case server(String)
-    case endpoints
-    case history
-    case activity
+/// What you're doing with the selected server. The server is the context;
+/// these are views onto it, never peers of it.
+enum ServerSection: String, CaseIterable, Identifiable {
+    case endpoints = "Endpoints"
+    case history = "History"
+    case activity = "Activity"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .endpoints: "book.closed"
+        case .history: "clock"
+        case .activity: "dot.radiowaves.left.and.right"
+        }
+    }
 }
 
 struct MainSplitView: View {
     @Environment(ServerStore.self) private var servers
-    @State private var sidebar: SidebarItem?
+    @AppStorage("serverSection") private var section: ServerSection = .endpoints
 
     var body: some View {
+        @Bindable var servers = servers
+
         NavigationSplitView {
-            SidebarView(selection: $sidebar)
+            SidebarView(selection: $servers.selectedID)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } content: {
             Group {
-                switch sidebar {
-                case .server(let id):
-                    if let entry = servers.entry(id: id) {
-                        ServerDetailView(entry: entry)
-                            .id(id)
-                    } else {
-                        ContentUnavailableView("Server Not Found", systemImage: "server.rack")
-                    }
-                case .endpoints:
-                    EndpointCatalogView()
-                case .history:
-                    HistoryListView()
-                case .activity:
-                    ActivityControlsView()
-                case nil:
+                if let entry = servers.selected {
+                    ServerDetailView(entry: entry, section: $section)
+                        .id(entry.id)
+                } else {
                     ContentUnavailableView(
-                        "Nothing Selected",
-                        systemImage: "sidebar.left",
-                        description: Text("Pick a server or a Library item in the sidebar.")
+                        "No Server Selected",
+                        systemImage: "server.rack",
+                        description: Text("Pick a server in the sidebar.")
                     )
                 }
             }
-            .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 480)
+            .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 520)
         } detail: {
-            if sidebar == .activity {
+            if section == .activity {
                 ActivityEventsView()
             } else {
                 WorkspaceView()
-            }
-        }
-        .onAppear {
-            if sidebar == nil, let id = servers.selectedID {
-                sidebar = .server(id)
             }
         }
     }
 }
 
 /// Standalone activity window so the feed can sit beside the main window.
+/// It follows the main window's selected server.
 struct ActivityWindowView: View {
     var body: some View {
         NavigationSplitView {
             ActivityControlsView(showsOpenWindow: false)
+                .navigationTitle("Activity")
                 .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
         } detail: {
             ActivityEventsView()

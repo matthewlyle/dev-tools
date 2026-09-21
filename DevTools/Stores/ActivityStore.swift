@@ -31,9 +31,6 @@ final class ActivityStore {
     private(set) var typeCounts: [String: Int] = [:]
     var hiddenTypes: Set<String> = []
     var selectedEventID: UUID?
-    /// Server the Connect button targets. Independent of the sidebar
-    /// selection so browsing one server doesn't retarget the feed.
-    var targetServerID: String?
 
     var transport: ActivityTransport {
         didSet { UserDefaults.standard.set(transport.rawValue, forKey: Self.transportKey) }
