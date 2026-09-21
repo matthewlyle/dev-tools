@@ -18,9 +18,13 @@ struct SidebarView: View {
                         .tag(entry.id)
                 }
                 if servers.entries.isEmpty {
-                    Text(servers.isRefreshing ? "Loading…" : (servers.errorMessage ?? "No servers"))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    if servers.isRefreshing {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text(servers.errorMessage ?? "No servers")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

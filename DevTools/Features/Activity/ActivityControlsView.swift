@@ -148,9 +148,15 @@ struct ActivityControlsView: View {
     }
 }
 
-/// A coloured capsule for an event type; hue is a stable hash of the name.
+/// A coloured capsule for an event type. The colour is a stable hash of the
+/// name into the system palette, so it adapts to dark mode and increased
+/// contrast like every other colour in the app.
 struct EventTypeBadge: View {
     let type: String
+
+    private static let palette: [Color] = [
+        .red, .orange, .yellow, .green, .mint, .teal, .cyan, .blue, .indigo, .purple, .pink, .brown,
+    ]
 
     var body: some View {
         Text(type)
@@ -166,6 +172,6 @@ struct EventTypeBadge: View {
         for byte in type.utf8 {
             hash = (hash ^ UInt32(byte)) &* 16_777_619
         }
-        return Color(hue: Double(hash % 360) / 360, saturation: 0.55, brightness: 0.85)
+        return Self.palette[Int(hash % UInt32(Self.palette.count))]
     }
 }

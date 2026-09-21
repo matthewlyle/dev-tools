@@ -44,7 +44,7 @@ struct SignInView: View {
             Button {
                 Task { await account.beginSignIn() }
             } label: {
-                Text("Sign in with Plex")
+                Text("Sign In with Plex")
                     .frame(minWidth: 180)
             }
             .buttonStyle(.borderedProminent)
@@ -65,13 +65,10 @@ struct SignInView: View {
                 .padding(.vertical, 10)
                 .background(.quaternary, in: .rect(cornerRadius: 12))
 
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Waiting for approval…")
-                    .foregroundStyle(.secondary)
-            }
-            .font(.callout)
+            // "Approve this sign-in in your browser." above already says
+            // what's happening; HIG: don't label a spinner.
+            ProgressView()
+                .controlSize(.small)
 
             HStack {
                 Button("Cancel", role: .cancel) { account.cancelSignIn() }

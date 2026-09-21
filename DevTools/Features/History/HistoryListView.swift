@@ -61,16 +61,49 @@ struct HistoryListView: View {
         }
     }
 
+    @State private var sortOrder = [KeyPathComparator(\HistoryEntry.date, order: .reverse)]
+    @State private var selection: HistoryEntry.ID?
+
+    private var rows: [HistoryEntry] { filtered.sorted(using: sortOrder) }
+
     var body: some View {
-        List(filtered) { entry in
-            Button {
-                requests.load(entry)
-            } label: {
-                HistoryRow(entry: entry)
+        // A multicolumn table, as the HIG expects for attribute data on the
+        // Mac: sortable by clicking a heading, resizable, alternating rows.
+        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Status", value: \.sortStatus) { entry in
+                Text(entry.status.map(String.init) ?? "ERR")
+                    .font(.code(.callout, weight: .semibold))
+                    .foregroundStyle(entry.succeeded ? .green : .red)
+                    .help(entry.error ?? "")
             }
-            .buttonStyle(.plain)
+            .width(min: 52, ideal: 60, max: 80)
+
+            TableColumn("Path", value: \.request.summary) { entry in
+                HistoryPathCell(entry: entry)
+            }
+
+            TableColumn("Duration", value: \.sortDuration) { entry in
+                Text(entry.durationMilliseconds.map { "\($0) ms" } ?? "—")
+                    .font(.code(.callout))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .width(min: 56, ideal: 66, max: 90)
+
+            TableColumn("When", value: \.date) { entry in
+                Text(entry.date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))
+                    .foregroundStyle(.secondary)
+                    .help(entry.date.formatted(date: .abbreviated, time: .standard))
+            }
+            .width(min: 76, ideal: 96, max: 140)
         }
-        .listStyle(.inset)
+        .alternatingRowBackgrounds()
+        .onChange(of: selection) { _, id in
+            // Selecting a row loads it into the request bar, like picking a
+            // message in Mail; nothing is sent until you press Send.
+            guard let entry = rows.first(where: { $0.id == id }) else { return }
+            requests.load(entry)
+        }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
         .toolbar {
             ToolbarItem {
@@ -121,14 +154,14 @@ struct HistoryListView: View {
     }
 }
 
-private struct HistoryRow: View {
+/// Path + params with any token masked: the server's own token wherever it
+/// appears, plus `X-Plex-Token=…` pairs typed into the path.
+private struct HistoryPathCell: View {
     let entry: HistoryEntry
 
     @Environment(RequestStore.self) private var requests
     @Environment(ServerStore.self) private var servers
 
-    /// Path + params with any token masked: the server's own token wherever
-    /// it appears, plus `X-Plex-Token=…` pairs typed into the path.
     private var summary: String {
         guard requests.redactToken else { return entry.request.summary }
         var text = requests.redacted(entry.request.summary, token: servers.entry(id: entry.serverID)?.resource.accessToken)
@@ -137,32 +170,10 @@ private struct HistoryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(entry.status.map(String.init) ?? "ERR")
-                .font(.code(.caption, weight: .semibold))
-                .foregroundStyle(entry.succeeded ? .green : .red)
-                .frame(width: 32, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .font(.code(.callout))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, 2)
-        .contentShape(.rect)
-    }
-
-    private var subtitle: String {
-        var parts = [entry.serverName]
-        if let ms = entry.durationMilliseconds { parts.append("\(ms) ms") }
-        if let error = entry.error { parts.append(error) }
-        parts.append(entry.date.formatted(.relative(presentation: .named)))
-        return parts.joined(separator: " · ")
+        Text(summary)
+            .font(.code(.callout))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help(entry.error ?? summary)
     }
 }

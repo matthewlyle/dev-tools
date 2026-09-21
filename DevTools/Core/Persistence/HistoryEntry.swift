@@ -14,4 +14,9 @@ struct HistoryEntry: Identifiable, Codable, Hashable, Sendable {
         guard let status else { return false }
         return (200..<300).contains(status)
     }
+
+    /// Table sort keys. Optionals aren't Comparable; a failed request (no
+    /// status, no duration) sorts after every real value.
+    var sortStatus: Int { status ?? Int.max }
+    var sortDuration: Int { durationMilliseconds ?? Int.max }
 }

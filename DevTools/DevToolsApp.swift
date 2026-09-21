@@ -39,5 +39,11 @@ struct DevToolsApp: App {
         .commands {
             AppCommands(account: account, servers: servers, requests: requests)
         }
+
+        Settings {
+            SettingsView()
+                .environment(requests)
+                .environment(activity)
+        }
     }
 }

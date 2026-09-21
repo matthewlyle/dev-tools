@@ -58,7 +58,7 @@ struct PlaceholderSheet: View {
             HStack {
                 if loadingSections {
                     ProgressView().controlSize(.small)
-                    Text("Loading libraries…").font(.caption).foregroundStyle(.secondary)
+                        .help("Fetching this server's libraries")
                 }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
