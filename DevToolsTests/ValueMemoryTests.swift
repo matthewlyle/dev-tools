@@ -26,10 +26,9 @@ struct ValueMemoryTests {
         return memory
     }
 
-    @Test func metadataPlaceholdersPreferRatingKeys() {
-        let best = memory().candidates(for: "metadataId", serverID: "s").prefix(2)
-        #expect(best.map(\.value) == ["101", "102"])
-        #expect(best.allSatisfy { $0.attribute == "ratingKey" })
+    @Test func metadataPlaceholdersOfferOnlyRatingKeys() {
+        let all = memory().candidates(for: "metadataId", serverID: "s")
+        #expect(all.map(\.value) == ["101", "102"])
         #expect(memory().candidates(for: "ids", serverID: "s").first?.title == "Alien")
     }
 
@@ -38,10 +37,11 @@ struct ValueMemoryTests {
         #expect(values == ["1", "2"])
     }
 
-    @Test func elementNamedPlaceholdersMatchByStem() {
-        #expect(memory().candidates(for: "deviceId", serverID: "s").first?.value == "9")
-        #expect(memory().candidates(for: "partId", serverID: "s").first?.value == "601")
-        #expect(memory().candidates(for: "streamId", serverID: "s").first?.value == "701")
+    @Test func elementNamedPlaceholdersMatchByStemOnly() {
+        #expect(memory().candidates(for: "deviceId", serverID: "s").map(\.value) == ["9"])
+        #expect(memory().candidates(for: "partId", serverID: "s").map(\.value) == ["601"])
+        #expect(memory().candidates(for: "streamId", serverID: "s").map(\.value) == ["701"])
+        #expect(memory().candidates(for: "playlistId", serverID: "s").isEmpty)
     }
 
     @Test func nonIdentifiersAreNotRecorded() {

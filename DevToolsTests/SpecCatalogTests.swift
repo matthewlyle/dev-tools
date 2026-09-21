@@ -24,10 +24,18 @@ struct SpecCatalogTests {
         let root = try #require(catalog.match(path: "/"))
         #expect(root.docsURL?.absoluteString == "https://developer.plex.tv/pms/#tag/General/operation/getSlash")
 
-        let spaced = SpecOperation(template: "/x", tag: "Live TV", operationID: "getX", summary: "", description: nil, parameters: [], supportsMediaQuery: false)
+        let spaced = SpecOperation(template: "/x", tag: "Live TV", operationID: "getX", summary: "", description: nil, parameters: [], supportsMediaQuery: false, access: .anyUser)
         #expect(spaced.docsURL?.absoluteString == "https://developer.plex.tv/pms/#tag/Live%20TV/operation/getX")
 
         #expect(catalog.operations.allSatisfy { $0.docsURL != nil })
+    }
+
+    @Test func accessComesFromSecurityScopes() throws {
+        #expect(try #require(catalog.match(path: "/butler")).access == .admin)
+        #expect(try #require(catalog.match(path: "/status/sessions")).access == .admin)
+        #expect(try #require(catalog.match(path: "/identity")).access == .open)
+        #expect(try #require(catalog.match(path: "/library/sections/all")).access == .anyUser)
+        #expect(catalog.operations.filter { $0.access == .admin }.count == 19)
     }
 
     @Test func groupsFilterByTemplateSummaryOrTag() {

@@ -27,6 +27,15 @@ struct ResponseView: View {
         return candidates.isEmpty ? nil : candidates
     }
 
+    /// A 403 on an admin-only operation against a server you don't own has
+    /// one explanation; say it rather than leave a bare status code.
+    private var adminOnlyHint: SpecOperation? {
+        guard let response = requests.response, response.status == 403, server?.owned == false,
+              let operation = spec.operation(matching: requests.current.path), operation.access == .admin
+        else { return nil }
+        return operation
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -59,6 +68,9 @@ struct ResponseView: View {
                         }
                         requests.revealParameters()
                     }
+                }
+                if let operation = adminOnlyHint {
+                    AccessHint(operation: operation)
                 }
                 if let document = requests.document {
                     switch tab {
@@ -111,6 +123,30 @@ private struct MissingParametersHint: View {
             Spacer()
             Button("Add Parameters", action: add)
                 .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.orange.opacity(0.08))
+        .overlay(alignment: .bottom) { Divider() }
+    }
+}
+
+private struct AccessHint: View {
+    let operation: SpecOperation
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Forbidden — “\(operation.summary)” is admin-only, and this server is shared with you.")
+                    .font(.callout)
+                Text("Only the server's owner can call it. Try it on a server you own.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

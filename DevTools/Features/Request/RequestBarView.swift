@@ -270,6 +270,18 @@ private struct OperationDocs: View {
                 Text(operation.template)
                     .font(.code(.callout))
                     .foregroundStyle(.secondary)
+                switch operation.access {
+                case .admin:
+                    Label("Requires admin — the server's owner", systemImage: "lock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .open:
+                    Label("No token required", systemImage: "lock.open")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .anyUser:
+                    EmptyView()
+                }
                 if let description = operation.description, !description.isEmpty {
                     Text(description)
                         .font(.callout)

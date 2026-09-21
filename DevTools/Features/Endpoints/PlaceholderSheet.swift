@@ -108,17 +108,21 @@ struct PlaceholderSheet: View {
         }
     }
 
-    /// Values seen in earlier responses that plausibly fit `name`.
+    /// Values seen in earlier responses that fit `name`, grouped by where
+    /// they came from. Hidden when nothing fits.
     @ViewBuilder
     private func recentMenu(for name: String) -> some View {
-        let candidates = server.map { memory.candidates(for: name, serverID: $0.machineID) } ?? []
+        let candidates = Array((server.map { memory.candidates(for: name, serverID: $0.machineID) } ?? []).prefix(24))
         if !candidates.isEmpty {
+            let groups = Dictionary(grouping: candidates) { "\($0.element).\($0.attribute)" }
             Menu {
-                ForEach(candidates.prefix(30)) { seen in
-                    Button {
-                        values[name] = seen.value
-                    } label: {
-                        Text("\(seen.title)  ·  \(seen.element).\(seen.attribute) = \(seen.value)")
+                ForEach(groups.keys.sorted(), id: \.self) { source in
+                    Section(source) {
+                        ForEach(groups[source] ?? []) { seen in
+                            Button(seen.title == seen.value ? seen.value : "\(seen.title)  (\(seen.value))") {
+                                values[name] = seen.value
+                            }
+                        }
                     }
                 }
             } label: {
@@ -140,6 +144,6 @@ struct PlaceholderSheet: View {
     }
 
     private func prompt(for name: String) -> String {
-        operation.pathParameters.first { $0.name == name }?.example ?? name
+        operation.pathParameters.first { $0.name == name }?.example ?? ""
     }
 }

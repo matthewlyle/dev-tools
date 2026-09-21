@@ -17,6 +17,8 @@ struct OpenAPISpec: Decodable, Sendable {
         let description: String?
         let tags: [String]?
         let parameters: [ParameterOrRef]?
+        /// Security requirements; scheme name → scopes. `[[:]]` means none.
+        let security: [[String: [String]]]?
     }
 
     enum ParameterOrRef: Decodable, Sendable {
@@ -61,6 +63,8 @@ struct OpenAPISpec: Decodable, Sendable {
     let info: Info
     let paths: [String: PathItem]
     let components: Components?
+    /// Document-wide security requirement, inherited by operations that don't override it.
+    let security: [[String: [String]]]?
 
     static func loadBundled() throws -> OpenAPISpec {
         guard let url = Bundle.main.url(forResource: "plex-openapi", withExtension: "json") else {

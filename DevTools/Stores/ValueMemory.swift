@@ -61,15 +61,11 @@ final class ValueMemory {
         return name == "key" && value.allSatisfy(\.isNumber)
     }
 
-    /// Values that plausibly fill `placeholder`, best matches first, then
-    /// everything else so a wrong guess costs one glance.
+    /// Values that plausibly fill `placeholder`, newest first. Only matches:
+    /// an unrelated identifier is noise, not a fallback.
     func candidates(for placeholder: String, serverID: String) -> [Seen] {
-        let all = seen[serverID] ?? []
-        guard !all.isEmpty else { return [] }
         let stem = Self.stem(of: placeholder)
-        let matches = all.filter { Self.matches($0, stem: stem) }
-        let rest = all.filter { !Self.matches($0, stem: stem) }
-        return matches + rest
+        return (seen[serverID] ?? []).filter { Self.matches($0, stem: stem) }
     }
 
     /// `metadataId` → `metadata`, `ids` → `id`, `playQueueId` → `playqueue`.

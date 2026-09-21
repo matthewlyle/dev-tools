@@ -32,6 +32,23 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     let parameters: [SpecParameter]
     /// Accepts the media-query filtering language (`#/components/parameters/mediaQuery`).
     let supportsMediaQuery: Bool
+    let access: Access
+
+    /// Who the spec says may call this, from the `user_token` scopes: the
+    /// document default is `shared user` + `admin`; some operations narrow
+    /// to `admin`; `/identity` needs no token at all.
+    enum Access: Sendable, Hashable {
+        case open
+        case anyUser
+        case admin
+
+        init(requirements: [[String: [String]]]?, fallback: [[String: [String]]]?) {
+            guard let requirements = requirements ?? fallback else { self = .anyUser; return }
+            if requirements.allSatisfy(\.isEmpty) { self = .open; return }
+            let scopes = Set(requirements.flatMap { $0.values.flatMap { $0 } }.map { $0.lowercased() })
+            self = scopes == ["admin"] ? .admin : .anyUser
+        }
+    }
 
     /// developer.plex.tv is a stock Redoc site, whose deep links are
     /// `#tag/<tag>/operation/<operationId>` — both fields the spec already
@@ -156,7 +173,8 @@ struct SpecCatalog: Sendable {
                 summary: get.summary ?? template,
                 description: get.description,
                 parameters: parameters,
-                supportsMediaQuery: supportsMediaQuery
+                supportsMediaQuery: supportsMediaQuery,
+                access: SpecOperation.Access(requirements: get.security, fallback: spec.security)
             ))
         }
 

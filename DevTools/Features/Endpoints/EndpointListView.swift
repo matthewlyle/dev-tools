@@ -41,7 +41,7 @@ struct EndpointListView: View {
             ForEach(groups) { group in
                 Section(group.name) {
                     ForEach(group.operations) { operation in
-                        EndpointRow(operation: operation, disabled: server == nil) {
+                        EndpointRow(operation: operation, disabled: server == nil, shared: server?.owned == false) {
                             open(operation)
                         }
                     }
@@ -79,10 +79,16 @@ struct EndpointListView: View {
     }
 }
 
+/// One catalog row. Admin-only operations carry a lock; on a server you
+/// don't own they're dimmed with the reason, but still clickable — seeing
+/// the 403 is part of exploring the API.
 private struct EndpointRow: View {
     let operation: SpecOperation
     let disabled: Bool
+    let shared: Bool
     let action: () -> Void
+
+    private var lockedOut: Bool { shared && operation.access == .admin }
 
     var body: some View {
         Button(action: action) {
@@ -92,6 +98,12 @@ private struct EndpointRow: View {
                         .font(.code(.callout))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if operation.access == .admin {
+                        Image(systemName: "lock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Admin only")
+                    }
                     if operation.supportsMediaQuery {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .font(.caption)
@@ -106,10 +118,13 @@ private struct EndpointRow: View {
                     .lineLimit(1)
             }
             .contentShape(.rect)
+            .opacity(lockedOut ? 0.5 : 1)
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .help(operation.description ?? operation.summary)
+        .help(lockedOut
+            ? "Admin only. This server is shared with you, so it will answer 403."
+            : (operation.access == .admin ? "Admin only. " : "") + (operation.description ?? operation.summary))
         .contextMenu {
             if let url = operation.docsURL {
                 Link("Open in Developer Docs", destination: url)
