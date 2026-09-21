@@ -61,43 +61,37 @@ struct HistoryListView: View {
         }
     }
 
-    @State private var sortOrder = [KeyPathComparator(\HistoryEntry.date, order: .reverse)]
+    /// Column layout is too narrow for a multicolumn table (Mail makes the
+    /// same call), so rows carry two lines and sorting lives in a menu.
+    private enum Sort: String, CaseIterable, Identifiable {
+        case newest = "Newest First"
+        case oldest = "Oldest First"
+        case status = "Status"
+        case slowest = "Slowest First"
+
+        var id: String { rawValue }
+
+        func areInIncreasingOrder(_ a: HistoryEntry, _ b: HistoryEntry) -> Bool {
+            switch self {
+            case .newest: a.date > b.date
+            case .oldest: a.date < b.date
+            case .status: a.sortStatus != b.sortStatus ? a.sortStatus < b.sortStatus : a.date > b.date
+            case .slowest: a.sortDuration != b.sortDuration ? a.sortDuration > b.sortDuration : a.date > b.date
+            }
+        }
+    }
+
+    @State private var sort: Sort = .newest
     @State private var selection: HistoryEntry.ID?
 
-    private var rows: [HistoryEntry] { filtered.sorted(using: sortOrder) }
+    private var rows: [HistoryEntry] { filtered.sorted(by: sort.areInIncreasingOrder) }
 
     var body: some View {
-        // A multicolumn table, as the HIG expects for attribute data on the
-        // Mac: sortable by clicking a heading, resizable, alternating rows.
-        Table(rows, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn("Status", value: \.sortStatus) { entry in
-                Text(entry.status.map(String.init) ?? "ERR")
-                    .font(.code(.callout, weight: .semibold))
-                    .foregroundStyle(entry.succeeded ? .green : .red)
-                    .help(entry.error ?? "")
-            }
-            .width(min: 52, ideal: 60, max: 80)
-
-            TableColumn("Path", value: \.request.summary) { entry in
-                HistoryPathCell(entry: entry)
-            }
-
-            TableColumn("Duration", value: \.sortDuration) { entry in
-                Text(entry.durationMilliseconds.map { "\($0) ms" } ?? "—")
-                    .font(.code(.callout))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            .width(min: 56, ideal: 66, max: 90)
-
-            TableColumn("When", value: \.date) { entry in
-                Text(entry.date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))
-                    .foregroundStyle(.secondary)
-                    .help(entry.date.formatted(date: .abbreviated, time: .standard))
-            }
-            .width(min: 76, ideal: 96, max: 140)
+        List(rows, selection: $selection) { entry in
+            HistoryRow(entry: entry)
+                .tag(entry.id)
         }
-        .alternatingRowBackgrounds()
+        .listStyle(.inset)
         .onChange(of: selection) { _, id in
             // Selecting a row loads it into the request bar, like picking a
             // message in Mail; nothing is sent until you press Send.
@@ -107,13 +101,24 @@ struct HistoryListView: View {
         .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
         .toolbar {
             ToolbarItem {
-                Picker("Status", selection: $statusFilter) {
-                    Text(StatusFilter.any.label).tag(StatusFilter.any)
-                    ForEach(statusOptions, id: \.self) { option in
-                        Text(option.label).tag(option)
+                // One menu for sort + status so the column's toolbar section
+                // stays uncrowded; checkmarks show the state in effect.
+                Menu {
+                    Picker("Sort By", selection: $sort) {
+                        ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
                     }
+                    .pickerStyle(.inline)
+                    Picker("Status", selection: $statusFilter) {
+                        Text(StatusFilter.any.label).tag(StatusFilter.any)
+                        ForEach(statusOptions, id: \.self) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Sort and Filter", systemImage: statusFilter == .any ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                 }
-                .help("Show only requests with this status")
+                .help("Sort order and status filter")
             }
             ToolbarItem {
                 Button(role: .destructive) {
@@ -154,9 +159,10 @@ struct HistoryListView: View {
     }
 }
 
-/// Path + params with any token masked: the server's own token wherever it
-/// appears, plus `X-Plex-Token=…` pairs typed into the path.
-private struct HistoryPathCell: View {
+/// Status and path on the first line, timing on the second. The path has
+/// any token masked: the server's own wherever it appears, plus
+/// `X-Plex-Token=…` pairs typed into the path.
+private struct HistoryRow: View {
     let entry: HistoryEntry
 
     @Environment(RequestStore.self) private var requests
@@ -169,11 +175,32 @@ private struct HistoryPathCell: View {
         return text
     }
 
+    private var detail: String {
+        var parts: [String] = []
+        if let ms = entry.durationMilliseconds { parts.append("\(ms) ms") }
+        if let error = entry.error { parts.append(error) }
+        parts.append(entry.date.formatted(.relative(presentation: .named)))
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        Text(summary)
-            .font(.code(.callout))
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .help(entry.error ?? summary)
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(entry.status.map(String.init) ?? "ERR")
+                .font(.code(.callout, weight: .semibold))
+                .foregroundStyle(entry.succeeded ? .green : .red)
+                .frame(width: 36, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary)
+                    .font(.code(.callout))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 2)
+        .help(entry.date.formatted(date: .abbreviated, time: .standard))
     }
 }

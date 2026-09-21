@@ -41,7 +41,7 @@ struct MainSplitView: View {
                     )
                 }
             }
-            .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 520)
+            .navigationSplitViewColumnWidth(min: 340, ideal: 440, max: 600)
         } detail: {
             if section == .activity {
                 ActivityEventsView()

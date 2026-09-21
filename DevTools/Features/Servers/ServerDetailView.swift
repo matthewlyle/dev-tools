@@ -54,9 +54,11 @@ struct ServerDetailView: View {
         }
         .navigationTitle(entry.resource.name)
         .toolbar {
-            // The HIG puts view switching for a window area in the toolbar,
-            // not the body; each section adds its own filter beside it.
-            ToolbarItem(placement: .principal) {
+            // SwiftUI toolbars have no column alignment on macOS, so this
+            // follows Finder/Xcode: view switcher leading after the title,
+            // filters and search trailing. Each section adds its own filter.
+            // Probe Connections is rare enough to live only in the Server menu.
+            ToolbarItem(placement: .navigation) {
                 Picker("Section", selection: $section) {
                     ForEach(ServerSection.allCases) { section in
                         Text(section.rawValue).tag(section)
@@ -65,14 +67,6 @@ struct ServerDetailView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
-            }
-            ToolbarItem {
-                Button {
-                    Task { await servers.probe(id: entry.id) }
-                } label: {
-                    Label("Probe Connections", systemImage: "dot.radiowaves.left.and.right")
-                }
-                .disabled(entry.isProbing)
             }
         }
     }
