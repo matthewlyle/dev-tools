@@ -34,7 +34,6 @@ struct SidebarView: View {
                     Label("Refresh Servers", systemImage: "arrow.clockwise")
                 }
                 .disabled(servers.isRefreshing)
-                .keyboardShortcut("r", modifiers: .command)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {

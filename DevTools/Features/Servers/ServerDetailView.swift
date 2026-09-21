@@ -12,37 +12,27 @@ struct ServerDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(entry.resource.name)
-                            .font(.title3.weight(.semibold))
-                        if entry.resource.owned {
-                            Text("Owned")
-                                .font(.caption2.weight(.medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.tint.opacity(0.15), in: .capsule)
-                                .foregroundStyle(.tint)
-                        }
-                    }
-                    Text(headerSubtitle)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    connectionLine
-                }
-
-                Picker("Section", selection: $section) {
-                    ForEach(ServerSection.allCases) { section in
-                        Label(section.rawValue, systemImage: section.systemImage).tag(section)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(entry.resource.name)
+                        .font(.title3.weight(.semibold))
+                    if entry.resource.owned {
+                        Text("Owned")
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.tint.opacity(0.15), in: .capsule)
+                            .foregroundStyle(.tint)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                Text(headerSubtitle)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                connectionLine
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.vertical, 12)
 
             Divider()
 
@@ -57,6 +47,18 @@ struct ServerDetailView: View {
         }
         .navigationTitle(entry.resource.name)
         .toolbar {
+            // The HIG puts view switching for a window area in the toolbar,
+            // not the body; each section adds its own filter beside it.
+            ToolbarItem(placement: .principal) {
+                Picker("Section", selection: $section) {
+                    ForEach(ServerSection.allCases) { section in
+                        Text(section.rawValue).tag(section)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
             ToolbarItem {
                 Button {
                     Task { await servers.probe(id: entry.id) }

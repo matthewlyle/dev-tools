@@ -7,6 +7,8 @@ struct HistoryListView: View {
     @Environment(RequestStore.self) private var requests
 
     @State private var statusFilter: StatusFilter = .any
+    @State private var search = ""
+    @State private var confirmingClear = false
 
     private enum StatusFilter: Hashable {
         case any
@@ -48,10 +50,15 @@ struct HistoryListView: View {
         return options
     }
 
-    private var isFiltered: Bool { statusFilter != .any }
+    private var isFiltered: Bool { statusFilter != .any || !needle.isEmpty }
+
+    private var needle: String { search.trimmingCharacters(in: .whitespaces) }
 
     private var filtered: [HistoryEntry] {
-        isFiltered ? scoped.filter(statusFilter.matches) : scoped
+        scoped.filter { entry in
+            statusFilter.matches(entry)
+                && (needle.isEmpty || entry.request.summary.localizedCaseInsensitiveContains(needle))
+        }
     }
 
     var body: some View {
@@ -64,36 +71,45 @@ struct HistoryListView: View {
             .buttonStyle(.plain)
         }
         .listStyle(.inset)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            HStack(spacing: 8) {
+        .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
+        .toolbar {
+            ToolbarItem {
                 Picker("Status", selection: $statusFilter) {
                     Text(StatusFilter.any.label).tag(StatusFilter.any)
                     ForEach(statusOptions, id: \.self) { option in
                         Text(option.label).tag(option)
                     }
                 }
-                .labelsHidden()
-                .frame(maxWidth: 120)
-                Spacer()
+                .help("Show only requests with this status")
+            }
+            ToolbarItem {
                 Button(role: .destructive) {
-                    let shown = Set(filtered.map(\.id))
-                    requests.clearHistory { shown.contains($0.id) }
+                    confirmingClear = true
                 } label: {
-                    Label(isFiltered ? "Clear Shown" : "Clear", systemImage: "trash")
+                    Label(isFiltered ? "Clear Shown" : "Clear History", systemImage: "trash")
                 }
                 .disabled(filtered.isEmpty)
             }
-            .controlSize(.small)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.bar)
+        }
+        .focusedSceneValue(\.clearHistory, filtered.isEmpty ? nil : ClearHistoryAction(serverID: serverID) { confirmingClear = true })
+        .confirmationDialog(
+            isFiltered ? "Clear the \(filtered.count) shown requests?" : "Clear all history for this server?",
+            isPresented: $confirmingClear,
+            titleVisibility: .visible
+        ) {
+            Button(isFiltered ? "Clear Shown" : "Clear History", role: .destructive) {
+                let shown = Set(filtered.map(\.id))
+                requests.clearHistory { shown.contains($0.id) }
+            }
+        } message: {
+            Text("This can't be undone.")
         }
         .overlay {
             if filtered.isEmpty {
                 ContentUnavailableView(
                     "No History",
                     systemImage: "clock",
-                    description: Text(isFiltered ? "No requests with this status." : "Requests you send to this server show up here.")
+                    description: Text(isFiltered ? "No requests match the filter." : "Requests you send to this server show up here.")
                 )
             }
         }
