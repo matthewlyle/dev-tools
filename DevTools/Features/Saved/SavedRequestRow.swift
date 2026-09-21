@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One saved request in the catalog: name over masked path. Click loads it
-/// into the request bar; right-click to rename or delete.
+/// into the request bar and sends it; right-click to rename or delete.
 struct SavedRequestRow: View {
     let item: SavedRequest
     let serverID: String
@@ -16,9 +16,14 @@ struct SavedRequestRow: View {
 
     private var token: String? { servers.entry(id: serverID)?.resource.accessToken }
 
+    private var connected: ConnectedServer? {
+        servers.entry(id: serverID).flatMap { servers.connectedServer(for: $0) }
+    }
+
     var body: some View {
         Button {
             requests.load(saved: item)
+            if let connected { requests.send(to: connected) }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "bookmark.fill")
