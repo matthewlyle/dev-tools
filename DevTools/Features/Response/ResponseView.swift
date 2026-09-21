@@ -124,6 +124,7 @@ private struct PaginationControls: View {
     let server: ConnectedServer?
 
     @Environment(RequestStore.self) private var requests
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 4) {
@@ -158,14 +159,17 @@ private struct PaginationControls: View {
         .padding(.vertical, 5)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
-        .animation(.snappy, value: pagination.start)
+        .animation(reduceMotion ? nil : .snappy, value: pagination.start)
     }
 }
 
 struct ResponseStatusBar: View {
     let response: PlexResponse
 
-    /// Digits roll in the direction the value moved whenever a new response lands.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Digits roll in the direction the value moved whenever a new response
+    /// lands; under Reduce Motion they simply change.
     var body: some View {
         HStack(spacing: 12) {
             Text(String(response.status))
@@ -187,7 +191,7 @@ struct ResponseStatusBar: View {
         .padding(.vertical, 6)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
-        .animation(.snappy, value: response.receivedAt)
+        .animation(reduceMotion ? nil : .snappy, value: response.receivedAt)
     }
 
     private var statusColor: Color {
