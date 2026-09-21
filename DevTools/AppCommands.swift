@@ -24,7 +24,6 @@ struct AppCommands: Commands {
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
-    @Environment(\.openWindow) private var openWindow
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -108,13 +107,6 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("]", modifiers: .command)
             .disabled(activeServer == nil || !requests.canGoForward)
-        }
-
-        CommandGroup(after: .windowArrangement) {
-            Divider()
-            Button("Activity") { openWindow(id: "activity") }
-                .keyboardShortcut("a", modifiers: [.command, .option])
-                .disabled(account.user == nil)
         }
     }
 }

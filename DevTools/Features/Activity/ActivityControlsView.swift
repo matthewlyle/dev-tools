@@ -1,13 +1,9 @@
 import SwiftUI
 
-/// Connection status, transport, and type filters for the notification feed.
+/// Connection status and type filters for the notification feed.
 struct ActivityControlsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
-    @Environment(\.openWindow) private var openWindow
-
-    /// Shown in the standalone window, where there's no main window to open.
-    var showsOpenWindow = true
 
     /// The feed is a view onto the selected server, like Endpoints and History.
     private var selectedServer: ConnectedServer? {
@@ -39,13 +35,6 @@ struct ActivityControlsView: View {
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
-
-                    Picker("Transport", selection: $activity.transport) {
-                        ForEach(ActivityTransport.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .disabled(activity.status.isActive)
 
                     HStack {
                         if activity.status.isActive {
@@ -108,17 +97,6 @@ struct ActivityControlsView: View {
             }
         }
         .listStyle(.inset)
-        .toolbar {
-            if showsOpenWindow {
-                ToolbarItem {
-                    Button {
-                        openWindow(id: "activity")
-                    } label: {
-                        Label("Open in New Window", systemImage: "macwindow.on.rectangle")
-                    }
-                }
-            }
-        }
         .onChange(of: servers.selectedID) { _, id in
             // The feed belongs to the server it was opened on; a different
             // server is a fresh context, not a place to show stale events.

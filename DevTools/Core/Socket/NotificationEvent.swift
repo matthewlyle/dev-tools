@@ -10,15 +10,14 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     let node: Node?
     let summary: String
 
-    /// Builds an event from a raw JSON message. WebSocket frames wrap the
-    /// payload in `NotificationContainer`; EventSource sends the container's
-    /// body with the type in the SSE `event:` field.
-    static func make(raw: String, eventName: String?, receivedAt: Date = .now) -> NotificationEvent {
+    /// Builds an event from a raw JSON frame; the payload is wrapped in
+    /// `NotificationContainer`, whose `type` names the event.
+    static func make(raw: String, receivedAt: Date = .now) -> NotificationEvent {
         let node = JSONNodeParser.parse(Data(raw.utf8))
         let container = node.flatMap { root in
             root.name == "NotificationContainer" ? root : root.children.first { $0.name == "NotificationContainer" } ?? root
         }
-        let type = container?["type"].flatMap { $0.isEmpty ? nil : $0 } ?? eventName ?? "message"
+        let type = container?["type"].flatMap { $0.isEmpty ? nil : $0 } ?? "message"
         return NotificationEvent(
             id: UUID(),
             receivedAt: receivedAt,

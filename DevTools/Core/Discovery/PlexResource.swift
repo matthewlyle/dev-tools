@@ -39,19 +39,27 @@ struct PlexResource: Sendable, Codable, Hashable, Identifiable {
         [device, platform].compactMap { $0 }.first { !$0.isEmpty }
     }
 
-    /// SF Symbol for the host. There are no OS logos in SF Symbols, so
-    /// these are hardware shapes: the container, the NAS, the PC, the Mac.
-    var hostSymbol: String {
+    /// The mark for what the server runs on. Brand logos where we have
+    /// them (bundled Simple Icons + the Apple SF Symbol); device wins over
+    /// platform because "Docker Container" on Linux is the more useful fact.
+    enum HostMark: Sendable, Hashable {
+        case symbol(String)
+        case asset(String)
+    }
+
+    var hostMark: HostMark {
         let device = (device ?? "").lowercased()
-        if device.contains("docker") || device.contains("container") { return "shippingbox" }
-        if device.contains("synology") || device.contains("qnap") || device.contains("nas") || device.contains("unraid") {
-            return "externaldrive.connected.to.line.below"
-        }
+        if device.contains("docker") || device.contains("container") { return .asset("host-docker") }
+        if device.contains("synology") { return .asset("host-synology") }
+        if device.contains("qnap") { return .asset("host-qnap") }
+        if device.contains("unraid") { return .asset("host-unraid") }
         switch (platform ?? "").lowercased() {
-        case let p where p.contains("windows"): return "pc"
-        case let p where p.contains("mac") || p.contains("osx"): return "desktopcomputer"
-        case let p where p.contains("android") || p.contains("tvos"): return "tv"
-        default: return "server.rack"
+        case let p where p.contains("windows"): return .asset("host-windows")
+        case let p where p.contains("mac") || p.contains("osx") || p.contains("darwin"): return .symbol("apple.logo")
+        case let p where p.contains("linux"): return .asset("host-linux")
+        case let p where p.contains("freebsd") || p.contains("bsd"): return .asset("host-freebsd")
+        case let p where p.contains("android"): return .asset("host-android")
+        default: return .symbol("server.rack")
         }
     }
 }

@@ -21,7 +21,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 3. Resource tree browser: Pretty / Tree tabs, hyperlinked responses, back/forward
 4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls, response-customization panel
 5. Media Query builder
-6. Live WebSocket / EventSource activity monitor
+6. Live WebSocket activity monitor
 7. Saved requests
 
 Deferred to v1.1: code export (cURL/Swift/Python/JS), non-GET methods, JWT auth, API-version diff mode.
@@ -48,7 +48,7 @@ UI (SwiftUI)  →  Stores (@Observable, @MainActor)  →  ServerSession
 dev-tools/
   DevTools.xcodeproj
   DevTools/
-    DevToolsApp.swift            @main, WindowGroup(main) + WindowGroup(activity)
+    DevToolsApp.swift            @main, WindowGroup(main) + Settings
     Core/
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (UUID persisted), Product, Version, Platform, Device headers
@@ -108,7 +108,7 @@ dev-tools/
 
 **Discovery.** `GET https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1&includeIPv6=1` with `Accept: application/json`. Filter `provides` contains `server`. Per resource, probe connections concurrently on `GET {uri}/identity` with the resource's `accessToken`; accept first whose `machineIdentifier` matches. Rank: local https → local http → remote https non-relay → remote → relay. Show each connection with latency; user can pin one.
 
-**Requests.** GET only; method picker hidden in v1. Path + query params editable. Token added as `X-Plex-Token` header by default, toggle to query param. `Accept` toggle: `application/json` (default) / `application/xml` (what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send appends to history.
+**Requests.** GET only; method picker hidden in v1. Path + query params editable. Token added as `X-Plex-Token` header by default, toggle to query param. Response format is an app-wide setting (`Accept: application/json` by default, or `application/xml`, which is what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send appends to history.
 
 **Hyperlinks.** `LinkDetector` marks attributes whose values are server paths (`key`, `parentKey`, `grandparentKey`, `thumb`, `art`, `theme`, `composite`, `librarySectionKey`, `hubKey`, …). In Pretty and Tree views these are buttons: click → `RequestStore` loads the path, pushes current onto back stack, sends. Resolution follows the documented rule: every request path is treated as having a trailing slash, so `/library/sections + home → /library/sections/home`; absolute paths are used as-is; `https://` and `view://` keys pass through (opened externally / not navigable). Image attributes render inline via `/photo/:/transcode?url=…&width=…&height=…` (server-relative) or directly (absolute URLs).
 
@@ -120,7 +120,7 @@ dev-tools/
 
 **Media Query builder (M5).** Visual builder emitting the documented querystring language: per-type operators (`=`, `!=`, `==`, `!==`, `<=`, `>=`, `>>=`, `<<=`), relative dates with unit suffixes (`>>=-3y`), field scoping (`show.title`), `sort=field:desc,other`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for parentheses. Fields come from `/library/sections/{id}?includeDetails=1` (`Field` elements).
 
-**Activity (M6).** Connect `wss://{host}/:/websockets/notifications?X-Plex-Token=…` (ws for http servers; note the plural — Plex's own OpenAPI doc lists the singular `/:/websocket/…`, which 404s); `/:/eventsource/notifications` as the alternate transport. Events arrive as `{NotificationContainer: {type, size, <TypeArray>: [...]}}`. Types to filter: `playing`, `timeline`, `activity`, `progress`, `status`, `backgroundProcessingQueue`, `transcodeSession.update/end`, `reachability`, `preference`. Ring buffer capped at 2000; pause freezes list without dropping socket. Secondary window so it can sit beside main.
+**Activity (M6).** Connect `wss://{host}/:/websockets/notifications?X-Plex-Token=…` (ws for http servers; note the plural — Plex's own OpenAPI doc lists the singular `/:/websocket/…`, which 404s). Events arrive as `{NotificationContainer: {type, size, <TypeArray>: [...]}}`. Types to filter: `playing`, `timeline`, `activity`, `progress`, `status`, `backgroundProcessingQueue`, `transcodeSession.update/end`, `reachability`, `preference`. Ring buffer capped at 2000; pause freezes list without dropping socket.
 
 ## Liquid Glass usage
 
@@ -139,7 +139,7 @@ Each ends with a smoke-test proof, not a test suite.
 3. **Parse + Pretty + Tree + hyperlinks + browser.** `Node` parsers, Tree outline, Pretty cards w/ thumbnails, link detection, back/forward, breadcrumbs. *Proof: from `/library/sections` click down to one item's metadata and back without typing.*
 4. **Spec integration.** Endpoint catalog by tag (replaces `QuickLinks`), parameter/header autocomplete, pagination controls, response-customization panel. *Proof: pick `/library/sections/{sectionId}/all` from the catalog, fill the section, page through results with prev/next.*
 5. **Media Query builder.** *Proof: build "movies added in the last 3 years, unwatched, sorted by rating desc" visually; emitted query returns the expected items.*
-6. **Activity monitor.** Socket + EventSource, event list, filters, payload inspector, secondary window. *Proof: start playback on any client; `playing` and `timeline` events appear live; pause/resume works.*
+6. **Activity monitor.** Socket, event list, filters, payload inspector. *Proof: start playback on any client; `playing` and `timeline` events appear live; pause/resume works.*
 7. **Saved requests.** Save-as, edit, delete. *Proof: quit/relaunch; saved requests persist.*
 8. **Polish.** Shortcuts, redact-token mode, error/empty states, app icon, glass tuning.
 

@@ -29,13 +29,6 @@ struct DevToolsApp: App {
                 .task { await spec.load() }
         }
         .defaultSize(width: 1400, height: 860)
-
-        WindowGroup("Activity", id: "activity") {
-            ActivityWindowView()
-                .environment(servers)
-                .environment(activity)
-        }
-        .defaultSize(width: 1000, height: 640)
         .commands {
             AppCommands(account: account, servers: servers, requests: requests)
         }
@@ -43,7 +36,6 @@ struct DevToolsApp: App {
         Settings {
             SettingsView()
                 .environment(requests)
-                .environment(activity)
         }
     }
 }

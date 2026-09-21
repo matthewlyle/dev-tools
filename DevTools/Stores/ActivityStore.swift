@@ -32,10 +32,6 @@ final class ActivityStore {
     var hiddenTypes: Set<String> = []
     var selectedEventID: UUID?
 
-    var transport: ActivityTransport {
-        didSet { UserDefaults.standard.set(transport.rawValue, forKey: Self.transportKey) }
-    }
-
     /// While paused, incoming events are held back so the list stays still;
     /// the socket keeps running. Resuming flushes them.
     var isPaused = false {
@@ -51,11 +47,9 @@ final class ActivityStore {
 
     private let identity: ClientIdentity
     private var connection: Task<Void, Never>?
-    private static let transportKey = "activityTransport"
 
     init(identity: ClientIdentity) {
         self.identity = identity
-        transport = UserDefaults.standard.string(forKey: Self.transportKey).flatMap(ActivityTransport.init(rawValue:)) ?? .webSocket
     }
 
     var visibleEvents: [NotificationEvent] {
@@ -75,14 +69,13 @@ final class ActivityStore {
         status = .connecting
         receivedCount = 0
         lastError = nil
-        let transport = transport
         let identity = identity
 
         connection = Task { [weak self] in
             var attempt = 0
             while !Task.isCancelled {
                 do {
-                    let stream = NotificationTransport.stream(transport, server: server, identity: identity)
+                    let stream = NotificationTransport.stream(server: server, identity: identity)
                     for try await event in stream {
                         guard let self else { return }
                         switch event {
@@ -135,8 +128,8 @@ final class ActivityStore {
 
     // MARK: Ingest
 
-    private func receive(_ message: RawNotification) {
-        let event = NotificationEvent.make(raw: message.data, eventName: message.eventName)
+    private func receive(_ text: String) {
+        let event = NotificationEvent.make(raw: text)
         if isPaused {
             pausedBuffer.append(event)
             if pausedBuffer.count > Self.capacity { pausedBuffer.removeFirst() }

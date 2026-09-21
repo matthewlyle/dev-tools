@@ -16,7 +16,8 @@ struct ServerDetailView: View {
             // it runs on. The glyph carries the host in tooltip and VoiceOver.
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Image(systemName: entry.resource.hostSymbol)
+                    hostMark
+                        .frame(width: 16, height: 16)
                         .foregroundStyle(.secondary)
                         .help(entry.resource.hostDescription ?? "Unknown platform")
                         .accessibilityLabel(entry.resource.hostDescription ?? "Unknown platform")
@@ -68,6 +69,21 @@ struct ServerDetailView: View {
                 .labelsHidden()
                 .fixedSize()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var hostMark: some View {
+        switch entry.resource.hostMark {
+        case .symbol(let name):
+            Image(systemName: name)
+                .resizable()
+                .scaledToFit()
+        case .asset(let name):
+            Image(name)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
         }
     }
 

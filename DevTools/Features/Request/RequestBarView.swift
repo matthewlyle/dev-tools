@@ -31,14 +31,19 @@ struct RequestBarView: View {
                     .onSubmit(send)
                     .autocorrectionDisabled()
 
-                // A setting, not a view switch: a pop-up shows the value
-                // without competing with Send for prominence.
-                Picker("Accept", selection: $requests.current.accept) {
-                    ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
+                if let operation {
+                    Button {
+                        showDocs.toggle()
+                    } label: {
+                        Label("Documentation", systemImage: "info.circle")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(operation.summary)
+                    .popover(isPresented: $showDocs, arrowEdge: .bottom) {
+                        OperationDocs(operation: operation)
+                    }
                 }
-                .pickerStyle(.menu)
-                .fixedSize()
-                .help("Accept header")
 
                 // The in-flight indicator lives on the control that started
                 // the request; the previous response stays readable.
@@ -56,37 +61,6 @@ struct RequestBarView: View {
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(server == nil || requests.isSending)
-            }
-
-            if let operation {
-                HStack(spacing: 6) {
-                    Image(systemName: "book.closed")
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                    Text(operation.summary)
-                        .lineLimit(1)
-                    Text(operation.tag)
-                        .foregroundStyle(.tertiary)
-                    if operation.supportsMediaQuery {
-                        Text("media queries")
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.tint.opacity(0.15), in: .capsule)
-                            .foregroundStyle(.tint)
-                    }
-                    Button {
-                        showDocs.toggle()
-                    } label: {
-                        Label("Documentation", systemImage: "info.circle")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .popover(isPresented: $showDocs, arrowEdge: .bottom) {
-                        OperationDocs(operation: operation)
-                    }
-                    Spacer()
-                }
-                .font(.caption)
             }
 
             DisclosureGroup(isExpanded: $showParameters) {

@@ -1,33 +1,11 @@
 import Foundation
 import os
 
-enum ActivityTransport: String, CaseIterable, Identifiable, Sendable {
-    case webSocket = "WebSocket"
-    case eventSource = "EventSource"
-
-    var id: String { rawValue }
-
-    /// PMS's own OpenAPI doc lists the singular `/:/websocket/…`, but the
-    /// server only routes the plural (see python-plexapi's AlertListener).
-    var path: String {
-        switch self {
-        case .webSocket: "/:/websockets/notifications"
-        case .eventSource: "/:/eventsource/notifications"
-        }
-    }
-}
-
-/// A raw message from either transport.
-struct RawNotification: Sendable {
-    /// SSE `event:` name; WebSocket frames carry the type inside the JSON.
-    let eventName: String?
-    let data: String
-}
-
 enum StreamEvent: Sendable {
     /// The connection is established (handshake done), before any message.
     case opened
-    case message(RawNotification)
+    /// One frame, as text.
+    case message(String)
 }
 
 enum NotificationTransportError: Error, LocalizedError {
@@ -44,24 +22,19 @@ enum NotificationTransportError: Error, LocalizedError {
     }
 }
 
-/// Opens the server's notification feed and streams events until the
-/// consumer stops iterating or the connection fails.
+/// Opens the server's WebSocket notification feed and streams frames until
+/// the consumer stops iterating or the connection fails.
 enum NotificationTransport {
     static let log = Logger(subsystem: "mldgg.devtools", category: "activity")
 
-    static func stream(_ transport: ActivityTransport, server: ConnectedServer, identity: ClientIdentity) -> AsyncThrowingStream<StreamEvent, Error> {
-        switch transport {
-        case .webSocket: webSocket(server: server, identity: identity)
-        case .eventSource: eventSource(server: server, identity: identity)
-        }
-    }
+    /// PMS's own OpenAPI doc lists the singular `/:/websocket/…`, but the
+    /// server only routes the plural (see python-plexapi's AlertListener).
+    static let path = "/:/websockets/notifications"
 
-    private static func request(for transport: ActivityTransport, server: ConnectedServer, identity: ClientIdentity, upgradeScheme: Bool) throws -> URLRequest {
+    private static func request(server: ConnectedServer, identity: ClientIdentity) throws -> URLRequest {
         var components = URLComponents(url: server.baseURL, resolvingAgainstBaseURL: false)!
-        if upgradeScheme {
-            components.scheme = components.scheme == "https" ? "wss" : "ws"
-        }
-        components.path = transport.path
+        components.scheme = components.scheme == "https" ? "wss" : "ws"
+        components.path = path
         components.queryItems = [URLQueryItem(name: "X-Plex-Token", value: server.accessToken)]
         guard let url = components.url else { throw NotificationTransportError.badURL }
         var request = URLRequest(url: url)
@@ -84,11 +57,11 @@ enum NotificationTransport {
         return error
     }
 
-    private static func webSocket(server: ConnectedServer, identity: ClientIdentity) -> AsyncThrowingStream<StreamEvent, Error> {
+    static func stream(server: ConnectedServer, identity: ClientIdentity) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let request: URLRequest
             do {
-                request = try self.request(for: .webSocket, server: server, identity: identity, upgradeScheme: true)
+                request = try self.request(server: server, identity: identity)
             } catch {
                 continuation.finish(throwing: error)
                 return
@@ -118,10 +91,10 @@ enum NotificationTransport {
                         switch message {
                         case .string(let text):
                             log.debug("websocket frame \(text.count) chars")
-                            continuation.yield(.message(RawNotification(eventName: nil, data: text)))
+                            continuation.yield(.message(text))
                         case .data(let data):
                             log.debug("websocket binary frame \(data.count) bytes")
-                            continuation.yield(.message(RawNotification(eventName: nil, data: String(decoding: data, as: UTF8.self))))
+                            continuation.yield(.message(String(decoding: data, as: UTF8.self)))
                         @unknown default:
                             continue
                         }
@@ -151,69 +124,6 @@ enum NotificationTransport {
                 receiver.cancel()
                 pinger.cancel()
                 task.cancel(with: .goingAway, reason: nil)
-                session.invalidateAndCancel()
-            }
-        }
-    }
-
-    private static func eventSource(server: ConnectedServer, identity: ClientIdentity) -> AsyncThrowingStream<StreamEvent, Error> {
-        AsyncThrowingStream { continuation in
-            let request: URLRequest
-            do {
-                var built = try self.request(for: .eventSource, server: server, identity: identity, upgradeScheme: false)
-                built.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                built.timeoutInterval = .infinity
-                request = built
-            } catch {
-                continuation.finish(throwing: error)
-                return
-            }
-            log.info("eventsource connecting to \(request.url?.host() ?? "?", privacy: .public)")
-
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.timeoutIntervalForRequest = .infinity
-            configuration.timeoutIntervalForResource = .infinity
-            let session = URLSession(configuration: configuration)
-
-            let reader = Task {
-                do {
-                    let (bytes, response) = try await session.bytes(for: request)
-                    if let http = response as? HTTPURLResponse {
-                        log.info("eventsource HTTP \(http.statusCode) \(http.value(forHTTPHeaderField: "Content-Type") ?? "", privacy: .public)")
-                        guard (200..<300).contains(http.statusCode) else {
-                            throw NotificationTransportError.status(http.statusCode)
-                        }
-                    }
-                    continuation.yield(.opened)
-                    var eventName: String?
-                    var data: [String] = []
-                    for try await line in bytes.lines {
-                        if line.isEmpty {
-                            if !data.isEmpty {
-                                log.debug("eventsource event \(eventName ?? "-", privacy: .public)")
-                                continuation.yield(.message(RawNotification(eventName: eventName, data: data.joined(separator: "\n"))))
-                            }
-                            eventName = nil
-                            data = []
-                        } else if line.hasPrefix("event:") {
-                            eventName = line.dropFirst(6).trimmingCharacters(in: .whitespaces)
-                        } else if line.hasPrefix("data:") {
-                            data.append(line.dropFirst(5).trimmingCharacters(in: .whitespaces))
-                        }
-                        // `id:`, `retry:`, and comment lines are ignored.
-                    }
-                    log.info("eventsource ended")
-                    continuation.finish(throwing: NotificationTransportError.closed)
-                } catch {
-                    if !Task.isCancelled {
-                        log.error("eventsource failed: \(error.localizedDescription, privacy: .public)")
-                    }
-                    continuation.finish(throwing: Task.isCancelled ? CancellationError() : error)
-                }
-            }
-
-            continuation.onTermination = { _ in
-                reader.cancel()
                 session.invalidateAndCancel()
             }
         }

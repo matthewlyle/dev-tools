@@ -51,17 +51,3 @@ struct MainSplitView: View {
         }
     }
 }
-
-/// Standalone activity window so the feed can sit beside the main window.
-/// It follows the main window's selected server.
-struct ActivityWindowView: View {
-    var body: some View {
-        NavigationSplitView {
-            ActivityControlsView(showsOpenWindow: false)
-                .navigationTitle("Activity")
-                .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
-        } detail: {
-            ActivityEventsView()
-        }
-    }
-}

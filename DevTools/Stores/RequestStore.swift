@@ -18,8 +18,19 @@ final class RequestStore {
         didSet { UserDefaults.standard.set(redactToken, forKey: Self.redactKey) }
     }
 
+    /// Response format asked for on every request (the `Accept` header).
+    /// App-wide by choice: a playground wants one answer, not a per-request
+    /// knob competing with Send. Persisted.
+    var acceptFormat: AcceptFormat {
+        didSet {
+            UserDefaults.standard.set(acceptFormat.rawValue, forKey: Self.acceptKey)
+            current.accept = acceptFormat
+        }
+    }
+
     static let mask = "••••••••"
     private static let redactKey = "redactToken"
+    private static let acceptKey = "acceptFormat"
 
     /// Attribute names whose values are credentials in Plex payloads.
     static let tokenAttributeNames: Set<String> = [
@@ -59,6 +70,8 @@ final class RequestStore {
     init(http: PlexHTTP) {
         self.http = http
         redactToken = UserDefaults.standard.object(forKey: Self.redactKey) as? Bool ?? true
+        acceptFormat = UserDefaults.standard.string(forKey: Self.acceptKey).flatMap(AcceptFormat.init(rawValue:)) ?? .json
+        current.accept = acceptFormat
         history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
     }
 
@@ -267,8 +280,11 @@ final class RequestStore {
 
     // MARK: History
 
+    /// Restores the path, params, and headers; the response format follows
+    /// the app-wide setting, not what the entry was sent with.
     func load(_ entry: HistoryEntry) {
         current = entry.request
+        current.accept = acceptFormat
     }
 
     /// Removes every entry matching `predicate`.
