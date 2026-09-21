@@ -30,7 +30,6 @@ A `///` on a type or function is fine when it meets the bar above; most don't. W
 - **`Resources/plex-openapi.json` is generated** by `Tools/extract-spec.sh`. Never hand-edit it; fix consumers instead.
 - **Response format (`Accept`) is an app-wide setting**, not per request. History replays use the current setting.
 
-
 ## Design: the HIG, as applied here
 
 We follow Apple's Human Interface Guidelines for macOS. Below is how that resolved in this app; when in doubt, read the HIG page, not another app.
@@ -64,6 +63,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 
 **Spec**
 - The OpenAPI spec is a guide, not truth. `required` is frequently absent (ultrablur's params), so a documented-but-unsent parameter shows as a hint on a 400, not a block on sending. Documented params feed autocomplete; users can still type anything.
+
 ## Working here
 
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
