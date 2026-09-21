@@ -181,6 +181,21 @@ struct SpecCatalog: Sendable {
             .min { $0.placeholders.count < $1.placeholders.count }
     }
 
+    /// Groups whose operations match `needle` on template, summary, or tag;
+    /// blank returns everything. Empty groups are dropped.
+    func groups(matching needle: String) -> [TagGroup] {
+        let needle = needle.trimmingCharacters(in: .whitespaces)
+        guard !needle.isEmpty else { return groups }
+        return groups.compactMap { group in
+            if group.name.localizedCaseInsensitiveContains(needle) { return group }
+            let hits = group.operations.filter {
+                $0.template.localizedCaseInsensitiveContains(needle)
+                    || $0.summary.localizedCaseInsensitiveContains(needle)
+            }
+            return hits.isEmpty ? nil : TagGroup(name: group.name, operations: hits)
+        }
+    }
+
     // MARK: Building
 
     private static func flatten(_ parameter: OpenAPISpec.Parameter) -> SpecParameter? {

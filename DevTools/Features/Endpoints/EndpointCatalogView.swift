@@ -2,34 +2,24 @@ import SwiftUI
 
 /// Every documented GET operation, grouped by tag, searchable. Selecting one
 /// loads it into the request bar (prompting for path placeholders) and sends.
-struct EndpointCatalogView: View {
+/// `header` renders above the groups; the server page uses it for its card.
+struct EndpointListView<Header: View>: View {
+    let server: ConnectedServer?
+    @ViewBuilder let header: Header
+
     @Environment(SpecStore.self) private var spec
-    @Environment(ServerStore.self) private var servers
     @Environment(RequestStore.self) private var requests
 
     @State private var search = ""
     @State private var pending: SpecOperation?
 
-    private var server: ConnectedServer? {
-        servers.selected.flatMap { servers.connectedServer(for: $0) }
-    }
-
     private var groups: [SpecCatalog.TagGroup] {
-        guard let catalog = spec.catalog else { return [] }
-        let needle = search.trimmingCharacters(in: .whitespaces)
-        guard !needle.isEmpty else { return catalog.groups }
-        return catalog.groups.compactMap { group in
-            let hits = group.operations.filter {
-                $0.template.localizedCaseInsensitiveContains(needle)
-                    || $0.summary.localizedCaseInsensitiveContains(needle)
-                    || group.name.localizedCaseInsensitiveContains(needle)
-            }
-            return hits.isEmpty ? nil : SpecCatalog.TagGroup(name: group.name, operations: hits)
-        }
+        spec.catalog?.groups(matching: search) ?? []
     }
 
     var body: some View {
         List {
+            header
             ForEach(groups) { group in
                 Section(group.name) {
                     ForEach(group.operations) { operation in
@@ -53,8 +43,6 @@ struct EndpointCatalogView: View {
                 ContentUnavailableView.search(text: search)
             }
         }
-        .navigationTitle("Endpoints")
-        .navigationSubtitle(spec.catalog.map { "API v\($0.version) · \($0.operations.count) GET operations" } ?? "")
         .sheet(item: $pending) { operation in
             PlaceholderSheet(operation: operation, server: server) { path in
                 guard let server else { return }
@@ -70,6 +58,22 @@ struct EndpointCatalogView: View {
         } else {
             pending = operation
         }
+    }
+}
+
+/// The Endpoints sidebar item: the catalog against the sidebar's server.
+struct EndpointCatalogView: View {
+    @Environment(SpecStore.self) private var spec
+    @Environment(ServerStore.self) private var servers
+
+    private var server: ConnectedServer? {
+        servers.selected.flatMap { servers.connectedServer(for: $0) }
+    }
+
+    var body: some View {
+        EndpointListView(server: server) { EmptyView() }
+            .navigationTitle("Endpoints")
+            .navigationSubtitle(spec.catalog.map { "API v\($0.version) · \($0.operations.count) GET operations" } ?? "")
     }
 }
 

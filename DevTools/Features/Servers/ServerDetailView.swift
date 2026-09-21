@@ -4,25 +4,11 @@ struct ServerDetailView: View {
     let entry: ServerStore.Entry
 
     @Environment(ServerStore.self) private var servers
-    @Environment(RequestStore.self) private var requests
-    @Environment(SpecStore.self) private var spec
 
     private var connected: ConnectedServer? { servers.connectedServer(for: entry) }
 
-    /// Tags whose placeholder-free GET operations are worth one click from
-    /// the server page. Everything else lives in the Endpoints catalog.
-    private static let commonTags: Set<String> = [
-        "General", "Library", "Hubs", "Status", "Playlist", "Activities", "Butler", "Preferences", "Updater", "Provider",
-    ]
-
-    private var common: [SpecOperation] {
-        (spec.catalog?.operations ?? []).filter {
-            Self.commonTags.contains($0.tag) && $0.placeholders.isEmpty && !$0.template.contains(":/transcode")
-        }
-    }
-
     var body: some View {
-        List {
+        EndpointListView(server: connected) {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -44,25 +30,7 @@ struct ServerDetailView: View {
                 }
                 .padding(.vertical, 4)
             }
-
-            Section("Common Requests") {
-                ForEach(common) { operation in
-                    Button {
-                        guard let connected else { return }
-                        requests.open(operation, path: operation.template, on: connected)
-                    } label: {
-                        Text(operation.template)
-                            .font(.callout.monospaced())
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(connected == nil)
-                    .help(operation.description ?? operation.summary)
-                }
-            }
         }
-        .listStyle(.inset)
         .navigationTitle(entry.resource.name)
         .toolbar {
             ToolbarItem {

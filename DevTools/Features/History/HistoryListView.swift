@@ -6,6 +6,30 @@ struct HistoryListView: View {
 
     /// Machine ID of the server to show, or nil for all.
     @State private var serverFilter: String?
+    @State private var statusFilter: StatusFilter = .any
+
+    private enum StatusFilter: Hashable {
+        case any
+        case code(Int)
+        /// No response at all: transport error, timeout, cancelled.
+        case failed
+
+        func matches(_ entry: HistoryEntry) -> Bool {
+            switch self {
+            case .any: true
+            case .code(let code): entry.status == code
+            case .failed: entry.status == nil
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .any: "Any Status"
+            case .code(let code): String(code)
+            case .failed: "Failed"
+            }
+        }
+    }
 
     private struct ServerOption: Identifiable, Hashable {
         let id: String
@@ -22,9 +46,24 @@ struct HistoryListView: View {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    /// Status codes that appear in history, ascending, then Failed if any.
+    private var statusOptions: [StatusFilter] {
+        var codes = Set<Int>()
+        var anyFailed = false
+        for entry in requests.history {
+            if let status = entry.status { codes.insert(status) } else { anyFailed = true }
+        }
+        var options = codes.sorted().map(StatusFilter.code)
+        if anyFailed { options.append(.failed) }
+        return options
+    }
+
+    private var isFiltered: Bool { serverFilter != nil || statusFilter != .any }
+
     private var filtered: [HistoryEntry] {
-        guard let serverFilter else { return requests.history }
-        return requests.history.filter { $0.serverID == serverFilter }
+        requests.history.filter { entry in
+            (serverFilter == nil || entry.serverID == serverFilter) && statusFilter.matches(entry)
+        }
     }
 
     var body: some View {
@@ -50,15 +89,20 @@ struct HistoryListView: View {
                 }
                 .labelsHidden()
                 .frame(maxWidth: 220)
+                Picker("Status", selection: $statusFilter) {
+                    Text(StatusFilter.any.label).tag(StatusFilter.any)
+                    ForEach(statusOptions, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 120)
                 Spacer()
                 Button(role: .destructive) {
-                    if let serverFilter {
-                        requests.clearHistory(serverID: serverFilter)
-                    } else {
-                        requests.clearHistory()
-                    }
+                    let shown = Set(filtered.map(\.id))
+                    requests.clearHistory { shown.contains($0.id) }
                 } label: {
-                    Label(serverFilter == nil ? "Clear" : "Clear for Server", systemImage: "trash")
+                    Label(isFiltered ? "Clear Shown" : "Clear", systemImage: "trash")
                 }
                 .disabled(filtered.isEmpty)
             }
@@ -72,7 +116,7 @@ struct HistoryListView: View {
                 ContentUnavailableView(
                     "No History",
                     systemImage: "clock",
-                    description: Text(serverFilter == nil ? "Requests you send show up here." : "No requests recorded for this server.")
+                    description: Text(isFiltered ? "No requests match these filters." : "Requests you send show up here.")
                 )
             }
         }
@@ -80,6 +124,11 @@ struct HistoryListView: View {
         .onChange(of: serverOptions) { _, options in
             if let serverFilter, !options.contains(where: { $0.id == serverFilter }) {
                 self.serverFilter = nil
+            }
+        }
+        .onChange(of: statusOptions) { _, options in
+            if statusFilter != .any, !options.contains(statusFilter) {
+                statusFilter = .any
             }
         }
     }

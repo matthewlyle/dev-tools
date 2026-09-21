@@ -271,13 +271,9 @@ final class RequestStore {
         current = entry.request
     }
 
-    func clearHistory() {
-        history = []
-        AppSupportStore.save(history, name: Self.historyFile)
-    }
-
-    func clearHistory(serverID: String) {
-        history.removeAll { $0.serverID == serverID }
+    /// Removes every entry matching `predicate`.
+    func clearHistory(where predicate: (HistoryEntry) -> Bool) {
+        history.removeAll(where: predicate)
         AppSupportStore.save(history, name: Self.historyFile)
     }
 
