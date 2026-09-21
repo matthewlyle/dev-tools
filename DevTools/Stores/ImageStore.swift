@@ -15,7 +15,9 @@ final class ImageStore {
 
     init(http: PlexHTTP) {
         self.http = http
-        cache.countLimit = 800
+        // Bounded by decoded bytes, not count: a 2× poster is ~400 KB, so a
+        // count limit alone lets a big library scroll into hundreds of MB.
+        cache.totalCostLimit = 160 * 1024 * 1024
     }
 
     func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> NSImage? {
@@ -43,7 +45,7 @@ final class ImageStore {
         inFlight[key] = nil
 
         guard let data, let image = NSImage(data: data) else { return nil }
-        cache.setObject(image, forKey: key as NSString)
+        cache.setObject(image, forKey: key as NSString, cost: width * height * 4)
         return image
     }
 }

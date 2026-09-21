@@ -32,5 +32,8 @@ struct RemoteImage<Placeholder: View>: View {
             guard let value, let server else { return }
             image = await images.image(for: value, server: server, width: Int(size.width * 2), height: Int(size.height * 2))
         }
+        // Lazy containers keep created cells alive, so drop the decoded image
+        // when scrolled away; ImageStore's cache makes the return instant.
+        .onDisappear { image = nil }
     }
 }
