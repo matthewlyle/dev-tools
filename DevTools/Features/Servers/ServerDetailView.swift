@@ -12,10 +12,20 @@ struct ServerDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // The window title already names the server; this line is what
+            // it runs on. The glyph carries the host in tooltip and VoiceOver.
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(entry.resource.name)
-                        .font(.title3.weight(.semibold))
+                    Image(systemName: entry.resource.hostSymbol)
+                        .foregroundStyle(.secondary)
+                        .help(entry.resource.hostDescription ?? "Unknown platform")
+                        .accessibilityLabel(entry.resource.hostDescription ?? "Unknown platform")
+                    if let version = entry.resource.productVersion {
+                        Text("v\(version)")
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
                     if entry.resource.owned {
                         Text("Owned")
                             .font(.caption2.weight(.medium))
@@ -25,9 +35,6 @@ struct ServerDetailView: View {
                             .foregroundStyle(.tint)
                     }
                 }
-                Text(headerSubtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
                 connectionLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -68,12 +75,6 @@ struct ServerDetailView: View {
                 .disabled(entry.isProbing)
             }
         }
-    }
-
-    private var headerSubtitle: String {
-        [entry.resource.product, entry.resource.productVersion, entry.resource.platform]
-            .compactMap { $0 }
-            .joined(separator: " · ")
     }
 
     @ViewBuilder

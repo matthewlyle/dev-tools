@@ -32,6 +32,28 @@ struct PlexResource: Sendable, Codable, Hashable, Identifiable {
         guard !owned, let ownerId else { return nil }
         return URL(string: "https://plex.tv/users/\(ownerId)/avatar")
     }
+
+    /// What the server runs on, in words: device when it's more specific
+    /// than the OS ("Docker Container", "Synology"), else the platform.
+    var hostDescription: String? {
+        [device, platform].compactMap { $0 }.first { !$0.isEmpty }
+    }
+
+    /// SF Symbol for the host. There are no OS logos in SF Symbols, so
+    /// these are hardware shapes: the container, the NAS, the PC, the Mac.
+    var hostSymbol: String {
+        let device = (device ?? "").lowercased()
+        if device.contains("docker") || device.contains("container") { return "shippingbox" }
+        if device.contains("synology") || device.contains("qnap") || device.contains("nas") || device.contains("unraid") {
+            return "externaldrive.connected.to.line.below"
+        }
+        switch (platform ?? "").lowercased() {
+        case let p where p.contains("windows"): return "pc"
+        case let p where p.contains("mac") || p.contains("osx"): return "desktopcomputer"
+        case let p where p.contains("android") || p.contains("tvos"): return "tv"
+        default: return "server.rack"
+        }
+    }
 }
 
 struct Connection: Sendable, Codable, Hashable, Identifiable {
