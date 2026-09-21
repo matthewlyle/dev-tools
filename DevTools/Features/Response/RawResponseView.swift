@@ -4,8 +4,16 @@ struct RawResponseView: View {
     let document: ResponseDocument
     let response: PlexResponse
 
-    @AppStorage("rawWrapLines") private var wrap = false
+    @AppStorage("rawWrapLines") private var wrap = true
     @State private var collapsed: Set<Int> = []
+
+    /// Unwrapped text needs an infinite-width container, which defeats
+    /// TextKit's viewport layout: the whole body is laid out on the main
+    /// thread at roughly 2.5 s/MB. Wrapped, layout stays proportional to
+    /// what's on screen, so big bodies are always wrapped.
+    static let wrapForcedAbove = 256 * 1024
+
+    private var wrapForced: Bool { document.text.utf8.count > Self.wrapForcedAbove }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,9 +42,14 @@ struct RawResponseView: View {
                     .help("Expand all")
                     .disabled(collapsed.isEmpty)
                 }
-                Toggle("Wrap", isOn: $wrap)
+                Toggle("Wrap", isOn: Binding(
+                    get: { wrap || wrapForced },
+                    set: { wrap = $0 }
+                ))
                     .toggleStyle(.switch)
                     .controlSize(.mini)
+                    .disabled(wrapForced)
+                    .help(wrapForced ? "Bodies over \(Self.wrapForcedAbove.formatted(.byteCount(style: .file))) are always wrapped; unwrapped layout would stall." : "Wrap long lines")
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(document.text.isEmpty ? response.bodyText : document.text, forType: .string)
@@ -61,7 +74,7 @@ struct RawResponseView: View {
                     tokens: document.tokens,
                     folds: document.folds,
                     collapsed: $collapsed,
-                    wrap: wrap,
+                    wrap: wrap || wrapForced,
                     version: response.receivedAt
                 )
             }

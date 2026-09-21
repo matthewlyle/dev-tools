@@ -17,8 +17,10 @@ struct ResponseDocument: Sendable {
         }
     }
 
-    /// Above this we show the body verbatim with no colouring or tree;
-    /// tokenizing and attributing tens of MB would stall the text view.
+    /// Above this we skip colouring and the tree; tokenizing and attributing
+    /// tens of MB is slow and the Pretty tab would get tens of thousands of
+    /// cards. JSON is still pretty-printed — that's cheap, and a single
+    /// multi-MB line is far slower to lay out than the same bytes as lines.
     static let highlightLimit = 4 * 1024 * 1024
 
     let text: String
@@ -52,7 +54,7 @@ struct ResponseDocument: Sendable {
 
         guard body.count <= highlightLimit else {
             return ResponseDocument(
-                text: String(decoding: body, as: UTF8.self),
+                text: format == .json ? JSONFormatter.pretty(body) : String(decoding: body, as: UTF8.self),
                 tokens: [],
                 format: format,
                 notice: "Highlighting and tree skipped: \(body.count.formatted(.byteCount(style: .file))) exceeds the limit.",
