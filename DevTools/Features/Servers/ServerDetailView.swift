@@ -45,6 +45,8 @@ struct ServerDetailView: View {
                 EndpointListView(server: connected)
             case .history:
                 HistoryListView(serverID: entry.id)
+            case .saved:
+                SavedListView(serverID: entry.id)
             case .activity:
                 ActivityControlsView()
             }

@@ -32,8 +32,10 @@ struct AppCommands: Commands {
                     .keyboardShortcut("1", modifiers: .command)
                 Text("History").tag(ServerSection.history)
                     .keyboardShortcut("2", modifiers: .command)
-                Text("Activity").tag(ServerSection.activity)
+                Text("Saved").tag(ServerSection.saved)
                     .keyboardShortcut("3", modifiers: .command)
+                Text("Activity").tag(ServerSection.activity)
+                    .keyboardShortcut("4", modifiers: .command)
             }
             .pickerStyle(.inline)
             .disabled(servers.selected == nil)
@@ -64,6 +66,12 @@ struct AppCommands: Commands {
         }
 
         CommandMenu("Request") {
+            Button("Save Request…") { requests.requestSave() }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(activeServer == nil)
+
+            Divider()
+
             Button("Send") {
                 guard let server = activeServer else { return }
                 requests.send(to: server)

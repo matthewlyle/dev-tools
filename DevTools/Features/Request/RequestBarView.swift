@@ -5,9 +5,11 @@ struct RequestBarView: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(SpecStore.self) private var spec
+    @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
     @State private var showParameters = false
     @State private var showDocs = false
+    @State private var showSave = false
 
     private var operation: SpecOperation? {
         spec.operation(matching: requests.current.path)
@@ -83,6 +85,15 @@ struct RequestBarView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                 Spacer(minLength: 0)
+                Button {
+                    showSave = true
+                } label: {
+                    Label("Save Request", systemImage: "bookmark")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .disabled(server == nil)
+                .help("Save this request (⌘S)")
                 Button(action: copyURL) {
                     Label("Copy URL", systemImage: "doc.on.doc")
                         .labelStyle(.iconOnly)
@@ -98,6 +109,20 @@ struct RequestBarView: View {
         }
         .onChange(of: requests.parametersRevealToken) { _, _ in
             showParameters = true
+        }
+        .onChange(of: requests.saveRequestToken) { _, _ in
+            if server != nil { showSave = true }
+        }
+        .sheet(isPresented: $showSave) {
+            SaveRequestSheet(
+                title: "Save Request",
+                name: operation?.summary ?? requests.current.path,
+                notes: "",
+                action: "Save"
+            ) { name, notes in
+                guard let server else { return }
+                saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+            }
         }
     }
 

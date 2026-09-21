@@ -33,6 +33,13 @@ final class RequestStore {
         return value.replacingOccurrences(of: token, with: Self.mask)
     }
 
+    /// A request's path + params for display: the server's token masked
+    /// wherever it appears, plus any `X-Plex-Token=…` typed into the path.
+    func redactedSummary(of request: PlexRequest, token: String?) -> String {
+        redacted(request.summary, token: token)
+            .replacing(/X-Plex-Token=[^&\s]+/) { _ in "X-Plex-Token=\(Self.mask)" }
+    }
+
     func shouldMask(attributeNamed name: String) -> Bool {
         Self.tokenAttributeNames.contains(name)
     }
@@ -40,6 +47,13 @@ final class RequestStore {
     private(set) var pathFocusToken = 0
 
     private(set) var parametersRevealToken = 0
+
+    /// Bumped by ⌘S; the request bar presents the save sheet.
+    private(set) var saveRequestToken = 0
+
+    func requestSave() {
+        saveRequestToken &+= 1
+    }
 
     private(set) var backStack: [PlexRequest] = []
     private(set) var forwardStack: [PlexRequest] = []
@@ -234,9 +248,15 @@ final class RequestStore {
         return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
     }
 
-    func load(_ entry: HistoryEntry) {
-        current = entry.request
+    /// Restores the path, params, and headers; the response format follows
+    /// the app-wide setting, not what the request was last sent with.
+    func load(_ request: PlexRequest) {
+        current = request
         current.accept = acceptFormat
+    }
+
+    func load(_ entry: HistoryEntry) {
+        load(entry.request)
     }
 
     func clearHistory(where predicate: (HistoryEntry) -> Bool) {

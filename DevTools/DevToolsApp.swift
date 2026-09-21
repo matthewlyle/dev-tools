@@ -7,6 +7,7 @@ struct DevToolsApp: App {
     @State private var requests: RequestStore
     @State private var spec = SpecStore()
     @State private var activity: ActivityStore
+    @State private var saved: SavedStore
 
     init() {
         let identity = ClientIdentity.current()
@@ -16,6 +17,7 @@ struct DevToolsApp: App {
         _servers = State(initialValue: ServerStore(plexTV: plexTV, prober: ConnectionProber(http: http)))
         _requests = State(initialValue: RequestStore(http: http))
         _activity = State(initialValue: ActivityStore(identity: identity))
+        _saved = State(initialValue: SavedStore())
     }
 
     var body: some Scene {
@@ -26,6 +28,7 @@ struct DevToolsApp: App {
                 .environment(requests)
                 .environment(spec)
                 .environment(activity)
+                .environment(saved)
                 .task { await spec.load() }
         }
         .defaultSize(width: 1400, height: 860)

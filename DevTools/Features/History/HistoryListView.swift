@@ -156,9 +156,7 @@ private struct HistoryRow: View {
     @Environment(ServerStore.self) private var servers
 
     private var summary: String {
-        var text = requests.redacted(entry.request.summary, token: servers.entry(id: entry.serverID)?.resource.accessToken)
-        text = text.replacing(/X-Plex-Token=[^&\s]+/) { _ in "X-Plex-Token=\(RequestStore.mask)" }
-        return text
+        requests.redactedSummary(of: entry.request, token: servers.entry(id: entry.serverID)?.resource.accessToken)
     }
 
     private var detail: String {
