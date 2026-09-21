@@ -54,11 +54,11 @@ struct ServerDetailView: View {
         }
         .navigationTitle(entry.resource.name)
         .toolbar {
-            // SwiftUI toolbars have no column alignment on macOS, so this
-            // follows Finder/Xcode: view switcher leading after the title,
-            // filters and search trailing. Each section adds its own filter.
-            // Probe Connections is rare enough to live only in the Server menu.
-            ToolbarItem(placement: .navigation) {
+            // SwiftUI toolbars have no column alignment on macOS. .secondaryAction
+            // is the center region, which begins right after the title, so this
+            // reads "plexflix  [Endpoints | History | Activity]" with filters and
+            // search trailing. Probe Connections lives only in the Server menu.
+            ToolbarItem(placement: .secondaryAction) {
                 Picker("Section", selection: $section) {
                     ForEach(ServerSection.allCases) { section in
                         Text(section.rawValue).tag(section)
