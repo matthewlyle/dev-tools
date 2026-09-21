@@ -82,6 +82,17 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 **Spec**
 - The OpenAPI spec is a guide, not truth. `required` is frequently absent, so a documented-but-unsent parameter shows as a hint on a 400, not a block on sending. Documented params feed autocomplete; users can still type anything.
 
+**Animation** — motion is for continuity, never decoration.
+- Animate only when something *changes in place* and the user needs to track it: a number updating, a row appearing or leaving, a disclosure opening, a state flipping. Static layouts stay static; nothing animates on appear, and nothing loops.
+- SwiftUI idioms: scope every animation to the value that changed with `.animation(_, value:)`, never a bare `withAnimation` around unrelated state. Numbers roll with `.contentTransition(.numericText(value:))`; swapped text crossfades with `.interpolate`. Use the system springs (`.snappy` default, `.smooth` for large layout, `.bouncy` only for something playful) rather than hand-tuned curves or durations; leave system components (lists, disclosures, sheets, menus) to their own motion.
+- Reduced motion is a first-class variant, not an afterthought: read `@Environment(\.accessibilityReduceMotion)` and collapse movement to a crossfade or an instant change. Colour and opacity may still transition.
+- Skills — run the animations.dev skills by phase, not as a sweep:
+  - Designing a feature that has any motion in it → `find-animation-opportunities` first (read-only; it also says what should stay still), then `motion-brief` if the motion is more than a value change.
+  - Implementing → `animate` for easing, duration, and spring choices; `animation-accessibility` for the reduced-motion variant.
+  - Before committing motion code → `review-animations`. If it's a value update behind a `numericText` or a system component's own transition, skip the review; the bar is met.
+  - `improve-animations` (whole-codebase audit) only when the user asks for one — the point of this section is to not need it.
+  - Naming a motion you can picture but not name → `animation-vocabulary`.
+
 ## Feature definition of done
 
 A feature is complete when every line below is true, in the same commit. This is what makes app-wide reviews unnecessary.
@@ -92,12 +103,13 @@ A feature is complete when every line below is true, in the same commit. This is
 4. **Accessible**: icon-only controls are `Label` + `.iconOnly`; decorative symbols hidden; colour never the only signal; a `.help` tooltip on every icon-only control.
 5. **States covered**: empty (`ContentUnavailableView` with a next step), loading (unlabelled spinner, nothing blocked), error (inline, says what to do), and disabled when there's no server.
 6. **Copy**: Title Case controls, sentence-case descriptions, verbs on buttons, `…` on commands that ask first.
-7. **Token policy** holds: nothing new shows, copies, or URL-encodes a credential.
-8. **Persistence** through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
-9. **Tests** for any new contract — parsing, URL/string building, matching, redaction — none for plumbing.
-10. **Verified on screen** by launching the built app, not by reading the code back.
-11. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
-12. **One commit**, message explains why.
+7. **Motion**: anything that changes in place animates per the Animation rule, scoped to its value, with a reduced-motion variant; anything else stays still. Non-trivial motion has been through `animate` and `review-animations`.
+8. **Token policy** holds: nothing new shows, copies, or URL-encodes a credential.
+9. **Persistence** through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
+10. **Tests** for any new contract — parsing, URL/string building, matching, redaction — none for plumbing.
+11. **Verified on screen** by launching the built app, not by reading the code back.
+12. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
+13. **One commit**, message explains why.
 
 ## Working here
 
