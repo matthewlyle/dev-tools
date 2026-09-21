@@ -254,6 +254,27 @@ final class RequestStore {
         CurlExporter.command(for: current, base: server.baseURL, identityHeaders: http.identity.headers)
     }
 
+    /// Adds `value` to the comma-separated query param `name`, creating the
+    /// param if needed. Used by the response-shape menus.
+    func appendToListParameter(_ name: String, value: String) {
+        if let index = current.query.firstIndex(where: { $0.name == name }) {
+            var values = current.query[index].value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            guard !values.contains(value) else { return }
+            values.append(value)
+            current.query[index].value = values.joined(separator: ",")
+            current.query[index].enabled = true
+        } else {
+            current.query.append(QueryParam(name: name, value: value))
+        }
+        revealParameters()
+    }
+
+    /// Values already in the comma-separated query param `name`.
+    func listParameterValues(_ name: String) -> Set<String> {
+        guard let param = current.query.first(where: { $0.name == name }) else { return [] }
+        return Set(param.value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
     /// Restores the path, params, and headers; the response format follows
     /// the app-wide setting, not what the request was last sent with.
     func load(_ request: PlexRequest) {

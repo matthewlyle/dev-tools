@@ -15,6 +15,11 @@ struct RequestBarView: View {
         spec.operation(matching: requests.current.path)
     }
 
+    /// Names seen in the last response, for the include/exclude menus.
+    private var shape: ResponseShape? {
+        requests.document?.tree.map(ResponseShape.init(root:))
+    }
+
     var body: some View {
         @Bindable var requests = requests
 
@@ -64,13 +69,18 @@ struct RequestBarView: View {
             }
 
             DisclosureGroup(isExpanded: $showParameters) {
-                KeyValueEditor(
-                    items: $requests.current.query,
-                    namePlaceholder: "name",
-                    valuePlaceholder: "value",
-                    suggestions: operation?.queryParameters ?? []
-                ) { name, value in
-                    QueryParam(name: name, value: value)
+                VStack(alignment: .leading, spacing: 8) {
+                    KeyValueEditor(
+                        items: $requests.current.query,
+                        namePlaceholder: "name",
+                        valuePlaceholder: "value",
+                        suggestions: operation?.queryParameters ?? []
+                    ) { name, value in
+                        QueryParam(name: name, value: value)
+                    }
+                    if let shape, !shape.isEmpty {
+                        ResponseShapeRow(shape: shape)
+                    }
                 }
                 .padding(.top, 6)
             } label: {
@@ -164,6 +174,56 @@ struct RequestBarView: View {
         guard let server, let command = requests.curl(for: server) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(command, forType: .string)
+    }
+}
+
+/// Four pull-downs — include/exclude fields and elements — listing the names
+/// the last response actually contained. Picking one appends to that param's
+/// comma list, so it shows up as an ordinary row in the editor above.
+private struct ResponseShapeRow: View {
+    let shape: ResponseShape
+
+    @Environment(RequestStore.self) private var requests
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Shape")
+                .foregroundStyle(.secondary)
+                .help("Plex trims the response to the fields and elements you name: includeFields=title,year or excludeElements=Media.")
+            menu("includeFields", names: shape.fields)
+            menu("excludeFields", names: shape.fields)
+            menu("includeElements", names: shape.elements)
+            menu("excludeElements", names: shape.elements)
+            Spacer(minLength: 0)
+        }
+        .font(.caption)
+        .controlSize(.small)
+    }
+
+    @ViewBuilder
+    private func menu(_ parameter: String, names: [String]) -> some View {
+        let chosen = requests.listParameterValues(parameter)
+        if !names.isEmpty {
+            Menu {
+                ForEach(names, id: \.self) { name in
+                    Button {
+                        requests.appendToListParameter(parameter, value: name)
+                    } label: {
+                        if chosen.contains(name) {
+                            Label(name, systemImage: "checkmark")
+                        } else {
+                            Text(name)
+                        }
+                    }
+                    .disabled(chosen.contains(name))
+                }
+            } label: {
+                Text(chosen.isEmpty ? parameter : "\(parameter) (\(chosen.count))")
+                    .font(.code(.caption))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
     }
 }
 
