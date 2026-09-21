@@ -248,6 +248,12 @@ final class RequestStore {
         return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
     }
 
+    /// The current request as a `curl` command with `$PLEX_TOKEN` in place
+    /// of the credential.
+    func curl(for server: ConnectedServer) -> String? {
+        CurlExporter.command(for: current, base: server.baseURL, identityHeaders: http.identity.headers)
+    }
+
     /// Restores the path, params, and headers; the response format follows
     /// the app-wide setting, not what the request was last sent with.
     func load(_ request: PlexRequest) {

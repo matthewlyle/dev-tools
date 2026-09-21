@@ -19,6 +19,7 @@ struct AppCommands: Commands {
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
+    @AppStorage("endpointScope") private var scope: EndpointScope = .all
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -32,13 +33,19 @@ struct AppCommands: Commands {
                     .keyboardShortcut("1", modifiers: .command)
                 Text("History").tag(ServerSection.history)
                     .keyboardShortcut("2", modifiers: .command)
-                Text("Saved").tag(ServerSection.saved)
-                    .keyboardShortcut("3", modifiers: .command)
                 Text("Activity").tag(ServerSection.activity)
-                    .keyboardShortcut("4", modifiers: .command)
+                    .keyboardShortcut("3", modifiers: .command)
             }
             .pickerStyle(.inline)
             .disabled(servers.selected == nil)
+            Picker("Endpoints", selection: $scope) {
+                Text("All Endpoints").tag(EndpointScope.all)
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+                Text("Saved Endpoints").tag(EndpointScope.saved)
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+            }
+            .pickerStyle(.inline)
+            .disabled(servers.selected == nil || section != .endpoints)
         }
 
         CommandGroup(after: .toolbar) {
@@ -70,6 +77,14 @@ struct AppCommands: Commands {
                 .keyboardShortcut("s", modifiers: .command)
                 .disabled(activeServer == nil)
 
+
+            Button("Copy as cURL") {
+                guard let server = activeServer, let command = requests.curl(for: server) else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(activeServer == nil)
             Divider()
 
             Button("Send") {

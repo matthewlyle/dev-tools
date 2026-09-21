@@ -94,13 +94,19 @@ struct RequestBarView: View {
                 .buttonStyle(.borderless)
                 .disabled(server == nil)
                 .help("Save this request (⌘S)")
-                Button(action: copyURL) {
+                Menu {
+                    Button("Copy as cURL") { copyCurl() }
+                } label: {
                     Label("Copy URL", systemImage: "doc.on.doc")
                         .labelStyle(.iconOnly)
+                } primaryAction: {
+                    copyURL()
                 }
-                .buttonStyle(.borderless)
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .disabled(server == nil)
-                .help("Copy URL (token masked)")
+                .help("Copy URL. Long-press for cURL.")
             }
         }
         .padding(12)
@@ -152,6 +158,12 @@ struct RequestBarView: View {
         guard let server, let url = requests.current.url(base: server.baseURL) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url.absoluteString, forType: .string)
+    }
+
+    private func copyCurl() {
+        guard let server, let command = requests.curl(for: server) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
     }
 }
 

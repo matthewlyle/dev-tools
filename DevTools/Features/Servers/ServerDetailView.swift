@@ -42,11 +42,9 @@ struct ServerDetailView: View {
 
             switch section {
             case .endpoints:
-                EndpointListView(server: connected)
+                EndpointsSectionView(entry: entry, server: connected)
             case .history:
                 HistoryListView(serverID: entry.id)
-            case .saved:
-                SavedListView(serverID: entry.id)
             case .activity:
                 ActivityControlsView()
             }

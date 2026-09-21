@@ -58,7 +58,7 @@ struct SavedListView: View {
                 ContentUnavailableView(
                     "No Saved Requests",
                     systemImage: "bookmark",
-                    description: Text(search.isEmpty ? "Build a request and press ⌘S to keep it here." : "No saved requests match the filter.")
+                    description: Text(search.isEmpty ? "Build a request and press ⌘S to keep it here, or switch to All to browse the catalog." : "No saved requests match the filter.")
                 )
             }
         }

@@ -3,7 +3,6 @@ import SwiftUI
 enum ServerSection: String, CaseIterable, Identifiable {
     case endpoints = "Endpoints"
     case history = "History"
-    case saved = "Saved"
     case activity = "Activity"
 
     var id: String { rawValue }
@@ -12,7 +11,6 @@ enum ServerSection: String, CaseIterable, Identifiable {
         switch self {
         case .endpoints: "book.closed"
         case .history: "clock"
-        case .saved: "bookmark"
         case .activity: "dot.radiowaves.left.and.right"
         }
     }
