@@ -85,27 +85,13 @@ struct RequestBarView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                 Spacer(minLength: 0)
-                Button {
-                    requests.redactToken.toggle()
-                } label: {
-                    Label(requests.redactToken ? "Reveal Tokens" : "Hide Tokens", systemImage: requests.redactToken ? "eye.slash" : "eye")
+                Button(action: copyURL) {
+                    Label("Copy URL", systemImage: "doc.on.doc")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.borderless)
-                .help(requests.redactToken ? "Tokens hidden — click to reveal" : "Tokens visible — click to hide")
-                Menu {
-                    Button("Copy URL with Token") { copyURL(includeToken: true) }
-                } label: {
-                    Label("Copy URL", systemImage: "doc.on.doc")
-                        .labelStyle(.iconOnly)
-                } primaryAction: {
-                    copyURL(includeToken: !requests.redactToken)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
                 .disabled(server == nil)
-                .help(requests.redactToken ? "Copy URL (token masked). Long-press to copy with token." : "Copy URL")
+                .help("Copy URL (token masked)")
             }
         }
         .padding(12)
@@ -137,13 +123,12 @@ struct RequestBarView: View {
         requests.send(to: server)
     }
 
-    private func copyURL(includeToken: Bool) {
-        guard let server, let url = requests.current.url(base: server.baseURL, token: server.accessToken) else { return }
-        let text = includeToken
-            ? url.absoluteString
-            : url.absoluteString.replacingOccurrences(of: server.accessToken, with: RequestStore.mask)
+    /// The URL never contains the token (it's sent as a header), so this is
+    /// safe to paste anywhere.
+    private func copyURL() {
+        guard let server, let url = requests.current.url(base: server.baseURL) else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
     }
 }
 

@@ -61,7 +61,7 @@ dev-tools/
         ConnectionProber.swift   race /identity across connections; rank local>remote>relay
         ConnectedServer.swift    machineID, name, baseURL, accessToken, connection kind
       HTTP/
-        PlexRequest.swift        method(GET), path, query [QueryParam], headers, accept (.xml/.json), tokenPlacement (.header/.query)
+        PlexRequest.swift        method(GET), path, query [QueryParam], headers, accept (.xml/.json). Token is always the X-Plex-Token header, never the query
         PlexResponse.swift       status, headers, body Data, contentType, duration, byteCount
         PlexHTTP.swift           URLSession wrapper; builds URLRequest from PlexRequest + ConnectedServer + ClientIdentity
       Parse/
@@ -108,7 +108,7 @@ dev-tools/
 
 **Discovery.** `GET https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1&includeIPv6=1` with `Accept: application/json`. Filter `provides` contains `server`. Per resource, probe connections concurrently on `GET {uri}/identity` with the resource's `accessToken`; accept first whose `machineIdentifier` matches. Rank: local https → local http → remote https non-relay → remote → relay. Show each connection with latency; user can pin one.
 
-**Requests.** GET only; method picker hidden in v1. Path + query params editable. Token added as `X-Plex-Token` header by default, toggle to query param. Response format is an app-wide setting (`Accept: application/json` by default, or `application/xml`, which is what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send appends to history.
+**Requests.** GET only; method picker hidden in v1. Path + query params editable. Token is always sent as the `X-Plex-Token` header, never in the URL, and is never displayed or copyable. Response format is an app-wide setting (`Accept: application/json` by default, or `application/xml`, which is what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send appends to history.
 
 **Hyperlinks.** `LinkDetector` marks attributes whose values are server paths (`key`, `parentKey`, `grandparentKey`, `thumb`, `art`, `theme`, `composite`, `librarySectionKey`, `hubKey`, …). In Pretty and Tree views these are buttons: click → `RequestStore` loads the path, pushes current onto back stack, sends. Resolution follows the documented rule: every request path is treated as having a trailing slash, so `/library/sections + home → /library/sections/home`; absolute paths are used as-is; `https://` and `view://` keys pass through (opened externally / not navigable). Image attributes render inline via `/photo/:/transcode?url=…&width=…&height=…` (server-relative) or directly (absolute URLs).
 
@@ -141,7 +141,7 @@ Each ends with a smoke-test proof, not a test suite.
 5. **Media Query builder.** *Proof: build "movies added in the last 3 years, unwatched, sorted by rating desc" visually; emitted query returns the expected items.*
 6. **Activity monitor.** Socket, event list, filters, payload inspector. *Proof: start playback on any client; `playing` and `timeline` events appear live; pause/resume works.*
 7. **Saved requests.** Save-as, edit, delete. *Proof: quit/relaunch; saved requests persist.*
-8. **Polish.** Shortcuts, redact-token mode, error/empty states, app icon, glass tuning.
+8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning.
 
 ## Tests (targeted, fixture-driven)
 

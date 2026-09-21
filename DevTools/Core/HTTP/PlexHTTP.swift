@@ -38,7 +38,7 @@ final class PlexHTTP: Sendable {
         token: String?,
         timeout: TimeInterval = 30
     ) async throws -> PlexResponse {
-        guard let url = request.url(base: baseURL, token: token) else { throw PlexHTTPError.invalidURL }
+        guard let url = request.url(base: baseURL) else { throw PlexHTTPError.invalidURL }
 
         var urlRequest = URLRequest(url: url, timeoutInterval: timeout)
         urlRequest.httpMethod = "GET"
@@ -46,7 +46,7 @@ final class PlexHTTP: Sendable {
         for (name, value) in identity.headers {
             urlRequest.setValue(value, forHTTPHeaderField: name)
         }
-        if request.tokenPlacement == .header, let token {
+        if let token {
             urlRequest.setValue(token, forHTTPHeaderField: "X-Plex-Token")
         }
         for header in request.headers where header.enabled {

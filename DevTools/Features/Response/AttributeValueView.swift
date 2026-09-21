@@ -11,14 +11,12 @@ struct AttributeValueView: View {
     @Environment(RequestStore.self) private var requests
 
     var body: some View {
+        // Credentials are shown masked and can't be copied out, by design.
         if requests.shouldMask(attributeNamed: attribute.name), !attribute.value.isEmpty {
             Text(RequestStore.mask)
                 .font(.code(.callout))
                 .foregroundStyle(.secondary)
-                .help("Hidden — toggle redaction to reveal")
-                .contextMenu {
-                    Button("Copy Raw Value") { copy(attribute.value) }
-                }
+                .help("Credential — never shown")
         } else if LinkDetector.isNavigable(attribute),
            let link = LinkDetector.resolve(attribute.value, relativeTo: basePath ?? requests.current.path) {
             switch link {

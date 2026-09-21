@@ -7,18 +7,18 @@ struct PlexRequestURLTests {
 
     @Test func plainPath() {
         let request = PlexRequest(path: "/library/sections")
-        #expect(request.url(base: base, token: nil)?.absoluteString == "https://server.example.plex.direct:32400/library/sections")
+        #expect(request.url(base: base)?.absoluteString == "https://server.example.plex.direct:32400/library/sections")
     }
 
     @Test func missingLeadingSlashIsAdded() {
         let request = PlexRequest(path: "identity")
-        #expect(request.url(base: base, token: nil)?.path == "/identity")
+        #expect(request.url(base: base)?.path == "/identity")
     }
 
     @Test func embeddedQueryMergesWithParams() {
         var request = PlexRequest(path: "/library/sections/1/all?type=1")
         request.query = [QueryParam(name: "sort", value: "addedAt:desc")]
-        let url = request.url(base: base, token: nil)!
+        let url = request.url(base: base)!
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!
         #expect(items.map(\.name) == ["type", "sort"])
         #expect(items.map(\.value) == ["1", "addedAt:desc"])
@@ -30,16 +30,18 @@ struct PlexRequestURLTests {
             QueryParam(name: "a", value: "1"),
             QueryParam(name: "b", value: "2", enabled: false),
         ]
-        let url = request.url(base: base, token: nil)!
+        let url = request.url(base: base)!
         #expect(url.query == "a=1")
     }
 
-    @Test func tokenInQueryOnlyWhenRequested() {
+    @Test func tokenNeverAppearsInURL() {
         var request = PlexRequest(path: "/x")
-        #expect(request.url(base: base, token: "tok")?.query == nil)
+        #expect(request.url(base: base)?.query == nil)
 
-        request.tokenPlacement = .query
-        #expect(request.url(base: base, token: "tok")?.query == "X-Plex-Token=tok")
+        // Even a token typed into the path is just an ordinary query item; the
+        // real credential only ever travels as a header.
+        request.path = "/x?X-Plex-Token=typed"
+        #expect(request.url(base: base)?.query == "X-Plex-Token=typed")
     }
 
     @Test func splitPathKeepsPercentEncodedQuery() {

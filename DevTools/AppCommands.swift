@@ -47,11 +47,6 @@ struct AppCommands: Commands {
 
         CommandGroup(after: .toolbar) {
             Toggle("Wrap Lines", isOn: $wrapLines)
-            Toggle("Redact Tokens", isOn: Binding(
-                get: { requests.redactToken },
-                set: { requests.redactToken = $0 }
-            ))
-            .keyboardShortcut("r", modifiers: [.command, .shift])
         }
 
         CommandMenu("Server") {

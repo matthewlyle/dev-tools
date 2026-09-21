@@ -28,20 +28,6 @@ enum AcceptFormat: String, Codable, Sendable, CaseIterable, Identifiable {
     }
 }
 
-enum TokenPlacement: String, Codable, Sendable, CaseIterable, Identifiable {
-    case header
-    case query
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .header: "Header"
-        case .query: "Query"
-        }
-    }
-}
-
 /// An editable GET request against a Plex server. Everything the request
 /// builder can change lives here; `PlexHTTP` turns it into a `URLRequest`.
 struct PlexRequest: Hashable, Codable, Sendable {
@@ -49,7 +35,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
     var query: [QueryParam] = []
     var headers: [HeaderField] = []
     var accept: AcceptFormat = .json
-    var tokenPlacement: TokenPlacement = .header
 
     init(path: String = "/") {
         self.path = path
@@ -64,8 +49,9 @@ struct PlexRequest: Hashable, Codable, Sendable {
     }
 
     /// Resolves against `base`, merging any query already embedded in `path`
-    /// with the enabled `query` params. Returns nil if the result isn't a URL.
-    func url(base: URL, token: String?) -> URL? {
+    /// with the enabled `query` params. The token never goes in the URL —
+    /// `PlexHTTP` sends it as a header, so it stays out of logs and copies.
+    func url(base: URL) -> URL? {
         let (purePath, embedded) = Self.splitPath(path)
 
         var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
@@ -73,9 +59,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
 
         var items = embedded
         items += query.filter(\.enabled).map { URLQueryItem(name: $0.name, value: $0.value) }
-        if tokenPlacement == .query, let token {
-            items.append(URLQueryItem(name: "X-Plex-Token", value: token))
-        }
         components.queryItems = items.isEmpty ? nil : items
         return components.url
     }

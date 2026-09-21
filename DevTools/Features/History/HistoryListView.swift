@@ -169,7 +169,6 @@ private struct HistoryRow: View {
     @Environment(ServerStore.self) private var servers
 
     private var summary: String {
-        guard requests.redactToken else { return entry.request.summary }
         var text = requests.redacted(entry.request.summary, token: servers.entry(id: entry.serverID)?.resource.accessToken)
         text = text.replacing(/X-Plex-Token=[^&\s]+/) { _ in "X-Plex-Token=\(RequestStore.mask)" }
         return text

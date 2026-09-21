@@ -12,12 +12,6 @@ final class RequestStore {
     private(set) var isSending = false
     private(set) var history: [HistoryEntry] = []
 
-    /// Hide tokens in URLs, copies, history, and token-like attribute values
-    /// (screenshots, screen sharing). Persisted.
-    var redactToken: Bool {
-        didSet { UserDefaults.standard.set(redactToken, forKey: Self.redactKey) }
-    }
-
     /// Response format asked for on every request (the `Accept` header).
     /// App-wide by choice: a playground wants one answer, not a per-request
     /// knob competing with Send. Persisted.
@@ -28,8 +22,9 @@ final class RequestStore {
         }
     }
 
+    /// Tokens are never shown: not in URLs, copies, history, headers, or
+    /// token-like response values. There is deliberately no way to reveal them.
     static let mask = "••••••••"
-    private static let redactKey = "redactToken"
     private static let acceptKey = "acceptFormat"
 
     /// Attribute names whose values are credentials in Plex payloads.
@@ -37,15 +32,15 @@ final class RequestStore {
         "token", "authToken", "accessToken", "authenticationToken", "transientToken", "X-Plex-Token",
     ]
 
-    /// `value` with a token masked out when redaction is on.
+    /// `value` with the server's token masked out.
     func redacted(_ value: String, token: String?) -> String {
-        guard redactToken, let token, !token.isEmpty else { return value }
+        guard let token, !token.isEmpty else { return value }
         return value.replacingOccurrences(of: token, with: Self.mask)
     }
 
-    /// Whether an attribute's value should be shown masked.
+    /// Whether an attribute's value is a credential and must be shown masked.
     func shouldMask(attributeNamed name: String) -> Bool {
-        redactToken && Self.tokenAttributeNames.contains(name)
+        Self.tokenAttributeNames.contains(name)
     }
 
     /// Bumped by the ⌘L command; the request bar observes it to grab focus.
@@ -69,7 +64,6 @@ final class RequestStore {
 
     init(http: PlexHTTP) {
         self.http = http
-        redactToken = UserDefaults.standard.object(forKey: Self.redactKey) as? Bool ?? true
         acceptFormat = UserDefaults.standard.string(forKey: Self.acceptKey).flatMap(AcceptFormat.init(rawValue:)) ?? .json
         current.accept = acceptFormat
         history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
@@ -80,8 +74,8 @@ final class RequestStore {
     func implicitHeaders(for server: ConnectedServer?) -> [(name: String, value: String)] {
         var headers = http.identity.headers.sorted { $0.key < $1.key }.map { (name: $0.key, value: $0.value) }
         headers.insert((name: "Accept", value: current.accept.rawValue), at: 0)
-        if current.tokenPlacement == .header, server != nil {
-            headers.append((name: "X-Plex-Token", value: redactToken ? Self.mask : (server?.accessToken ?? "")))
+        if server != nil {
+            headers.append((name: "X-Plex-Token", value: Self.mask))
         }
         return headers
     }
@@ -271,11 +265,10 @@ final class RequestStore {
 
     // MARK: URL preview
 
-    /// The full URL string; masked when redaction is on.
+    /// The full URL string. The token is a header, so there's nothing to mask.
     func previewURL(for server: ConnectedServer?) -> String {
         guard let server else { return "No server selected" }
-        guard let url = current.url(base: server.baseURL, token: server.accessToken) else { return "Invalid URL" }
-        return redacted(url.absoluteString, token: server.accessToken)
+        return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
     }
 
     // MARK: History

@@ -32,15 +32,6 @@ struct SettingsView: View {
             } header: {
                 Text("Requests")
             }
-
-            Section {
-                Toggle("Redact tokens", isOn: $requests.redactToken)
-                Text("Masks X-Plex-Token in URLs, copies, history, and token-like response values. Toggle from the request bar or with ⇧⌘R.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text("Privacy")
-            }
         }
         .formStyle(.grouped)
     }

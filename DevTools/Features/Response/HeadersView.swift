@@ -26,17 +26,8 @@ struct HeadersView: View {
 
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Request")
-                        .font(.headline)
-                    Spacer()
-                    Picker("Token", selection: $requests.current.tokenPlacement) {
-                        ForEach(TokenPlacement.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                    .help("Send X-Plex-Token as a header or a query parameter")
-                }
+                Text("Request")
+                    .font(.headline)
 
                 KeyValueEditor(
                     items: $requests.current.headers,
