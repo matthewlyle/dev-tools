@@ -9,8 +9,8 @@ struct RawResponseView: View {
 
     /// Unwrapped text needs an infinite-width container, which defeats
     /// TextKit's viewport layout: the whole body is laid out on the main
-    /// thread at roughly 2.5 s/MB. Wrapped, layout stays proportional to
-    /// what's on screen, so big bodies are always wrapped.
+    /// thread, in time proportional to its size. Wrapped, layout stays
+    /// proportional to what's on screen, so big bodies are always wrapped.
     static let wrapForcedAbove = 256 * 1024
 
     private var wrapForced: Bool { document.text.utf8.count > Self.wrapForcedAbove }

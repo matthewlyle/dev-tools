@@ -165,8 +165,7 @@ private struct PaginationControls: View {
 struct ResponseStatusBar: View {
     let response: PlexResponse
 
-    /// Digits roll in the direction they moved (200→404 up, 943 ms→5 ms
-    /// down) whenever a new response lands.
+    /// Digits roll in the direction the value moved whenever a new response lands.
     var body: some View {
         HStack(spacing: 12) {
             Text(String(response.status))

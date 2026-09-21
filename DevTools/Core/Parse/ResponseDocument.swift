@@ -14,10 +14,10 @@ struct ResponseDocument: Sendable {
         }
     }
 
-    /// Above this we skip colouring and the tree; tokenizing and attributing
-    /// tens of MB is slow and the Pretty tab would get tens of thousands of
-    /// cards. JSON is still pretty-printed — that's cheap, and a single
-    /// multi-MB line is far slower to lay out than the same bytes as lines.
+    /// Above this, colouring and the tree are skipped: tokenizing and
+    /// attributing tens of MB is slow and the Pretty tab would get tens of
+    /// thousands of cards. JSON is still pretty-printed — that's cheap, and a
+    /// single multi-MB line is far slower to lay out than the same bytes as lines.
     static let highlightLimit = 4 * 1024 * 1024
 
     let text: String
