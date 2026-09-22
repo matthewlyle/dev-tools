@@ -30,11 +30,23 @@ final class ActivityStore {
     var hiddenTypes: Set<String> = []
     private(set) var selectedEvent: NotificationEvent?
 
-    private let identity: ClientIdentity
+    /// Resolved item titles for rows whose payload names the item by key
+    /// alone. `requestedTitles` holds every key ever asked for, in flight,
+    /// resolved or failed, so a playing session's repeated frames fetch once
+    /// and a failure isn't retried until the events are cleared.
+    private(set) var titles: [TitleKey: String] = [:]
+    private var requestedTitles: Set<TitleKey> = []
+
+    struct TitleKey: Hashable {
+        let server: String
+        let ratingKey: String
+    }
+
+    private let http: PlexHTTP
     private var connection: Task<Void, Never>?
 
-    init(identity: ClientIdentity) {
-        self.identity = identity
+    init(http: PlexHTTP) {
+        self.http = http
     }
 
     var visibleEvents: [NotificationEvent] {
@@ -52,13 +64,19 @@ final class ActivityStore {
         }
     }
 
+    /// The looked-up title of the item an event names by key, once resolved.
+    func title(for event: NotificationEvent) -> String? {
+        guard let server, let ratingKey = event.titleKey else { return nil }
+        return titles[TitleKey(server: server.machineID, ratingKey: ratingKey)]
+    }
+
     func connect(to server: ConnectedServer) {
         connection?.cancel()
         self.server = server
         status = .connecting
         receivedCount = 0
         lastError = nil
-        let identity = identity
+        let identity = http.identity
 
         connection = Task { [weak self] in
             var attempt = 0
@@ -107,6 +125,8 @@ final class ActivityStore {
         events.removeAll()
         typeCounts.removeAll()
         selectedEvent = nil
+        titles.removeAll()
+        requestedTitles.removeAll()
     }
 
     func toggle(type: String) {
@@ -118,6 +138,26 @@ final class ActivityStore {
         events.insert(event, at: 0)
         if events.count > Self.capacity {
             events.removeLast(events.count - Self.capacity)
+        }
+        if let ratingKey = event.titleKey { resolveTitle(ratingKey) }
+    }
+
+    /// Internal lookups pin JSON like the app's other background fetches;
+    /// the Accept setting is for the requests the user sends.
+    private func resolveTitle(_ ratingKey: String) {
+        guard let server else { return }
+        let key = TitleKey(server: server.machineID, ratingKey: ratingKey)
+        guard requestedTitles.insert(key).inserted else { return }
+        Task { [http, weak self] in
+            var request = PlexRequest(path: "/library/metadata/\(ratingKey)")
+            request.accept = .json
+            guard let response = try? await http.send(request, to: server), response.status == 200 else { return }
+            let body = response.body
+            let title = await Task.detached(priority: .utility) {
+                JSONNodeParser.parse(body).flatMap(NotificationEvent.itemTitle(metadata:))
+            }.value
+            guard let self, let title, self.requestedTitles.contains(key) else { return }
+            self.titles[key] = title
         }
     }
 }

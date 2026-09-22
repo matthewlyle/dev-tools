@@ -57,7 +57,7 @@ private struct EventList: View {
                 }
             } else {
                 List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
-                    EventRow(event: event)
+                    EventRow(event: event, title: activity.title(for: event))
                         .tag(event.id)
                 }
                 // A row tap on iPadOS runs the list's primary action — the
@@ -119,6 +119,9 @@ private struct EventList: View {
 
 private struct EventRow: View {
     let event: NotificationEvent
+    let title: String?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -126,10 +129,12 @@ private struct EventRow: View {
                 .font(.code(.caption))
                 .foregroundStyle(.secondary)
             EventTypeBadge(type: event.type)
-            Text(event.summary)
+            Text(title.map(event.summary(title:)) ?? event.summary)
                 .font(.callout)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .contentTransition(.interpolate)
+                .animation(reduceMotion ? nil : .snappy, value: title)
         }
         .padding(.vertical, 2)
     }

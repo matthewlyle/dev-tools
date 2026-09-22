@@ -21,7 +21,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 3. Response browser: back/forward between requests — done (breadcrumbs removed; they repeated the URL). The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
 4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls — done. The response-customization (include/exclude) menus were removed; `includeFields` etc. are typed as ordinary params
 5. Media Query builder — done as the fourth section, "Media" (⌘4): filters with nested `push`/`pop` grouping (AND/OR per group), a tag-value picker over the server's filter values, sort, group, limit
-6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause)
+6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause; rows name the item they're about)
 7. Saved requests — done
 
 Deferred to v1.1: code export (cURL/Swift/Python/JS), non-GET methods, JWT auth, API-version diff mode.
@@ -89,7 +89,7 @@ dev-tools/
         SpecCatalog.swift        operations grouped by tag, placeholder matching, access scopes, documented headers
       Socket/
         NotificationTransport.swift  URLSessionWebSocketTask → /:/websockets/notifications (plural); reconnect with backoff
-        NotificationEvent.swift  type, timestamp, raw payload
+        NotificationEvent.swift  type, timestamp, raw payload; ratingKey/state/viewOffset and the row line (payload titles first, else a key); itemTitle(metadata:) names a library item
       Persistence/
         AppSupportStore.swift    JSON read/write in ~/Library/Application Support/dev-tools/
         SavedRequest.swift       id, name, notes, PlexRequest, server
@@ -103,7 +103,7 @@ dev-tools/
       SavedStore.swift           saved requests per server
       SpecStore.swift            loads the bundled spec into a SpecCatalog
       ValueMemory.swift          id-like values seen per server for placeholder suggestions; last-used per placeholder
-      ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection
+      ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection, item titles looked up per server + ratingKey
     Features/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
       Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; preload + reset on switch), ServerMenu (title menu: server names + Server Info…, Refresh Servers, Connect; Settings… on iPad), ServerInfoView (popover from the title: host, version, connection in use)
@@ -122,7 +122,7 @@ dev-tools/
     Assets.xcassets              AppIcon, Hosts (Simple Icons host marks)
   DevToolsTests/
     NodeParserTests, HighlighterTests, FoldingTests, JSONFormatterTests,
-    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests, MediaQueryTests, PlaceholderOptionTests, MediaItemTests, ContentTypeTests
+    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests, MediaQueryTests, PlaceholderOptionTests, MediaItemTests, ContentTypeTests, NotificationEventTests
 ```
 
 ## Key behaviors
@@ -142,6 +142,7 @@ dev-tools/
 **Media (M5).** The fourth section. Pick a library and a result type; the types, their `Field`s (with types) and `Sort`s come from `/library/sections/{id}?includeDetails=1`, fetched once per library. Operators are the spec's documented per-type table (integer/boolean/tag/string/date/language) and ride on the query key (`year>>=2000`, URI-encoded); booleans emit `field=1|0`; date values accept relative suffixes (`>>=-3y`). Filters AND together, or all OR with `or=1` ("Match any"); `sort=field[:desc],…`, `group=`, `limit=`. The emitted query is shown live and runs against `/library/sections/{id}/all`. Results show as a **poster grid** (aspect by type: 2:3, square, 16:9; artwork through `ImageStore`), with the raw Response and Headers a tab away and the pagination controls in the status row. Clicking a poster selects it and opens its metadata in the inspector (View › Show Info, ⌘I): artwork, title, `year · rating · runtime`, tagline, synopsis, tag groups as sentences (Genre: …), then every attribute with units decoded and credentials masked, and nested elements (Media → Part → Stream) collapsed. Not yet expressed: nested `push`/`pop` grouping, `sourceType`/field scoping, and picking tag values from the filter endpoints (tag fields take an id).
 
 **Activity (M6).** Connect `wss://{host}/:/websockets/notifications?X-Plex-Token=…` (ws for http servers; note the plural — Plex's own OpenAPI doc lists the singular `/:/websocket/…`, which 404s). Events arrive as `{NotificationContainer: {type, size, <TypeArray>: [...]}}`. Types to filter: `playing`, `timeline`, `activity`, `progress`, `status`, `backgroundProcessingQueue`, `transcodeSession.update/end`, `reachability`, `preference`. Ring buffer capped at 2000. No pause: connect/disconnect and clear only.
+Each row reads `state · subject · progress · position`, e.g. `Playing · The Office — S2 E3 · Diversity Day · 12:34`. The subject is the payload's own words when it has them (`title`/`subtitle`, an Activity's title/subtitle/progress, `message`); a payload naming its item only by key (a playing session, an untitled timeline entry) shows the key until a JSON `GET /library/metadata/<ratingKey>` resolves a title (episode `Show — S2 E3 · Title`, movie `Title (year)`, track `Artist — Title`, else `title`), which crossfades in. Lookups go through `PlexHTTP` (token as header), once per server + ratingKey, failures included, until Clear or a server switch; a failed lookup leaves the key.
 
 ## Liquid Glass usage
 
@@ -158,7 +159,7 @@ Each ends with a smoke-test proof, not a test suite.
 3. **Parse + browser.** `Node` parsers, back/forward, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
 4. **Spec integration.** Endpoint catalog by tag, parameter/header autocomplete, pagination controls — done. Response-customization menus removed.
 5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
-6. **Activity monitor.** Socket, event list, type filters, payload inspector — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
+6. **Activity monitor.** Socket, event list, type filters, payload inspector, item titles in rows — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
 8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion), resizable iPad list pane — in progress.
 
@@ -174,6 +175,7 @@ Each ends with a smoke-test proof, not a test suite.
 - `MediaQueryTests`: operator characters ride on the key and URL-encode; booleans emit 1/0; empty terms skipped; `or=1` under Match any; sort/group/limit order; `SectionDetails` parsing of Type/Field/Sort.
 - `PlaceholderOptionTests`: playlists/collections map `ratingKey`/`title` (collections carry their library as a group); tuner devices fall back through `key`/`uuid`/`id` and `title`/make+model.
 - `MediaItemTests`: aspect by type; movie/episode subtitle composition; thumb fallback through parent art; tag groups vs element groups; unit decoding by attribute name (size, bitrate, epoch `*At`, runtime).
+- `NotificationEventTests`: ratingKey (digits only, from `ratingKey`, `itemID` or a metadata key), state and viewOffset from playing/timeline/activity payloads; payload titles skip the lookup; item titles from metadata for episode/movie/track/other.
 
 ## Open items
 

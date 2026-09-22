@@ -22,7 +22,7 @@ struct DevToolsApp: App {
         let memory = ValueMemory()
         _memory = State(initialValue: memory)
         _requests = State(initialValue: RequestStore(http: http, memory: memory))
-        _activity = State(initialValue: ActivityStore(identity: identity))
+        _activity = State(initialValue: ActivityStore(http: http))
         _saved = State(initialValue: SavedStore())
         _mediaQuery = State(initialValue: MediaQueryStore(http: http))
         _images = State(initialValue: ImageStore(http: http))
