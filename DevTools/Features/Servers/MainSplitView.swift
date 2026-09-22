@@ -222,27 +222,33 @@ private struct SectionInspector: ViewModifier {
     func body(content: Content) -> some View {
         let shown = shown
         let isActive = isActive
-        content.inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0, isActive { dismiss() } })) {
-            switch shown {
-            case .event(let event):
-                EventInspector(event: event)
-                    .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
-                    // Where the inspector adapts to a sheet or an overlay
-                    // (compact width, a portrait or split-screen iPad), the
-                    // list stays live behind it so another tap re-targets it
-                    // instead of first dismissing it; a half-height sheet
-                    // leaves the list in view to tap.
-                    .presentationDetents([.medium, .large])
-                    .presentationBackgroundInteraction(.enabled)
-            case .item(let item):
-                MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
-                    .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
-                    .presentationDetents([.medium, .large])
-                    .presentationBackgroundInteraction(.enabled)
-            case nil:
-                EmptyView()
+        content
+            #if os(iOS)
+            // UIKit hosts an inspector's main content in its own opaque
+            // container, which covers a well drawn behind the modifier.
+            .background { WellBackground() }
+            #endif
+            .inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0, isActive { dismiss() } })) {
+                switch shown {
+                case .event(let event):
+                    EventInspector(event: event)
+                        .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
+                        // Where the inspector adapts to a sheet or an overlay
+                        // (compact width, a portrait or split-screen iPad), the
+                        // list stays live behind it so another tap re-targets it
+                        // instead of first dismissing it; a half-height sheet
+                        // leaves the list in view to tap.
+                        .presentationDetents([.medium, .large])
+                        .presentationBackgroundInteraction(.enabled)
+                case .item(let item):
+                    MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
+                        .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
+                        .presentationDetents([.medium, .large])
+                        .presentationBackgroundInteraction(.enabled)
+                case nil:
+                    EmptyView()
+                }
             }
-        }
     }
 
     private func dismiss() {
