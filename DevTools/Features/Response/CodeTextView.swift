@@ -6,6 +6,10 @@ import AppKit
 import UIKit
 #endif
 
+/// The response body. `header` rides inside the text view's scroll — pinned
+/// above the text by a top content inset — so it scrolls away with the body
+/// while the body keeps viewport layout (a page-level scroll view would lay
+/// the whole document out).
 struct CodeTextView {
     let text: String
     let tokens: [Token]
@@ -13,13 +17,22 @@ struct CodeTextView {
     @Binding var collapsed: Set<Int>
     let wrap: Bool
     let version: Date
+    let header: AnyView
 
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
         var appliedVersion: Date?
         var appliedCollapsed: Set<Int>?
         var appliedWrap: Bool?
         var toggle: ((Int) -> Void)?
         var renderTask: Task<Void, Never>?
+        var headerHeight: CGFloat = 0
+        var headerWidth: CGFloat?
+        #if os(macOS)
+        var headerHost: NSHostingController<AnyView>?
+        var frameObserver: NSObjectProtocol?
+        #else
+        var headerHost: UIHostingController<AnyView>?
+        #endif
     }
 
     /// Carries the built string back from the render thread. Attributed
@@ -151,7 +164,45 @@ extension CodeTextView: NSViewRepresentable {
         textView.minSize = .zero
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.linkTextAttributes = [.cursor: NSCursor.pointingHand]
+
+        scrollView.automaticallyAdjustsContentInsets = false
+        let host = NSHostingController(rootView: AnyView(EmptyView()))
+        host.sizingOptions = []
+        scrollView.contentView.addSubview(host.view)
+        context.coordinator.headerHost = host
+        scrollView.contentView.postsFrameChangedNotifications = true
+        context.coordinator.frameObserver = NotificationCenter.default.addObserver(
+            forName: NSView.frameDidChangeNotification, object: scrollView.contentView, queue: .main
+        ) { [weak scrollView, coordinator = context.coordinator] _ in
+            MainActor.assumeIsolated {
+                guard let scrollView else { return }
+                Self.layoutHeader(in: scrollView, coordinator: coordinator)
+            }
+        }
         return scrollView
+    }
+
+    static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
+        if let observer = coordinator.frameObserver { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    /// Header width follows the clip view; its height is what SwiftUI wants
+    /// at that width, and the document is inset by exactly that.
+    @MainActor private static func layoutHeader(in scrollView: NSScrollView, coordinator: Coordinator, force: Bool = false) {
+        guard let host = coordinator.headerHost else { return }
+        let width = scrollView.contentView.bounds.width
+        guard force || coordinator.headerWidth != width else { return }
+        let wasAtTop = scrollView.contentView.bounds.origin.y <= -coordinator.headerHeight + 1
+        coordinator.headerWidth = width
+        coordinator.headerHeight = host.sizeThatFits(in: NSSize(width: width, height: .greatestFiniteMagnitude)).height
+        host.view.frame = NSRect(x: 0, y: -coordinator.headerHeight, width: width, height: coordinator.headerHeight)
+        scrollView.contentInsets = NSEdgeInsets(top: coordinator.headerHeight, left: 0, bottom: 0, right: 0)
+        if wasAtTop { scrollToTop(scrollView, coordinator: coordinator) }
+    }
+
+    @MainActor private static func scrollToTop(_ scrollView: NSScrollView, coordinator: Coordinator) {
+        scrollView.contentView.scroll(to: NSPoint(x: 0, y: -coordinator.headerHeight))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
@@ -160,6 +211,10 @@ extension CodeTextView: NSViewRepresentable {
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
+        // The hosted header is outside SwiftUI's tree, so it gets the
+        // environment (stores, styles) handed over explicitly.
+        coordinator.headerHost?.rootView = AnyView(header.environment(\.self, context.environment))
+        Self.layoutHeader(in: scrollView, coordinator: coordinator, force: true)
 
         let versionChanged = coordinator.appliedVersion != version
         if versionChanged || coordinator.appliedCollapsed != collapsed {
@@ -179,7 +234,7 @@ extension CodeTextView: NSViewRepresentable {
                 let visibleRect = scrollView.contentView.bounds
                 textView.textStorage?.setAttributedString(rendered.string)
                 if versionChanged {
-                    textView.scroll(.zero)
+                    Self.scrollToTop(scrollView, coordinator: coordinator)
                 } else {
                     scrollView.contentView.scroll(to: visibleRect.origin)
                     scrollView.reflectScrolledClipView(scrollView.contentView)
@@ -220,11 +275,41 @@ extension CodeTextView.Coordinator: UITextViewDelegate {
     }
 }
 
+/// Positions the hosted header above the text and keeps the top inset equal
+/// to its height, re-measuring when the width changes.
+final class HeaderedTextView: UITextView {
+    var headerView: UIView?
+    var measureHeader: ((CGFloat) -> CGFloat)?
+    private(set) var headerHeight: CGFloat = 0
+    private var measuredWidth: CGFloat?
+
+    func invalidateHeader() {
+        measuredWidth = nil
+        setNeedsLayout()
+    }
+
+    var topOffset: CGPoint { CGPoint(x: 0, y: -headerHeight) }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let headerView, let measureHeader else { return }
+        let width = bounds.width
+        guard measuredWidth != width else { return }
+        let wasAtTop = contentOffset.y <= -headerHeight + 1
+        measuredWidth = width
+        headerHeight = measureHeader(width)
+        headerView.frame = CGRect(x: 0, y: -headerHeight, width: width, height: headerHeight)
+        contentInset.top = headerHeight
+        verticalScrollIndicatorInsets.top = headerHeight
+        if wasAtTop { contentOffset = topOffset }
+    }
+}
+
 extension CodeTextView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
+    func makeUIView(context: Context) -> HeaderedTextView {
+        let textView = HeaderedTextView()
         textView.delegate = context.coordinator
         textView.isEditable = false
         textView.isSelectable = true
@@ -239,14 +324,28 @@ extension CodeTextView: UIViewRepresentable {
         textView.smartQuotesType = .no
         textView.smartDashesType = .no
         textView.spellCheckingType = .no
+        textView.contentInsetAdjustmentBehavior = .never
+
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        host.view.backgroundColor = .clear
+        textView.addSubview(host.view)
+        textView.headerView = host.view
+        textView.measureHeader = { [host] width in
+            host.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        }
+        context.coordinator.headerHost = host
         return textView
     }
 
-    func updateUIView(_ textView: UITextView, context: Context) {
+    func updateUIView(_ textView: HeaderedTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
+        // The hosted header is outside SwiftUI's tree, so it gets the
+        // environment (stores, styles) handed over explicitly.
+        coordinator.headerHost?.rootView = AnyView(header.environment(\.self, context.environment))
+        textView.invalidateHeader()
 
         let versionChanged = coordinator.appliedVersion != version
         if versionChanged || coordinator.appliedCollapsed != collapsed {
@@ -265,7 +364,7 @@ extension CodeTextView: UIViewRepresentable {
                 else { return }
                 let offset = textView.contentOffset
                 textView.attributedText = rendered.string
-                textView.setContentOffset(versionChanged ? .zero : offset, animated: false)
+                textView.setContentOffset(versionChanged ? textView.topOffset : offset, animated: false)
             }
         }
 

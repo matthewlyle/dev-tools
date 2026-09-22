@@ -110,7 +110,7 @@ dev-tools/
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
       Browser/                   HistoryNavButtons — back/forward at the head of the URL line
-      Response/                  ResponseView (one container above the body: request bar, then status · pagination · tabs · body controls; 400/403 hints), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
+      Response/                  ResponseView (request bar, then status · pagination · tabs · body controls, 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; fixed above the Headers table), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
       History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear
       Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events + payload inspector)
       MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage

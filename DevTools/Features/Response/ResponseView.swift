@@ -39,84 +39,100 @@ struct ResponseView<RequestBar: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // The request and everything that describes its response, as one
-            // block above the body; the body is the scroller.
-            VStack(spacing: 0) {
-                requestBar()
-                if let response = requests.response {
-                    Divider()
-                    HStack(spacing: 10) {
-                        ResponseStatusBar(response: response)
-                        if let pagination = requests.pagination {
-                            PaginationControls(pagination: pagination, server: server)
-                        }
-                        if tab == .raw, let notice = requests.document?.notice {
-                            Text(notice)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                        Spacer()
-                        Picker("View", selection: $tab) {
-                            ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
-                        if tab == .raw, let document = requests.document {
-                            BodyControls(document: document, response: response, collapsed: $collapsed)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-            }
-            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
-            .padding(12)
-
+        Group {
             if let response = requests.response {
-                Group {
-                    if let hint = missingParameterHint {
-                        MissingParametersHint(parameters: hint) {
-                            for parameter in hint where requests.current.query.allSatisfy({ $0.name != parameter.name }) {
-                                requests.current.query.append(QueryParam(name: parameter.name, value: parameter.suggestedValue))
-                            }
+                switch tab {
+                case .raw:
+                    if let document = requests.document {
+                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                            headerBlock
                         }
-                    }
-                    if let operation = adminOnlyHint {
-                        AccessHint(operation: operation)
-                    }
-                    switch tab {
-                    case .raw:
-                        if let document = requests.document {
-                            RawResponseView(document: document, response: response, collapsed: $collapsed)
-                        } else {
+                    } else {
+                        VStack(spacing: 0) {
+                            headerBlock
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                    case .headers:
+                    }
+                case .headers:
+                    VStack(spacing: 0) {
+                        headerBlock
                         HeadersView(response: response, server: server, editable: editable)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = requests.errorMessage {
-                ContentUnavailableView(
-                    "Request Failed",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(error)
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView(
-                    "No Response",
-                    systemImage: "paperplane",
-                    description: Text("Send a request to see the response here.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 0) {
+                    headerBlock
+                    if let error = requests.errorMessage {
+                        ContentUnavailableView(
+                            "Request Failed",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(error)
+                        )
+                    } else {
+                        ContentUnavailableView(
+                            "No Response",
+                            systemImage: "paperplane",
+                            description: Text("Send a request to see the response here.")
+                        )
+                    }
+                }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: requests.response?.receivedAt) { _, _ in
             collapsed = []
+        }
+    }
+
+    /// The request and everything that describes its response, as one block.
+    /// Scrolls with the body where the body can host it (the text view, the
+    /// poster grid); sits above it otherwise.
+    @ViewBuilder
+    private var headerBlock: some View {
+        VStack(spacing: 0) {
+            requestBar()
+            if let response = requests.response {
+                Divider()
+                HStack(spacing: 10) {
+                    ResponseStatusBar(response: response)
+                    if let pagination = requests.pagination {
+                        PaginationControls(pagination: pagination, server: server)
+                    }
+                    if tab == .raw, let notice = requests.document?.notice {
+                        Text(notice)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                    Picker("View", selection: $tab) {
+                        ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    if tab == .raw, let response = requests.response, let document = requests.document {
+                        BodyControls(document: document, response: response, collapsed: $collapsed)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+        }
+        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+        .padding(12)
+
+        if requests.response != nil {
+            if let hint = missingParameterHint {
+                MissingParametersHint(parameters: hint) {
+                    for parameter in hint where requests.current.query.allSatisfy({ $0.name != parameter.name }) {
+                        requests.current.query.append(QueryParam(name: parameter.name, value: parameter.suggestedValue))
+                    }
+                }
+            }
+            if let operation = adminOnlyHint {
+                AccessHint(operation: operation)
+            }
         }
     }
 }

@@ -116,7 +116,8 @@ private struct EventInspector: View {
                         folds: document.folds,
                         collapsed: $collapsed,
                         wrap: true,
-                        version: event.receivedAt
+                        version: event.receivedAt,
+                        header: AnyView(EmptyView())
                     )
                 } else {
                     ProgressView()

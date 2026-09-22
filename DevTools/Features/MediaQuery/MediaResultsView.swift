@@ -29,76 +29,66 @@ struct MediaResultsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                RequestSummaryBar(server: server)
-                if let response = requests.response {
-                    Divider()
-                    HStack(spacing: 10) {
-                        ResponseStatusBar(response: response)
-                        if let pagination = requests.pagination {
-                            PaginationControls(pagination: pagination, server: server)
-                        }
-                        Spacer()
-                        Picker("View", selection: $tab) {
-                            ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .fixedSize()
-                        if tab == .response, let document = requests.document {
-                            BodyControls(document: document, response: response, collapsed: $collapsed)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-            }
-            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
-            .padding(12)
-
+        Group {
             if let response = requests.response {
-                Group {
-                    switch tab {
-                    case .posters:
-                        if requests.document == nil {
+                switch tab {
+                case .posters:
+                    if requests.document == nil {
+                        VStack(spacing: 0) {
+                            headerBlock
                             ProgressView()
-                        } else if items.isEmpty {
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    } else if items.isEmpty {
+                        VStack(spacing: 0) {
+                            headerBlock
                             ContentUnavailableView(
                                 "No Items",
                                 systemImage: "square.grid.3x3",
                                 description: Text("The query matched nothing. Loosen a filter and run it again.")
                             )
-                        } else {
-                            grid
                         }
-                    case .response:
-                        if let document = requests.document {
-                            RawResponseView(document: document, response: response, collapsed: $collapsed)
-                        } else {
+                    } else {
+                        grid
+                    }
+                case .response:
+                    if let document = requests.document {
+                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                            headerBlock
+                        }
+                    } else {
+                        VStack(spacing: 0) {
+                            headerBlock
                             ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                    case .headers:
+                    }
+                case .headers:
+                    VStack(spacing: 0) {
+                        headerBlock
                         HeadersView(response: response, server: server, editable: false)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = requests.errorMessage {
-                ContentUnavailableView(
-                    "Request Failed",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(error)
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView(
-                    "No Results",
-                    systemImage: "square.grid.3x3",
-                    description: Text("Run a query to see its items as posters.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 0) {
+                    headerBlock
+                    if let error = requests.errorMessage {
+                        ContentUnavailableView(
+                            "Request Failed",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(error)
+                        )
+                    } else {
+                        ContentUnavailableView(
+                            "No Results",
+                            systemImage: "square.grid.3x3",
+                            description: Text("Run a query to see its items as posters.")
+                        )
+                    }
+                }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .inspector(isPresented: $showInfo) {
             if let selected {
                 MediaInfoView(item: selected, server: server) { showInfo = false }
@@ -116,8 +106,38 @@ struct MediaResultsView: View {
         )
     }
 
+    private var headerBlock: some View {
+        VStack(spacing: 0) {
+            RequestSummaryBar(server: server)
+            if let response = requests.response {
+                Divider()
+                HStack(spacing: 10) {
+                    ResponseStatusBar(response: response)
+                    if let pagination = requests.pagination {
+                        PaginationControls(pagination: pagination, server: server)
+                    }
+                    Spacer()
+                    Picker("View", selection: $tab) {
+                        ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    if tab == .response, let document = requests.document {
+                        BodyControls(document: document, response: response, collapsed: $collapsed)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+        }
+        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+        .padding(12)
+    }
+
     private var grid: some View {
         ScrollView {
+            headerBlock
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 130, maximum: 150), spacing: 16, alignment: .top)],
                 alignment: .leading,

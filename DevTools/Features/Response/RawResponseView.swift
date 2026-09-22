@@ -1,6 +1,40 @@
 import SwiftUI
 
-struct RawResponseView: View {
+struct RawResponseView<Header: View>: View {
+    let document: ResponseDocument
+    let response: PlexResponse
+    @Binding var collapsed: Set<Int>
+    @ViewBuilder let header: () -> Header
+
+    @AppStorage("rawWrapLines") private var wrap = true
+
+    var body: some View {
+        if document.format == .image {
+            VStack(spacing: 0) {
+                header()
+                ContentUnavailableView(
+                    "Binary Image Body",
+                    systemImage: "photo",
+                    description: Text("\(response.byteCount.formatted(.byteCount(style: .file))) — see the Pretty tab.")
+                )
+            }
+        } else {
+            CodeTextView(
+                text: document.text,
+                tokens: document.tokens,
+                folds: document.folds,
+                collapsed: $collapsed,
+                wrap: wrap || BodyControls.wrapForced(for: document),
+                version: response.receivedAt,
+                header: AnyView(header())
+            )
+        }
+    }
+}
+
+/// Fold, wrap, and copy for the body. Rides the response header row rather
+/// than a row of its own.
+struct BodyControls: View {
     let document: ResponseDocument
     let response: PlexResponse
     @Binding var collapsed: Set<Int>
@@ -17,36 +51,7 @@ struct RawResponseView: View {
         document.text.utf8.count > wrapForcedAbove
     }
 
-    var body: some View {
-        if document.format == .image {
-            ContentUnavailableView(
-                "Binary Image Body",
-                systemImage: "photo",
-                description: Text("\(response.byteCount.formatted(.byteCount(style: .file))) — see the Pretty tab.")
-            )
-        } else {
-            CodeTextView(
-                text: document.text,
-                tokens: document.tokens,
-                folds: document.folds,
-                collapsed: $collapsed,
-                wrap: wrap || Self.wrapForced(for: document),
-                version: response.receivedAt
-            )
-        }
-    }
-}
-
-/// Fold, wrap, and copy for the body. Rides the response header row rather
-/// than a row of its own.
-struct BodyControls: View {
-    let document: ResponseDocument
-    let response: PlexResponse
-    @Binding var collapsed: Set<Int>
-
-    @AppStorage("rawWrapLines") private var wrap = true
-
-    private var wrapForced: Bool { RawResponseView.wrapForced(for: document) }
+    private var wrapForced: Bool { Self.wrapForced(for: document) }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -74,7 +79,7 @@ struct BodyControls: View {
                 .platformCheckboxToggleStyle()
                 .controlSize(.small)
                 .disabled(wrapForced)
-                .help(wrapForced ? "Bodies over \(RawResponseView.wrapForcedAbove.formatted(.byteCount(style: .file))) are always wrapped; unwrapped layout would stall." : "Wrap long lines")
+                .help(wrapForced ? "Bodies over \(BodyControls.wrapForcedAbove.formatted(.byteCount(style: .file))) are always wrapped; unwrapped layout would stall." : "Wrap long lines")
             Button {
                 Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
             } label: {
