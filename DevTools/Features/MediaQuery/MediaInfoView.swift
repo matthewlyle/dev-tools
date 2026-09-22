@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// An item's metadata, read top-down: its poster, title and one-line summary,
+/// An item's metadata, read top-down: its title and one-line summary,
 /// tagline and synopsis, tag groups as sentences, then every attribute with
 /// units decoded, and nested elements collapsed. `Image` elements render as
 /// thumbnails that open in a lightbox; `UltraBlurColors` as a palette.
@@ -22,31 +22,26 @@ struct MediaInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .top) {
-                        PosterArt(item: item, server: server)
-                            .accessibilityHidden(true)
-                        Spacer(minLength: 12)
-                        if let itemJSON {
-                            Button {
-                                Clipboard.copy(itemJSON)
-                            } label: {
-                                Label("Copy JSON", systemImage: "curlybraces")
-                                    .labelStyle(.iconOnly)
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Copy this item's JSON from the response")
-                        }
-                        Button(action: dismiss) {
-                            Label("Hide Info", systemImage: "xmark")
-                                .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Hide Info (⌘I)")
-                    }
+                HStack(alignment: .firstTextBaseline) {
                     Text(item.title)
                         .font(.title.weight(.semibold))
                         .textSelection(.enabled)
+                    Spacer(minLength: 12)
+                    Button {
+                        if let itemJSON { Clipboard.copy(itemJSON) }
+                    } label: {
+                        Label("Copy JSON", systemImage: "curlybraces")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(itemJSON == nil)
+                    .help("Copy this item's JSON from the response")
+                    Button(action: dismiss) {
+                        Label("Hide Info", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Hide Info (⌘I)")
                 }
 
                 if item.tagline != nil || item.summary != nil {

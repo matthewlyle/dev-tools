@@ -254,8 +254,7 @@ private struct PosterButtonStyle: ButtonStyle {
     }
 }
 
-/// An item's artwork as the grid shows it, and at the same size atop the
-/// inspector so the inspector's copy is an `ImageStore` cache hit.
+/// An item's artwork as the grid shows it.
 struct PosterArt: View {
     let item: MediaItem
     let server: ConnectedServer?
