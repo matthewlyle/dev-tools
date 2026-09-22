@@ -55,6 +55,14 @@ struct PlaceholderSheet: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let description = operation.description, !description.isEmpty {
+                Text(description)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+
             HStack {
                 if !loading.isEmpty {
                     ProgressView().controlSize(.small)
