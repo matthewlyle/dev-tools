@@ -43,6 +43,7 @@ private struct EventList: View {
                 List(visible, selection: $activity.selectedEventID) { event in
                     EventRow(event: event, title: activity.title(for: event))
                         .tag(event.id)
+                        .listRowSeparator(.hidden)
                 }
                 // A row tap on iPadOS runs the list's primary action — the
                 // platform's "open this item" — while macOS runs it on
