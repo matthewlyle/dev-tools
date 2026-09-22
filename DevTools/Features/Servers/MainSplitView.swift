@@ -135,11 +135,14 @@ private struct SectionResident: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        // The body-scoped animation touches only the opacity: the section
+        // Only the incoming section fades. The outgoing one leaves at once:
+        // the toolbar's edge effect already belongs to the new section, so a
+        // fading-out section shows through the toolbar unblurred. The
+        // body-scoped animation touches only the opacity, because the section
         // flag flows into toolbar items and focused values, which must swap
         // in the same frame.
         content
-            .animation(reduceMotion ? nil : .smooth(duration: 0.2)) {
+            .animation(active && !reduceMotion ? .smooth(duration: 0.15) : nil) {
                 $0.opacity(active ? 1 : 0)
             }
             .allowsHitTesting(active)
