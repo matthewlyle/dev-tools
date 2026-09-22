@@ -310,6 +310,14 @@ struct ResponseStatusBar: View {
         .padding(.vertical, 6)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
+        .keyframeAnimator(initialValue: 1.0, trigger: response.receivedAt) { view, scale in
+            view.scaleEffect(reduceMotion ? 1 : scale)
+        } keyframes: { _ in
+            KeyframeTrack {
+                CubicKeyframe(0.97, duration: 0)
+                SpringKeyframe(1.0, duration: 0.28, spring: .snappy)
+            }
+        }
         .help(summary.joined(separator: " · "))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(summary.joined(separator: ", "))
