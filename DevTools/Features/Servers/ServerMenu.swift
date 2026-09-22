@@ -15,7 +15,7 @@ struct ServerMenu: View {
         } else {
             Picker("Server", selection: $servers.selectedID) {
                 ForEach(servers.sortedEntries) { entry in
-                    ServerMenuRow(entry: entry, active: servers.activeProbe(for: entry))
+                    Text(entry.resource.name)
                         .tag(Optional(entry.id))
                 }
             }
@@ -29,24 +29,5 @@ struct ServerMenu: View {
             Task { await servers.refresh(token: token) }
         }
         .disabled(account.token == nil || servers.isRefreshing)
-    }
-}
-
-/// One line: a `Picker` option can't carry a subtitle, it splits into rows.
-private struct ServerMenuRow: View {
-    let entry: ServerStore.Entry
-    let active: ProbeResult?
-
-    var body: some View {
-        Text(verbatim: "\(entry.resource.name) — \(subtitle)")
-    }
-
-    private var subtitle: String {
-        if entry.isProbing, entry.probes.isEmpty { return "Connecting…" }
-        if let active, case .ok(let latency) = active.outcome {
-            return "\(active.connection.kind.rawValue) · \(latency.milliseconds) ms"
-        }
-        if !entry.probes.isEmpty { return "Unreachable" }
-        return entry.resource.productVersion ?? "Not connected"
     }
 }
