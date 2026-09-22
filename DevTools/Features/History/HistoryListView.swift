@@ -94,7 +94,7 @@ struct HistoryListView: View {
                     Button("Delete", role: .destructive) { delete(entry.id) }
                 }
         }
-        .listStyle(.inset)
+        .sectionListStyle()
         #if os(macOS)
         .onDeleteCommand {
             if let selection { delete(selection) }

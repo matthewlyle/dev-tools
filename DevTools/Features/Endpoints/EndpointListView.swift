@@ -50,7 +50,7 @@ struct EndpointListView: View {
                 }
             }
         }
-        .listStyle(.inset)
+        .sectionListStyle()
         .sectionListSearch(text: $search, prompt: "Filter endpoints")
         .overlay {
             if spec.catalog == nil {

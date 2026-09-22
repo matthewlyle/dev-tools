@@ -63,6 +63,16 @@ extension View {
     }
 }
 
+extension View {
+    /// Every section's list in the column: inset rows over the column's own
+    /// background, never an opaque list background of its own — on macOS the
+    /// column is a sidebar and its material should show through.
+    func sectionListStyle() -> some View {
+        listStyle(.inset)
+            .scrollContentBackground(.hidden)
+    }
+}
+
 struct SectionPicker: View {
     @Binding var section: ServerSection
 

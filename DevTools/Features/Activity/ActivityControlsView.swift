@@ -85,7 +85,7 @@ struct ActivityControlsView: View {
                 }
             }
         }
-        .listStyle(.inset)
+        .sectionListStyle()
         .onChange(of: servers.selectedID) { _, id in
             guard let connected = activity.server, connected.machineID != id else { return }
             activity.disconnect()
