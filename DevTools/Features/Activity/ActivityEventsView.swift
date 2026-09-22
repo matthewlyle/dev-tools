@@ -32,7 +32,6 @@ struct ActivityEventsView: View {
                 #endif
             }
         }
-        .platformNavigationSubtitle(subtitle)
     }
 
     @ViewBuilder
@@ -53,12 +52,6 @@ struct ActivityEventsView: View {
                 )
             }
         }
-    }
-
-    private var subtitle: String {
-        var parts = ["\(activity.events.count.formatted()) events"]
-        if !activity.hiddenTypes.isEmpty { parts.append("\(activity.visibleEvents.count.formatted()) shown") }
-        return parts.joined(separator: " · ")
     }
 }
 

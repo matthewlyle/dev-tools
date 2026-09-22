@@ -87,16 +87,6 @@ enum SystemBrowser {
 }
 
 extension View {
-    /// `navigationSubtitle` exists only on macOS; a no-op elsewhere.
-    @ViewBuilder
-    func platformNavigationSubtitle(_ subtitle: String) -> some View {
-        #if os(macOS)
-        navigationSubtitle(subtitle)
-        #else
-        self
-        #endif
-    }
-
     /// A checkbox on macOS; the platform-standard switch on iPadOS, which has
     /// no checkbox style.
     @ViewBuilder

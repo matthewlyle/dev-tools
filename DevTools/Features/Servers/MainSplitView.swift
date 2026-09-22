@@ -199,6 +199,10 @@ struct MainSplitView: View {
 
     /// Title leading (the server, with its menu), section switcher centre.
     /// Server Info… is a menu item, so its popover drops from the title area.
+    /// iPad's title menu shows its chevron permanently; macOS's only on hover,
+    /// so there the title is an explicit pull-down and the plain toolbar
+    /// title is removed (the window keeps its title for Mission Control and
+    /// the Window menu).
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
@@ -208,7 +212,23 @@ struct MainSplitView: View {
         func body(content: Content) -> some View {
             content
                 .navigationTitle(title)
+                #if os(macOS)
+                .toolbar(removing: .title)
+                .toolbar {
+                    ToolbarItem(placement: .navigation) {
+                        Menu {
+                            ServerMenu(showInfo: { showInfo = true })
+                        } label: {
+                            Text(title)
+                                .font(.headline)
+                        }
+                        .menuIndicator(.visible)
+                        .help("Switch server")
+                    }
+                }
+                #else
                 .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }) }
+                #endif
                 .toolbar {
                     ToolbarItem(placement: .secondaryAction) {
                         SectionPicker(section: $section)

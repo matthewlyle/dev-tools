@@ -56,7 +56,7 @@ dev-tools/
     RootView.swift               sign-in vs main split
     Core/
       Typeface.swift             Commit Mono via Font.code(_:); the only monospace path
-      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, SystemBrowser, nav-subtitle/checkbox/searchable/toolbar helpers (macOS vs iPadOS)
+      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, SystemBrowser, checkbox/searchable helpers (macOS vs iPadOS)
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (persisted UUID) + Product/Version/Platform/Device headers
       Auth/
