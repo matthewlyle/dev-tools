@@ -47,6 +47,7 @@ struct MediaResultsView: View {
                                 systemImage: "square.grid.3x3",
                                 description: Text("The query matched nothing. Loosen a filter and run it again.")
                             )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     } else {
                         grid
@@ -72,19 +73,22 @@ struct MediaResultsView: View {
             } else {
                 VStack(spacing: 0) {
                     headerBlock
-                    if let error = requests.errorMessage {
-                        ContentUnavailableView(
-                            "Request Failed",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(error)
-                        )
-                    } else {
-                        ContentUnavailableView(
-                            "No Results",
-                            systemImage: "square.grid.3x3",
-                            description: Text("Run a query to see its items as posters.")
-                        )
+                    Group {
+                        if let error = requests.errorMessage {
+                            ContentUnavailableView(
+                                "Request Failed",
+                                systemImage: "exclamationmark.triangle",
+                                description: Text(error)
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "No Results",
+                                systemImage: "square.grid.3x3",
+                                description: Text("Run a query to see its items as posters.")
+                            )
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }

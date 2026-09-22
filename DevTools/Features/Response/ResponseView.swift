@@ -63,19 +63,22 @@ struct ResponseView<RequestBar: View>: View {
             } else {
                 VStack(spacing: 0) {
                     headerBlock
-                    if let error = requests.errorMessage {
-                        ContentUnavailableView(
-                            "Request Failed",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(error)
-                        )
-                    } else {
-                        ContentUnavailableView(
-                            "No Response",
-                            systemImage: "paperplane",
-                            description: Text("Send a request to see the response here.")
-                        )
+                    Group {
+                        if let error = requests.errorMessage {
+                            ContentUnavailableView(
+                                "Request Failed",
+                                systemImage: "exclamationmark.triangle",
+                                description: Text(error)
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "No Response",
+                                systemImage: "paperplane",
+                                description: Text("Send a request to see the response here.")
+                            )
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
