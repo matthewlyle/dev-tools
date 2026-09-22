@@ -12,7 +12,6 @@ struct DevToolsApp: App {
     @State private var mediaQuery: MediaQueryStore
     @State private var images: ImageStore
     @State private var lightbox = LightboxStore()
-    @State private var posterFlights = PosterFlightStore()
 
     init() {
         let identity = ClientIdentity.current()
@@ -42,7 +41,6 @@ struct DevToolsApp: App {
                 .environment(mediaQuery)
                 .environment(images)
                 .environment(lightbox)
-                .environment(posterFlights)
                 .task { await spec.load() }
         }
         .defaultSize(width: 1400, height: 860)

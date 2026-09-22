@@ -2,17 +2,14 @@ import SwiftUI
 
 /// An item's metadata, read top-down: its poster, title and one-line summary,
 /// tagline and synopsis, tag groups as sentences, then every attribute with
-/// units decoded, and nested elements collapsed. The poster repeats the grid
-/// cell's art at the same size because it's where that poster lands when
-/// selected. `Image` elements render as thumbnails that open in a lightbox;
-/// `UltraBlurColors` as a palette.
+/// units decoded, and nested elements collapsed. `Image` elements render as
+/// thumbnails that open in a lightbox; `UltraBlurColors` as a palette.
 struct MediaInfoView: View {
     let item: MediaItem
     let server: ConnectedServer?
     let dismiss: () -> Void
 
     @Environment(RequestStore.self) private var requests
-    @Environment(PosterFlightStore.self) private var flights
     @State private var itemJSON: String?
 
     /// Attributes already surfaced above the details grid.
@@ -28,11 +25,6 @@ struct MediaInfoView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top) {
                         PosterArt(item: item, server: server)
-                            .opacity(flights.flight?.itemID == item.id ? 0 : 1)
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
-                                flights.destination = $0
-                            }
-                            .onDisappear { flights.destination = nil }
                             .accessibilityHidden(true)
                         Spacer(minLength: 12)
                         if let itemJSON {

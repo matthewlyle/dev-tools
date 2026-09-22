@@ -18,7 +18,6 @@ struct RootView: View {
                 MainSplitView()
             }
         }
-        .overlay { PosterFlightOverlay() }
         .overlay { LightboxOverlay() }
         .signOutConfirmation(isPresented: $account.isConfirmingSignOut)
         .task { await account.restore() }

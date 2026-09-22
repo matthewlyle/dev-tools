@@ -16,7 +16,6 @@ struct MediaResultsView: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
-    @Environment(PosterFlightStore.self) private var flights
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
     @State private var selectedID: Int?
@@ -128,12 +127,6 @@ struct MediaResultsView: View {
             showInfo = false
             collapsed = []
         }
-        .onChange(of: showInfo) { _, shown in
-            if !shown { flights.land() }
-        }
-        .onChange(of: isActive) { _, active in
-            if !active { flights.land() }
-        }
         .focusedSceneValue(
             \.showMediaInfo,
             isActive && selectedID != nil ? ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() } : nil
@@ -172,20 +165,12 @@ struct MediaResultsView: View {
     private var grid: some View {
         ScrollView {
             headerBlock
-            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { item, frame in
-                select(item, from: frame)
+            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { id in
+                selectedID = id
+                showInfo = true
             }
             .id(requests.response?.receivedAt)
         }
-    }
-
-    private func select(_ item: MediaItem, from frame: CGRect) {
-        let alreadyShown = showInfo && selectedID == item.id
-        if !alreadyShown, !reduceMotion, let server, let thumb = item.thumb {
-            flights.launch(.init(itemID: item.id, thumb: thumb, server: server, size: PosterArt.size(for: item.shape), source: frame))
-        }
-        selectedID = item.id
-        showInfo = true
     }
 }
 
@@ -198,7 +183,7 @@ private struct PosterGrid: View {
     let server: ConnectedServer?
     let sortKey: String?
     let selectedID: Int?
-    let select: (MediaItem, CGRect) -> Void
+    let select: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
@@ -211,7 +196,7 @@ private struct PosterGrid: View {
         ) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
-                    select(item, $0)
+                    select(item.id)
                 }
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared || reduceMotion ? 0 : 8)
@@ -233,18 +218,14 @@ private struct PosterCell: View {
     let server: ConnectedServer?
     let sortKey: String?
     let isSelected: Bool
-    let select: (CGRect) -> Void
+    let select: () -> Void
 
-    @State private var artFrame: CGRect = .zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button {
-            select(artFrame)
-        } label: {
+        Button(action: select) {
             VStack(alignment: .leading, spacing: 6) {
                 PosterArt(item: item, server: server)
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { artFrame = $0 }
                     .overlay {
                         ZStack {
                             if isSelected {
@@ -283,9 +264,8 @@ private struct PosterButtonStyle: ButtonStyle {
     }
 }
 
-/// An item's artwork as the grid shows it. The inspector hero uses the same
-/// size so the poster flight between them is a pure move and the hero's
-/// decode is an `ImageStore` cache hit on the grid's pixels.
+/// An item's artwork as the grid shows it, and at the same size atop the
+/// inspector so the inspector's copy is an `ImageStore` cache hit.
 struct PosterArt: View {
     let item: MediaItem
     let server: ConnectedServer?
