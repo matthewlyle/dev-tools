@@ -17,16 +17,11 @@ struct MediaResultsView: View {
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
-    @State private var selectedID: Int?
-    @State private var showInfo = false
+    @Environment(MediaQueryStore.self) private var mediaQuery
     @State private var collapsed: Set<Int> = []
 
     private var items: [MediaItem] {
         requests.document?.tree?.children.map(MediaItem.init) ?? []
-    }
-
-    private var selected: MediaItem? {
-        items.first { $0.id == selectedID }
     }
 
     /// The field the shown results are ordered by, from the request that
@@ -115,20 +110,16 @@ struct MediaResultsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .inspector(isPresented: $showInfo) {
-            if let selected {
-                MediaInfoView(item: selected, server: server) { showInfo = false }
-                    .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
-            }
-        }
         .onChange(of: requests.response?.receivedAt) { _, _ in
-            selectedID = nil
-            showInfo = false
+            mediaQuery.selectedItemID = nil
+            mediaQuery.showsItemInfo = false
             collapsed = []
         }
         .focusedSceneValue(
             \.showMediaInfo,
-            isActive && selectedID != nil ? ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() } : nil
+            isActive && mediaQuery.selectedItemID != nil
+                ? ShowMediaInfoAction(visible: mediaQuery.showsItemInfo) { mediaQuery.showsItemInfo.toggle() }
+                : nil
         )
     }
 
@@ -164,9 +155,9 @@ struct MediaResultsView: View {
     private var grid: some View {
         ScrollView {
             headerBlock
-            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { id in
-                selectedID = id
-                showInfo = true
+            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: mediaQuery.selectedItemID) { id in
+                mediaQuery.selectedItemID = id
+                mediaQuery.showsItemInfo = true
             }
             .id(requests.response?.receivedAt)
         }

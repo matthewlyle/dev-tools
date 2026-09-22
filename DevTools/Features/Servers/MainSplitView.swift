@@ -172,6 +172,71 @@ extension View {
     }
 }
 
+/// The detail pane's one inspector, showing whatever the visible section has
+/// open: an Activity event's payload or a Media item's info. Sections are
+/// resident siblings, and two `.inspector` modifiers in one column compete
+/// for the same presentation, so a section's own would present or fill from
+/// whichever sibling SwiftUI read last.
+private struct SectionInspector: ViewModifier {
+    let section: ServerSection
+    let server: ConnectedServer?
+
+    @Environment(ActivityStore.self) private var activity
+    @Environment(MediaQueryStore.self) private var mediaQuery
+    @Environment(RequestStore.self) private var requests
+
+    private enum Shown {
+        case event(NotificationEvent)
+        case item(MediaItem)
+    }
+
+    // Resolved in the body, not in the binding or content closures, so
+    // Observation ties this view to exactly the state it presents.
+    private var shown: Shown? {
+        switch section {
+        case .activity:
+            return activity.selectedEvent.map(Shown.event)
+        case .mediaQuery:
+            guard mediaQuery.showsItemInfo, let id = mediaQuery.selectedItemID,
+                  let node = requests.document?.tree?.children.first(where: { $0.id == id })
+            else { return nil }
+            return .item(MediaItem(node: node))
+        case .endpoints, .history:
+            return nil
+        }
+    }
+
+    func body(content: Content) -> some View {
+        let shown = shown
+        content.inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0 { dismiss() } })) {
+            switch shown {
+            case .event(let event):
+                EventInspector(event: event)
+                    .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
+                    // Where the inspector adapts to a sheet or an overlay
+                    // (compact width, a portrait or split-screen iPad), the
+                    // list stays live behind it so another tap re-targets it
+                    // instead of first dismissing it.
+                    .presentationBackgroundInteraction(.enabled)
+            case .item(let item):
+                MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
+                    .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
+                    .presentationBackgroundInteraction(.enabled)
+            case nil:
+                EmptyView()
+            }
+        }
+    }
+
+    private func dismiss() {
+        switch section {
+        case .activity: activity.selectedEventID = nil
+        case .mediaQuery: mediaQuery.showsItemInfo = false
+        case .endpoints, .history: break
+        }
+    }
+}
+
 extension View {
     /// Every section's list in the column: inset rows over the column's own
     /// background, never an opaque list background of its own — on macOS the
@@ -466,6 +531,7 @@ struct MainSplitView: View {
                     MediaResultsView(server: connected)
                         .sectionResident(active: section == .mediaQuery)
                 }
+                .modifier(SectionInspector(section: section, server: connected))
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .top)

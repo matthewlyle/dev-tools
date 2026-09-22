@@ -22,6 +22,12 @@ final class MediaQueryStore {
     private(set) var valuesByServer: [String: [String: [MediaFilterValue]]] = [:]
     private(set) var loadingValues: Set<String> = []
 
+    /// The poster selected in the results, and whether its inspector is
+    /// open. Here rather than in the results view because the detail pane
+    /// hosts one inspector for every section.
+    var selectedItemID: Int?
+    var showsItemInfo = false
+
     private let http: PlexHTTP
 
     init(http: PlexHTTP) {

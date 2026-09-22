@@ -1,31 +1,14 @@
 import SwiftUI
 
-/// The event list, with the selected event's payload in an inspector that
-/// opens on selection and closes by deselecting — the Media section's shape.
-/// The list lives in its own view so only it redraws per incoming frame; this
-/// body, and with it the inspector, reads nothing but the selection.
+/// The event list. The selected event's payload opens in the detail pane's
+/// inspector (`SectionInspector`); the list lives in its own view so only it
+/// redraws per incoming frame, and this body reads nothing but the selection.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
 
     var body: some View {
         EventList()
-            .inspector(isPresented: Binding(
-                get: { isActive && activity.selectedEvent != nil },
-                set: { presented in
-                    if !presented, isActive { activity.selectedEventID = nil }
-                }
-            )) {
-                if let event = activity.selectedEvent {
-                    EventInspector(event: event)
-                        .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
-                        // Where the inspector adapts to a sheet or an overlay
-                        // (compact width, a portrait or split-screen iPad),
-                        // the list stays live behind it so another tap
-                        // re-targets it instead of first dismissing it.
-                        .presentationBackgroundInteraction(.enabled)
-                }
-            }
             .focusedSceneValue(
                 \.showMediaInfo,
                 isActive && activity.selectedEvent != nil
@@ -140,7 +123,7 @@ private struct EventRow: View {
     }
 }
 
-private struct EventInspector: View {
+struct EventInspector: View {
     let event: NotificationEvent
 
     @Environment(ActivityStore.self) private var activity
