@@ -142,7 +142,8 @@ struct MediaInfoView: View {
 }
 
 /// Name → value rows. Names are secondary system text; values are primary,
-/// decoded where the name gives away a unit, otherwise in the code face.
+/// in the code face, decoded where the name gives away a unit (the raw value
+/// is the tooltip).
 /// Credentials are masked and can't be copied.
 private struct AttributeTable: View {
     let attributes: [Attribute]
@@ -172,7 +173,7 @@ private struct AttributeTable: View {
                 .help("Credential — never shown")
         } else if let display = MediaValue.display(name: attribute.name, value: attribute.value) {
             Text(display)
-                .font(.body)
+                .font(.code(.body))
                 .help(attribute.value)
                 .textSelection(.enabled)
         } else {
