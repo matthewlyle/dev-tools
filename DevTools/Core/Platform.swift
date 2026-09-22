@@ -120,15 +120,3 @@ extension SearchFieldPlacement {
         #endif
     }
 }
-
-extension ToolbarItemPlacement {
-    /// The section switcher sits in the centre region: `.secondaryAction`
-    /// (right after the title) on macOS, `.principal` on iPadOS.
-    static var platformSectionSwitcher: ToolbarItemPlacement {
-        #if os(macOS)
-        .secondaryAction
-        #else
-        .principal
-        #endif
-    }
-}
