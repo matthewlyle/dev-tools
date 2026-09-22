@@ -77,8 +77,8 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Numbers that change in place roll with `.contentTransition(.numericText(value:))`.
 
 **Colour, type, icons**
-- System semantic colours only. Anything hashed to a colour maps into the 12-colour system palette, never raw HSL.
-- Syntax colours are system hues (`PlatformColor.codeTeal` …) resolved to their Increase Contrast variant in a light appearance and left standard in dark: the code surface is white, where the standard teal, green, and orange fall far under 4.5:1. Add a token colour the same way, never a raw system hue.
+- System semantic colours only, with one exception: the code surface's named themes. Anything hashed to a colour maps into the 12-colour system palette, never raw HSL.
+- The code surface is coloured by `CodeTheme`, an app-wide setting (Settings ▸ Appearance). The default, System, uses system hues (`PlatformColor.codeTeal` …) resolved to their Increase Contrast variant in a light appearance and left standard in dark: the code surface is white, where the standard teal, green, and orange fall far under 4.5:1. Add a System token colour the same way, never a raw system hue. The named themes are published editor palettes as `CodePalette` light/dark pairs of hex values, background included; every colour clears 4.5:1 on its background (`CodeThemeTests` enforces it), nudged to the nearest shade of its hue where the original doesn't. A new token kind needs a colour in every theme.
 - Text styles for hierarchy; no Light/Thin weights; no hand-set `.tracking`. Monospace only via `Font.code(_:)`, and it's for what the machine says: paths, keys, values, types, counts and count badges, timings, status and error readouts (the Activity status line, a history row's detail). Prose — descriptions, zero states, headings, controls — stays in the system face.
 - SF Symbols used for their meaning. There are no OS/brand logos in SF Symbols: host marks come from bundled Simple Icons (`Assets/Hosts`, template vectors) plus `apple.logo`; Windows is hand-drawn. App icon is Lucide `braces` on the 1024 grid.
 

@@ -5,6 +5,7 @@ enum TokenKind: Sendable, Hashable {
     case string
     case number
     case literal
+    case null
     case punctuation
     case tagName
     case attributeName
@@ -81,7 +82,8 @@ enum Highlighter {
             } else if isLetter(c) {
                 let start = i
                 while i < n, isLetter(u[i]) { i += 1 }
-                tokens.append(Token(location: start, length: i - start, kind: .literal))
+                let isNull = i - start == 4 && u[start] == 0x6E && u[start + 1] == 0x75 && u[start + 2] == 0x6C && u[start + 3] == 0x6C
+                tokens.append(Token(location: start, length: i - start, kind: isNull ? .null : .literal))
             } else if c == openBrace || c == closeBrace || c == openBracket || c == closeBracket || c == colon || c == comma {
                 tokens.append(Token(location: i, length: 1, kind: .punctuation))
                 i += 1

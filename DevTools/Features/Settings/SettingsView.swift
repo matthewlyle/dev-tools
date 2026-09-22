@@ -9,6 +9,7 @@ struct SettingsView: View {
     #if os(macOS)
     @AppStorage("translucentBackground") private var translucent = true
     #endif
+    @AppStorage(CodeTheme.storageKey) private var codeTheme: CodeTheme = .system
     @State private var confirmingClear = false
     @State private var confirmingSignOut = false
 
@@ -74,16 +75,22 @@ struct SettingsView: View {
                 Text("Requests")
             }
 
-            #if os(macOS)
             Section {
+                Picker("Code theme", selection: $codeTheme) {
+                    ForEach(CodeTheme.allCases) { Text($0.title).tag($0) }
+                }
+                Text("Colours for response bodies and event payloads, in light and dark. System follows the app's own palette.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                #if os(macOS)
                 Toggle("Translucent background", isOn: $translucent)
                 Text("Blurs the desktop behind the content area, like Safari's start page. Off uses a solid background.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                #endif
             } header: {
                 Text("Appearance")
             }
-            #endif
 
             Section {
                 LabeledContent("Recorded requests") {

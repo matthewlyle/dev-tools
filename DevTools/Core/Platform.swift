@@ -74,6 +74,25 @@ extension PlatformColor {
     static let codeOrange = raisedInLight(.systemOrange)
     static let codeBlue = raisedInLight(.systemBlue)
 
+    /// A fixed sRGB colour per appearance, from `0xRRGGBB` values.
+    static func appearance(light: UInt32, dark: UInt32) -> PlatformColor {
+        let light = srgb(light), dark = srgb(dark)
+        #if os(macOS)
+        return NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light }
+        #else
+        return UIColor { $0.userInterfaceStyle == .dark ? dark : light }
+        #endif
+    }
+
+    private static func srgb(_ hex: UInt32) -> PlatformColor {
+        let r = CGFloat((hex >> 16) & 0xFF) / 255, g = CGFloat((hex >> 8) & 0xFF) / 255, b = CGFloat(hex & 0xFF) / 255
+        #if os(macOS)
+        return NSColor(srgbRed: r, green: g, blue: b, alpha: 1)
+        #else
+        return UIColor(red: r, green: g, blue: b, alpha: 1)
+        #endif
+    }
+
     /// The system hue as-is in dark appearances, and its Increase Contrast
     /// variant in light ones: the code surface is white, where the standard
     /// hues fall under 4.5:1.
