@@ -71,7 +71,7 @@ struct MainSplitView: View {
                 .navigationSplitViewColumnWidth(min: 340, ideal: 440, max: 600)
         } detail: {
             detailPane
-                .modifier(Header(title: title, section: $section))
+                .modifier(Header(title: title, entry: servers.selected, section: $section))
         }
     }
     #else
@@ -97,7 +97,7 @@ struct MainSplitView: View {
                     sectionList
                 }
             }
-            .modifier(Header(title: title, section: $section))
+            .modifier(Header(title: title, entry: servers.selected, section: $section))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {
@@ -126,10 +126,13 @@ struct MainSplitView: View {
     }
     #endif
 
-    /// Title leading (the server, with its menu), section switcher centre.
+    /// Title leading (the server, with its menu, then its ⓘ), section
+    /// switcher centre. `.secondaryAction` begins right after the title.
     private struct Header: ViewModifier {
         let title: String
+        let entry: ServerStore.Entry?
         @Binding var section: ServerSection
+        @State private var showInfo = false
 
         func body(content: Content) -> some View {
             content
@@ -137,18 +140,42 @@ struct MainSplitView: View {
                 .toolbarTitleMenu { ServerMenu() }
                 .toolbar {
                     ToolbarItem(placement: .secondaryAction) {
+                        Button {
+                            showInfo = true
+                        } label: {
+                            Label("Server Info", systemImage: "info.circle")
+                        }
+                        .help("Server info")
+                        .disabled(entry == nil)
+                        .popover(isPresented: $showInfo, arrowEdge: .bottom) {
+                            if let entry { ServerInfoView(entry: entry) }
+                        }
+                    }
+                    ToolbarItem(placement: .secondaryAction) {
                         SectionPicker(section: $section)
                             .fixedSize()
                     }
                 }
+                .focusedSceneValue(\.showServerInfo, entry == nil ? nil : ShowServerInfoAction { showInfo = true })
         }
     }
 
     @ViewBuilder
     private var sectionList: some View {
         if let entry = servers.selected {
-            ServerDetailView(entry: entry, section: $section)
-                .id(entry.id)
+            Group {
+                switch section {
+                case .endpoints:
+                    EndpointListView(server: connected, serverID: entry.id)
+                case .history:
+                    HistoryListView(serverID: entry.id)
+                case .activity:
+                    ActivityControlsView()
+                case .mediaQuery:
+                    MediaQueryBuilderView(server: connected)
+                }
+            }
+            .id(entry.id)
         } else {
             ContentUnavailableView(
                 "No Server Selected",

@@ -32,11 +32,19 @@ struct ShowMediaInfoAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.visible == rhs.visible }
 }
 
+/// Published by the window header while a server is selected.
+struct ShowServerInfoAction: Equatable {
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+}
+
 extension FocusedValues {
     @Entry var clearHistory: ClearHistoryAction?
     @Entry var deleteHistoryEntry: DeleteHistoryEntryAction?
     @Entry var runMediaQuery: RunMediaQueryAction?
     @Entry var showMediaInfo: ShowMediaInfoAction?
+    @Entry var showServerInfo: ShowServerInfoAction?
 }
 
 struct AppCommands: Commands {
@@ -51,6 +59,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.deleteHistoryEntry) private var deleteHistoryEntry
     @FocusedValue(\.runMediaQuery) private var runMediaQuery
     @FocusedValue(\.showMediaInfo) private var showMediaInfo
+    @FocusedValue(\.showServerInfo) private var showServerInfo
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -102,6 +111,9 @@ struct AppCommands: Commands {
             .disabled(servers.entries.isEmpty)
 
             Divider()
+
+            Button("Show Server Info") { showServerInfo?.run() }
+                .disabled(showServerInfo == nil)
 
             Button("Refresh Servers") {
                 guard let token = account.token else { return }
