@@ -16,6 +16,8 @@ struct MediaResultsView: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(PosterFlightStore.self) private var flights
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
     @State private var selectedID: Int?
     @State private var showInfo = false
@@ -110,6 +112,12 @@ struct MediaResultsView: View {
             showInfo = false
             collapsed = []
         }
+        .onChange(of: showInfo) { _, shown in
+            if !shown { flights.land() }
+        }
+        .onChange(of: isActive) { _, active in
+            if !active { flights.land() }
+        }
         .focusedSceneValue(
             \.showMediaInfo,
             isActive && selectedID != nil ? ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() } : nil
@@ -148,12 +156,20 @@ struct MediaResultsView: View {
     private var grid: some View {
         ScrollView {
             headerBlock
-            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { id in
-                selectedID = id
-                showInfo = true
+            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { item, frame in
+                select(item, from: frame)
             }
             .id(requests.response?.receivedAt)
         }
+    }
+
+    private func select(_ item: MediaItem, from frame: CGRect) {
+        let alreadyShown = showInfo && selectedID == item.id
+        if !alreadyShown, !reduceMotion, let server, let thumb = item.thumb {
+            flights.launch(.init(itemID: item.id, thumb: thumb, server: server, size: PosterArt.size(for: item.shape), source: frame))
+        }
+        selectedID = item.id
+        showInfo = true
     }
 }
 
@@ -166,7 +182,7 @@ private struct PosterGrid: View {
     let server: ConnectedServer?
     let sortKey: String?
     let selectedID: Int?
-    let select: (Int) -> Void
+    let select: (MediaItem, CGRect) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
@@ -179,7 +195,7 @@ private struct PosterGrid: View {
         ) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
-                    select(item.id)
+                    select(item, $0)
                 }
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared || reduceMotion ? 0 : 8)
@@ -201,15 +217,53 @@ private struct PosterCell: View {
     let server: ConnectedServer?
     let sortKey: String?
     let isSelected: Bool
-    let select: () -> Void
+    let select: (CGRect) -> Void
 
-    private static let width: CGFloat = 130
+    @State private var artFrame: CGRect = .zero
 
-    private var artSize: CGSize {
-        switch item.shape {
-        case .poster: CGSize(width: Self.width, height: Self.width * 1.5)
-        case .square: CGSize(width: Self.width, height: Self.width)
-        case .wide: CGSize(width: Self.width, height: Self.width * 9 / 16)
+    var body: some View {
+        Button {
+            select(artFrame)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                PosterArt(item: item, server: server)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { artFrame = $0 }
+                    .overlay {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.tint, lineWidth: 3)
+                        }
+                    }
+                Text(item.caption(sortedBy: sortKey))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(width: PosterArt.width, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(item.title)
+        .accessibilityLabel(item.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// An item's artwork as the grid shows it. The inspector hero uses the same
+/// size so the poster flight between them is a pure move and the hero's
+/// decode is an `ImageStore` cache hit on the grid's pixels.
+struct PosterArt: View {
+    let item: MediaItem
+    let server: ConnectedServer?
+
+    static let width: CGFloat = 130
+
+    static func size(for shape: MediaItem.Shape) -> CGSize {
+        switch shape {
+        case .poster: CGSize(width: width, height: width * 1.5)
+        case .square: CGSize(width: width, height: width)
+        case .wide: CGSize(width: width, height: width * 9 / 16)
         }
     }
 
@@ -226,37 +280,16 @@ private struct PosterCell: View {
     }
 
     var body: some View {
-        Button(action: select) {
-            VStack(alignment: .leading, spacing: 6) {
-                RemoteImage(value: item.thumb, server: server, size: artSize) {
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            Image(systemName: symbol)
-                                .font(.system(size: 28))
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                        }
-                }
-                .clipShape(.rect(cornerRadius: 8))
+        RemoteImage(value: item.thumb, server: server, size: Self.size(for: item.shape)) {
+            Rectangle()
+                .fill(.quaternary)
                 .overlay {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(.tint, lineWidth: 3)
-                    }
+                    Image(systemName: symbol)
+                        .font(.system(size: 28))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
-                Text(item.caption(sortedBy: sortKey))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(width: Self.width, alignment: .leading)
-            .contentShape(.rect)
         }
-        .buttonStyle(.plain)
-        .help(item.title)
-        .accessibilityLabel(item.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .clipShape(.rect(cornerRadius: 8))
     }
 }
