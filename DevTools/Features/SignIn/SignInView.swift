@@ -4,18 +4,23 @@ struct SignInView: View {
     @Environment(AccountStore.self) private var account
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
+    @Environment(\.isCompactWidth) private var compact
 
     private var isAwaitingApproval: Bool {
         if case .awaitingApproval = account.state { return true }
         return false
     }
 
+    /// A compact width is a phone's whole screen, so it takes no card or
+    /// intro: the header and the one thing to do.
     var body: some View {
         VStack(spacing: 24) {
-            Image(systemName: "terminal")
-                .font(.system(size: 44, weight: .regular))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+            if !compact {
+                Image(systemName: "terminal")
+                    .font(.system(size: 44, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
 
             Text("Plex Dev Tools")
                 .font(.largeTitle.weight(.semibold))
@@ -39,7 +44,11 @@ struct SignInView: View {
             }
         }
         .padding(40)
-        .background(.regularMaterial, in: .rect(cornerRadius: 28))
+        .background {
+            if !compact {
+                RoundedRectangle(cornerRadius: 28).fill(.regularMaterial)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: account.approvalURL) { _, url in
             if let url { openURL(url) }
@@ -48,10 +57,12 @@ struct SignInView: View {
 
     private var signedOut: some View {
         VStack(spacing: 16) {
-            Text("Sign in with your Plex account to discover your servers and start exploring the API.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 360)
+            if !compact {
+                Text("Sign in with your Plex account to discover your servers and start exploring the API.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 360)
+            }
 
             Button {
                 Task { await account.beginSignIn() }

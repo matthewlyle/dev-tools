@@ -56,6 +56,7 @@ dev-tools/
     RootView.swift               sign-in vs main split
     Core/
       Typeface.swift             Commit Mono via Font.code(_:); the only monospace path
+      SheetScaffold.swift        a sheet's frame: Mac panel with bottom buttons, iOS navigation bar with Cancel/confirm
       Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, isCompactWidth (never on macOS)
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (persisted UUID) + Product/Version/Platform/Device headers

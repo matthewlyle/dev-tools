@@ -232,8 +232,11 @@ private struct ParameterAddList: View {
             }
             .padding(.vertical, 4)
         }
-        .frame(width: 360)
+        // Ideal, not fixed: where the popover adapts to a sheet (an iPhone)
+        // it fills the sheet's width.
+        .frame(idealWidth: 360, maxWidth: .infinity)
         .frame(maxHeight: 400)
+        .presentationDetents([.medium, .large])
     }
 
     @ViewBuilder

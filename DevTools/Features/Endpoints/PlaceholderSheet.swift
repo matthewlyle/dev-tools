@@ -13,7 +13,6 @@ struct PlaceholderSheet: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(ValueMemory.self) private var memory
-    @Environment(\.dismiss) private var dismiss
 
     @State private var values: [String: String] = [:]
     @State private var options: [String: [RequestStore.PlaceholderOption]] = [:]
@@ -32,63 +31,39 @@ struct PlaceholderSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(operation.summary)
-                    .font(.headline)
-                Text(operation.template)
-                    .font(.code(.callout))
-                    .foregroundStyle(.secondary)
-            }
-
+        SheetScaffold(
+            title: operation.summary,
+            width: 480,
+            confirm: SheetAction(title: "Open", disabled: !canOpen, run: commit),
+            busy: !loading.isEmpty
+        ) {
+            Text(operation.template)
+                .font(.code(.callout))
+                .foregroundStyle(.secondary)
+        } content: {
             Form {
-                ForEach(operation.placeholders, id: \.self) { name in
-                    row(for: name)
+                Section {
+                    ForEach(operation.placeholders, id: \.self) { name in
+                        row(for: name)
+                    }
+                } footer: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let description = operation.pathParameters.compactMap(\.description).first {
+                            Text(description)
+                        }
+                        if let description = operation.description, !description.isEmpty {
+                            Text(description)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            if let description = operation.pathParameters.compactMap(\.description).first {
-                Text(description)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let description = operation.description, !description.isEmpty {
-                Text(description)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-            }
-
-            HStack {
-                if !loading.isEmpty {
-                    ProgressView().controlSize(.small)
-                        .help("Fetching values from the server")
-                }
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Open") {
-                    if let server {
-                        for name in operation.placeholders {
-                            if let value = values[name], !value.isEmpty {
-                                memory.remember(placeholder: name, value: value, serverID: server.machineID)
-                            }
-                        }
-                    }
-                    open(operation.path(filling: values))
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(!canOpen)
-            }
         }
-        .padding(20)
-        .frame(width: 480)
         .onAppear {
             for name in operation.placeholders {
                 values[name] = prefilled[name]
@@ -113,6 +88,17 @@ struct PlaceholderSheet: View {
                 }
             }
         }
+    }
+
+    private func commit() {
+        if let server {
+            for name in operation.placeholders {
+                if let value = values[name], !value.isEmpty {
+                    memory.remember(placeholder: name, value: value, serverID: server.machineID)
+                }
+            }
+        }
+        open(operation.path(filling: values))
     }
 
     @ViewBuilder
@@ -176,6 +162,7 @@ struct PlaceholderSheet: View {
                             .datePickerStyle(.graphical)
                             .labelsHidden()
                             .padding()
+                            .presentationCompactAdaptation(.popover)
                     }
                     recentMenu(for: name)
                 }

@@ -154,6 +154,16 @@ extension Font.TextStyle {
         .subheadline
         #endif
     }
+
+    /// The same step for a detail's name/value rows (response headers):
+    /// iOS's body size sets the code face far larger than the Mac's.
+    static var codeDetailRow: Font.TextStyle {
+        #if os(macOS)
+        .body
+        #else
+        .subheadline
+        #endif
+    }
 }
 
 extension EnvironmentValues {

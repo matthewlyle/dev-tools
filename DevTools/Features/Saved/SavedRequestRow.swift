@@ -85,27 +85,29 @@ struct SaveRequestSheet: View {
     var secondary: (title: String, commit: (_ name: String, _ notes: String) -> Void)? = nil
     let commit: (_ name: String, _ notes: String) -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @FocusState private var nameFocused: Bool
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
     private var trimmedNotes: String { notes.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                if let summary {
-                    Text(summary)
-                        .font(.code(.callout))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                }
+        SheetScaffold(
+            title: title,
+            width: 460,
+            confirm: SheetAction(title: action, disabled: trimmedName.isEmpty) { commit(trimmedName, trimmedNotes) },
+            secondary: secondary.map { secondary in
+                SheetAction(title: secondary.title, disabled: trimmedName.isEmpty) { secondary.commit(trimmedName, trimmedNotes) }
             }
-
+        ) {
+            if let summary {
+                Text(summary)
+                    .font(.code(.callout))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
+        } content: {
             Form {
                 TextField("Name", text: $name)
                     .focused($nameFocused)
@@ -114,29 +116,7 @@ struct SaveRequestSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                if let secondary {
-                    Button(secondary.title) {
-                        secondary.commit(trimmedName, trimmedNotes)
-                        dismiss()
-                    }
-                    .disabled(trimmedName.isEmpty)
-                }
-                Button(action) {
-                    commit(trimmedName, trimmedNotes)
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(trimmedName.isEmpty)
-            }
         }
-        .padding(20)
-        .frame(width: 460)
         .onAppear { nameFocused = true }
     }
 }

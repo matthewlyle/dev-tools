@@ -109,7 +109,7 @@ private struct EndpointRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(operation.template)
-                        .font(.code(.callout))
+                        .font(.code(.codeListRow))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if lockedOut {

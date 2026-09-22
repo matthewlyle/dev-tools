@@ -109,12 +109,12 @@ struct HeadersView<Header: View>: View {
                     ForEach(responseRows) { row in
                         GridRow(alignment: .firstTextBaseline) {
                             Text(row.name)
-                                .font(.code(.body))
+                                .font(.code(.codeDetailRow))
                                 .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
                                 .gridColumnAlignment(.leading)
                             Text(row.value)
-                                .font(.code(.body))
+                                .font(.code(.codeDetailRow))
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
