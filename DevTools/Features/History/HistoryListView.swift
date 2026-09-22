@@ -109,7 +109,7 @@ struct HistoryListView: View {
         }
         .sectionListSearch(text: $search, prompt: "Filter history")
         .sectionListToolbar {
-            ToolbarItem {
+            ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Picker("Sort By", selection: $sort) {
                         ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
@@ -127,7 +127,7 @@ struct HistoryListView: View {
                 }
                 .help("Sort order and status filter")
             }
-            ToolbarItem {
+            ToolbarItem(placement: .primaryAction) {
                 Button(role: .destructive) {
                     confirmingClear = true
                 } label: {

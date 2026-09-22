@@ -65,9 +65,8 @@ struct MediaResultsView: View {
                         }
                     }
                 case .headers:
-                    VStack(spacing: 0) {
+                    HeadersView(response: response, server: server, editable: false) {
                         headerBlock
-                        HeadersView(response: response, server: server, editable: false)
                     }
                 }
             } else {

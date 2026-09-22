@@ -55,9 +55,8 @@ struct ResponseView<RequestBar: View>: View {
                         }
                     }
                 case .headers:
-                    VStack(spacing: 0) {
+                    HeadersView(response: response, server: server, editable: editable) {
                         headerBlock
-                        HeadersView(response: response, server: server, editable: editable)
                     }
                 }
             } else {

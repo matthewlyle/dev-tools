@@ -1,9 +1,10 @@
 import SwiftUI
 
-struct HeadersView: View {
+struct HeadersView<Header: View>: View {
     let response: PlexResponse?
     let server: ConnectedServer?
     var editable: Bool = true
+    @ViewBuilder let header: () -> Header
 
     @Environment(RequestStore.self) private var requests
     @Environment(SpecStore.self) private var spec
@@ -24,7 +25,8 @@ struct HeadersView: View {
     var body: some View {
         @Bindable var requests = requests
 
-        VStack(spacing: 0) {
+        ScrollView {
+            header()
             VStack(alignment: .leading, spacing: 10) {
                 Text("Request")
                     .font(.headline)
@@ -95,19 +97,31 @@ struct HeadersView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
-            Table(responseRows) {
-                TableColumn("Header") { row in
-                    Text(row.name)
-                        .font(.code(.body))
-                        .textSelection(.enabled)
+            if responseRows.isEmpty {
+                if response != nil {
+                    Text("No headers")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
                 }
-                .width(min: 160, ideal: 260)
-
-                TableColumn("Value") { row in
-                    Text(row.value)
-                        .font(.code(.body))
-                        .textSelection(.enabled)
+            } else {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                    ForEach(responseRows) { row in
+                        GridRow(alignment: .firstTextBaseline) {
+                            Text(row.name)
+                                .font(.code(.body))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .gridColumnAlignment(.leading)
+                            Text(row.value)
+                                .font(.code(.body))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
             }
         }
     }

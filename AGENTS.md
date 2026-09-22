@@ -41,7 +41,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 
 **Layout**
 - Two columns: the selected section's list, then its detail. Toolbar shape is fixed: title (server, with its menu) leading, one segmented section switcher in the centre (`.secondaryAction`), each section's filter/search in the trailing slot. Never two segmented controls in the toolbar; SwiftUI has no column-aligned toolbar sections on macOS, so don't try to put items "over" a column.
-- Column layout is narrow: lists use two-line rows, not tables. Use `Table` only where there's width (response headers). Sorting in a narrow list goes in a toolbar menu.
+- Column layout is narrow: lists use two-line rows, not tables; response headers are a `Grid` inside the tab's scroll so the request block can scroll with them. Sorting in a narrow list goes in a toolbar menu.
 - Sheets for short targeted input (save, placeholders); popovers for reference (endpoint docs); never a popover for a warning. No auxiliary windows.
 
 **Toolbar placement** — decide this when adding the control, not at review.
