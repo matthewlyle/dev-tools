@@ -59,6 +59,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.runMediaQuery) private var runMediaQuery
     @FocusedValue(\.showMediaInfo) private var showMediaInfo
     @FocusedValue(\.showServerInfo) private var showServerInfo
+    @Environment(\.openURL) private var openURL
 
     private var activeServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -134,7 +135,7 @@ struct AppCommands: Commands {
             .disabled(activeServer == nil)
 
             Button("Open in Developer Docs") {
-                if let url = currentDocsURL { SystemBrowser.open(url) }
+                if let url = currentDocsURL { openURL(url) }
             }
             .disabled(currentDocsURL == nil)
 

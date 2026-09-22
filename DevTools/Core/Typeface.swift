@@ -6,19 +6,21 @@ import AppKit
 import UIKit
 #endif
 
+/// Commit Mono, declared to the system in `Info.plist` (`UIAppFonts` /
+/// `ATSApplicationFontsPath`). Two faces are bundled, so weight resolves to
+/// a face here rather than letting each platform's matcher pick.
 enum Typeface {
     static let family = "CommitMono"
 
-    static let isAvailable: Bool = {
-        for url in Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [] {
-            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-        }
-        return PlatformFont(name: "\(family)-Regular", size: 12) != nil
-    }()
+    static let isAvailable = PlatformFont(name: face(bold: false), size: 12) != nil
+
+    static func face(bold: Bool) -> String {
+        bold ? "\(family)-Bold" : "\(family)-Regular"
+    }
 
     static func code(size: CGFloat, weight: PlatformFont.Weight = .regular) -> PlatformFont {
-        let face = weight.rawValue >= PlatformFont.Weight.semibold.rawValue ? "\(family)-Bold" : "\(family)-Regular"
-        if isAvailable, let font = PlatformFont(name: face, size: size) { return font }
+        let bold = weight.rawValue >= PlatformFont.Weight.semibold.rawValue
+        if isAvailable, let font = PlatformFont(name: face(bold: bold), size: size) { return font }
         return .monospacedSystemFont(ofSize: size, weight: weight)
     }
 }
@@ -30,7 +32,8 @@ extension Font {
 
     static func code(size: CGFloat, weight: Font.Weight = .regular) -> Font {
         guard Typeface.isAvailable else { return .system(size: size, weight: weight, design: .monospaced) }
-        return .custom(Typeface.family, fixedSize: size).weight(weight)
+        let bold = [.semibold, .bold, .heavy, .black].contains(weight)
+        return .custom(Typeface.face(bold: bold), fixedSize: size)
     }
 }
 

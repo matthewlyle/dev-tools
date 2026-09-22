@@ -1,7 +1,11 @@
 import SwiftUI
 
+/// The event list, with the selected event's payload in an inspector — the
+/// same list-plus-inspector shape as the Media section, on both platforms.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
+    @Environment(\.sectionIsActive) private var isActive
+    @State private var showInspector = false
 
     var body: some View {
         @Bindable var activity = activity
@@ -12,47 +16,30 @@ struct ActivityEventsView: View {
                 // Activity panel is the only affordance, so this pane stays empty.
                 FillingScrollView { Color.clear }
             } else {
-                #if os(macOS)
-                HSplitView {
-                    eventList
-                    if !activity.visibleEvents.isEmpty {
-                        EventInspector(event: activity.selectedEvent)
-                            .frame(minWidth: 320)
+                List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
+                    EventRow(event: event)
+                        .tag(event.id)
+                }
+                .listStyle(.inset)
+                .scrollContentBackground(.hidden)
+                .overlay {
+                    if activity.visibleEvents.isEmpty, activity.status.isActive {
+                        ContentUnavailableView(
+                            "Waiting for Events",
+                            systemImage: "dot.radiowaves.left.and.right",
+                            description: Text("Start playback or a library scan on any client.")
+                        )
                     }
                 }
-                #else
-                HStack(spacing: 0) {
-                    eventList
-                    if !activity.visibleEvents.isEmpty {
-                        Divider()
-                        EventInspector(event: activity.selectedEvent)
-                            .frame(minWidth: 320)
-                    }
-                }
-                #endif
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    @ViewBuilder
-    private var eventList: some View {
-        @Bindable var activity = activity
-        List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
-            EventRow(event: event)
-                .tag(event.id)
+        .inspector(isPresented: Binding(get: { isActive && showInspector }, set: { showInspector = $0 })) {
+            EventInspector(event: activity.selectedEvent)
+                .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
         }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
-        .frame(minWidth: 320, idealWidth: 460)
-        .overlay {
-            if activity.visibleEvents.isEmpty, activity.status.isActive {
-                ContentUnavailableView(
-                    "Waiting for Events",
-                    systemImage: "dot.radiowaves.left.and.right",
-                    description: Text("Start playback or a library scan on any client.")
-                )
-            }
+        .onChange(of: activity.visibleEvents.isEmpty, initial: true) { _, isEmpty in
+            showInspector = !isEmpty
         }
     }
 }

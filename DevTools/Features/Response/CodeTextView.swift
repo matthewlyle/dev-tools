@@ -59,11 +59,7 @@ struct CodeTextView {
         let string: NSAttributedString
     }
 
-    #if os(macOS)
-    private nonisolated(unsafe) static let font = Typeface.code(size: 12)  // NSFont isn't Sendable
-    #else
-    private static let font = Typeface.code(size: 12)
-    #endif
+    private nonisolated(unsafe) static let font = Typeface.code(size: 12)
     private nonisolated(unsafe) static let placeholderAttributes: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: PlatformColor.codeSecondaryLabel,

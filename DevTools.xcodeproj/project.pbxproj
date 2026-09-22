@@ -21,9 +21,22 @@
 		D70000000000000000000021 /* DevToolsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DevToolsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D70000000000000000000031 /* Exceptions for "DevTools" folder in "DevTools" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D70000000000000000000010 /* DevTools */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D70000000000000000000012 /* DevTools */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D70000000000000000000031 /* Exceptions for "DevTools" folder in "DevTools" target */,
+			);
 			path = DevTools;
 			sourceTree = "<group>";
 		};
@@ -342,6 +355,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DevTools/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Dev Tools for Plex";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -383,6 +397,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DevTools/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Dev Tools for Plex";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";

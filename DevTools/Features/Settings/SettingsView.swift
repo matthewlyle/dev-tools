@@ -14,13 +14,8 @@ struct SettingsView: View {
 
     var body: some View {
         #if os(macOS)
-        TabView {
-            Tab("General", systemImage: "gearshape") {
-                general
-            }
-        }
-        .scenePadding()
-        .frame(width: 480)
+        general
+            .frame(width: 480)
         #else
         NavigationStack {
             general

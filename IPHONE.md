@@ -8,12 +8,11 @@ This is also the same work that makes the iPad correct in Split View and Slide O
 
 Works as-is on a compact width:
 - Sign-in card, connecting splash, Settings sheet, Save/Placeholder sheets.
-- The Media query builder (`Form`), the request/response header block, `CodeTextView` (the hosted header, folding, find, wrap), `HeadersView`, the poster grid, the lightbox, the server title menu, the More menu, keyboard shortcuts on hardware keyboards.
+- The Media query builder (`Form`), the request/response header block, `CodeTextView` (the hosted header, folding, find, wrap), `HeadersView`, the poster grid, the lightbox, the Activity events list with its payload `.inspector` (a sheet in compact, like Media), the server title menu, the More menu, keyboard shortcuts on hardware keyboards.
 - Persistence (`AppSupportStore` uses the sandboxed Application Support directory), Keychain, the client identity (already reports `iOS`/`iPad`; `device` would want `iPhone`).
 
 Does not work on a compact width:
 - `MainSplitView` (iPad branch) lays the section list and the detail side by side in an `HStack` — the list at 40 % clamped to 320–460 pt, which is the whole phone.
-- `ActivityEventsView` puts the event list and payload inspector side by side, each `minWidth: 320`.
 - The header row (status pill · pagination · tabs · fold/wrap/copy) and `KeyValueEditor` rows (toggle · name · value · values menu · remove) are single lines sized for ≥ 600 pt.
 - The `ServerInfoView` and endpoint-docs `.popover`s become full sheets on iPhone unless told otherwise.
 - History has no delete path without a keyboard: `onDeleteCommand` is Mac-only and the context menu is long-press.
@@ -30,7 +29,7 @@ Does not work on a compact width:
 ### 2. Navigation model on compact width (the decision)
 The single-header, two-pane layout has no compact equivalent. Two HIG-conformant shapes; one has to be chosen.
 
-**A. Tab bar.** Endpoints · History · Activity · Media as tabs, each tab a `NavigationStack` whose root is that section's list and whose pushed screen is its detail (request/response, event payload, poster grid). The server is the title menu in every tab's navigation bar; Settings/Refresh/Connect stay in a trailing More menu.
+**A. Tab bar.** Endpoints · History · Activity · Media as tabs, each tab a `NavigationStack` whose root is that section's list and whose pushed screen is its detail (request/response, event payload, poster grid). The server is the title menu in every tab's navigation bar, and Refresh Servers / Connect sit in it as they do now on Mac and iPad; Settings… stays in a trailing More menu.
 - For: the HIG's iPhone idiom for switching between top-level areas; iOS 26 tab bars minimise on scroll and can host a search tab; the segmented control's "no more than about five segments on iPhone" limit is moot.
 - Against: AGENTS.md currently classes the four sections as *views onto one server*, not app sections, and picked a segmented control for exactly that reason; on iPhone this becomes a documented exception. Four tabs plus an implicit "server" scope is fine; adding a fifth tab for servers would be the wrong move (the title menu stays).
 
@@ -44,7 +43,7 @@ Recommendation: **A**, selected by `horizontalSizeClass == .compact` so the iPad
 In compact width the list can't sit beside the detail. Each section's list pushes its detail:
 - Endpoints: tapping an endpoint (or a saved request) pushes the workspace with the request loaded. Today selection loads the request into the bar in place; on compact it also navigates.
 - History: tapping an entry pushes the read-only workspace (already replays on selection).
-- Activity: the events list pushes the payload inspector. `ActivityEventsView` needs a compact branch: `List` alone, with `EventInspector` as the pushed destination instead of the second pane.
+- Activity: `ActivityEventsView` already uses `.inspector`, which presents as a sheet in compact — the same as Media, so no compact branch is needed.
 - Media: the builder's Run Query pushes the results; the poster inspector already adapts (`.inspector` presents as a sheet in compact).
 A `NavigationPath`/selection binding per section, held where the section state already lives (`RequestStore.current`, `ActivityStore.selectedEventID`, `MediaQueryStore`), so pushes survive tab switches.
 
@@ -60,7 +59,7 @@ A `NavigationPath`/selection binding per section, held where the section state a
 - History delete: `.swipeActions` (and `onDelete`) on the rows; the context menu stays.
 - Saved request rename/delete: swipe actions alongside the existing context menu.
 - Every `.help(…)` is a tooltip, pointer-only; anything whose meaning depended on it needs its label visible or an accessibility label (most already have `Label` titles).
-- The lightbox closes on backdrop tap already; the Esc path is Mac-only.
+- The lightbox closes on backdrop tap and on `.cancelAction` (Esc, or a hardware keyboard's back), the same path on both platforms.
 
 ### 6. Lifecycle
 - Backgrounding severs the WebSocket. `ActivityStore` reconnects with backoff, but not on return from background: observe `scenePhase` and reconnect when active if the user had connected.

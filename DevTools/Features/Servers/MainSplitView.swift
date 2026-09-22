@@ -312,18 +312,6 @@ struct MainSplitView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("Refresh Servers") {
-                            guard let token = account.token else { return }
-                            Task { await servers.refresh(token: token) }
-                        }
-                        .keyboardShortcut("r", modifiers: .command)
-                        .disabled(account.token == nil || servers.isRefreshing)
-                        Button("Connect") {
-                            guard let id = servers.selectedID else { return }
-                            Task { await servers.probe(id: id) }
-                        }
-                        .disabled(servers.selected == nil || servers.selected?.isProbing == true)
-                        Divider()
                         Button("Settings…") { showSettings = true }
                             .keyboardShortcut(",", modifiers: .command)
                     } label: {

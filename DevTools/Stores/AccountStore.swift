@@ -52,7 +52,6 @@ final class AccountStore {
         do {
             let pin = try await plexTV.createPIN()
             state = .awaitingApproval(pin)
-            SystemBrowser.open(plexTV.approvalURL(for: pin))
             startPolling(pin)
         } catch {
             errorMessage = error.localizedDescription
@@ -60,9 +59,10 @@ final class AccountStore {
         }
     }
 
-    func openApprovalPage() {
-        guard case .awaitingApproval(let pin) = state else { return }
-        SystemBrowser.open(plexTV.approvalURL(for: pin))
+    /// Where the pending sign-in is approved; the view opens it.
+    var approvalURL: URL? {
+        guard case .awaitingApproval(let pin) = state else { return nil }
+        return plexTV.approvalURL(for: pin)
     }
 
     func cancelSignIn() {

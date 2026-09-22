@@ -54,9 +54,6 @@ struct LightboxOverlay: View {
                 .animation(.smooth, value: expanded)
                 .onAppear { expanded = true }
                 .onDisappear { expanded = false; image = nil }
-                #if os(macOS)
-                .onExitCommand { close() }
-                #endif
                 .task(id: presentation.item.id) {
                     let server = presentation.server
                     let url = presentation.item.url
@@ -87,6 +84,7 @@ struct LightboxOverlay: View {
                     .labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
+            .keyboardShortcut(.cancelAction)
             .help("Close (Esc)")
         }
         .padding(.horizontal, 4)

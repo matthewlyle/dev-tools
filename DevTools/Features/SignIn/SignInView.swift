@@ -3,6 +3,7 @@ import SwiftUI
 struct SignInView: View {
     @Environment(AccountStore.self) private var account
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     private var isAwaitingApproval: Bool {
         if case .awaitingApproval = account.state { return true }
@@ -40,6 +41,9 @@ struct SignInView: View {
         .padding(40)
         .background(.regularMaterial, in: .rect(cornerRadius: 28))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: account.approvalURL) { _, url in
+            if let url { openURL(url) }
+        }
     }
 
     private var signedOut: some View {
@@ -78,7 +82,9 @@ struct SignInView: View {
 
             HStack {
                 Button("Cancel", role: .cancel) { account.cancelSignIn() }
-                Button("Open plex.tv Again") { account.openApprovalPage() }
+                Button("Open plex.tv Again") {
+                    if let url = account.approvalURL { openURL(url) }
+                }
             }
             .controlSize(.regular)
         }

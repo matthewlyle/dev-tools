@@ -23,7 +23,6 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                 let bound = binding(for: item)
                 HStack(spacing: 8) {
                     Toggle("Enabled", isOn: bound.enabled)
-                        .platformCheckboxToggleStyle()
                         .labelsHidden()
                     if let description = description(for: item.name) {
                         Text(item.name)

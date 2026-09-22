@@ -8,6 +8,7 @@ struct RequestBarView: View {
     @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     @State private var showSave = false
 
@@ -88,7 +89,7 @@ struct RequestBarView: View {
                     .textSelection(.enabled)
                 Spacer(minLength: 0)
                 Button {
-                    if let url = operation?.docsURL { SystemBrowser.open(url) }
+                    if let url = operation?.docsURL { openURL(url) }
                 } label: {
                     Label("Open in Developer Docs", systemImage: "safari")
                         .labelStyle(.iconOnly)
