@@ -27,12 +27,28 @@ struct CodeTextView {
         var renderTask: Task<Void, Never>?
         var headerHeight: CGFloat = 0
         var headerWidth: CGFloat?
+        /// Re-lays the header out after its content changed height from
+        /// inside the hosted tree (a parameter row added or removed), which
+        /// the representable's update never sees.
+        var relayoutHeader: (() -> Void)?
         #if os(macOS)
         var headerHost: NSHostingController<AnyView>?
         var frameObserver: NSObjectProtocol?
         #else
         var headerHost: UIHostingController<AnyView>?
         #endif
+    }
+
+    /// The header as hosted: environment handed over (the hosted tree is
+    /// outside SwiftUI's hierarchy) and its height watched.
+    private func hostedHeader(_ coordinator: Coordinator, environment: EnvironmentValues) -> AnyView {
+        AnyView(
+            header
+                .environment(\.self, environment)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if abs(height - coordinator.headerHeight) > 0.5 { coordinator.relayoutHeader?() }
+                }
+        )
     }
 
     /// Carries the built string back from the render thread. Attributed
@@ -213,7 +229,11 @@ extension CodeTextView: NSViewRepresentable {
         }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
-        coordinator.headerHost?.rootView = AnyView(header.environment(\.self, context.environment))
+        coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
+        coordinator.relayoutHeader = { [weak scrollView] in
+            guard let scrollView else { return }
+            Self.layoutHeader(in: scrollView, coordinator: coordinator, force: true)
+        }
         Self.layoutHeader(in: scrollView, coordinator: coordinator, force: true)
 
         let versionChanged = coordinator.appliedVersion != version
@@ -344,7 +364,8 @@ extension CodeTextView: UIViewRepresentable {
         }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
-        coordinator.headerHost?.rootView = AnyView(header.environment(\.self, context.environment))
+        coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
+        coordinator.relayoutHeader = { [weak textView] in textView?.invalidateHeader() }
         textView.invalidateHeader()
 
         let versionChanged = coordinator.appliedVersion != version
