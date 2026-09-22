@@ -106,7 +106,7 @@ dev-tools/
       ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection
     Features/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
-      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad; preload + reset on switch), ServerMenu (title menu: server names + Server Info…), ServerInfoView (popover from the title: host, version, connection in use)
+      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; preload + reset on switch), ServerMenu (title menu: server names + Server Info…), ServerInfoView (popover from the title: host, version, connection in use)
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
       Browser/                   HistoryNavButtons — back/forward at the head of the URL line
@@ -160,7 +160,7 @@ Each ends with a smoke-test proof, not a test suite.
 5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
 6. **Activity monitor.** Socket, event list, type filters, payload inspector — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
-8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion) — in progress.
+8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion), resizable iPad list pane — in progress.
 
 ## Tests (targeted, fixture-driven)
 
