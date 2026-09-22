@@ -51,7 +51,7 @@ struct EndpointListView: View {
             }
         }
         .listStyle(.inset)
-        .searchable(text: $search, placement: .platformToolbar, prompt: "Filter endpoints")
+        .sectionListSearch(text: $search, prompt: "Filter endpoints")
         .overlay {
             if spec.catalog == nil {
                 if let message = spec.errorMessage {

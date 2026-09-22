@@ -107,8 +107,8 @@ struct HistoryListView: View {
         .onAppear {
             if selection == nil { selection = rows.first?.id }
         }
-        .searchable(text: $search, placement: .platformToolbar, prompt: "Filter history")
-        .toolbar {
+        .sectionListSearch(text: $search, prompt: "Filter history")
+        .sectionListToolbar {
             ToolbarItem {
                 Menu {
                     Picker("Sort By", selection: $sort) {

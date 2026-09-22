@@ -18,6 +18,51 @@ enum ServerSection: String, CaseIterable, Identifiable {
     }
 }
 
+/// Whether the section-list column is showing. Its search field and toolbar
+/// items act on that list, so they leave the window's toolbar with it — on
+/// macOS a collapsed column's view stays alive and would otherwise keep
+/// contributing them.
+extension EnvironmentValues {
+    @Entry var sectionListVisible = true
+}
+
+private struct SectionListSearch: ViewModifier {
+    @Environment(\.sectionListVisible) private var visible
+    @Binding var text: String
+    let prompt: String
+
+    func body(content: Content) -> some View {
+        if visible {
+            content.searchable(text: $text, placement: .platformToolbar, prompt: Text(prompt))
+        } else {
+            content
+        }
+    }
+}
+
+private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
+    @Environment(\.sectionListVisible) private var visible
+    let items: Items
+
+    func body(content: Content) -> some View {
+        if visible {
+            content.toolbar { items }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func sectionListSearch(text: Binding<String>, prompt: String) -> some View {
+        modifier(SectionListSearch(text: text, prompt: prompt))
+    }
+
+    func sectionListToolbar<Items: ToolbarContent>(@ToolbarContentBuilder items: () -> Items) -> some View {
+        modifier(SectionListToolbar(items: items()))
+    }
+}
+
 struct SectionPicker: View {
     @Binding var section: ServerSection
 
@@ -40,7 +85,9 @@ struct MainSplitView: View {
     @Environment(ServerStore.self) private var servers
     @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
-    #if !os(macOS)
+    #if os(macOS)
+    @State private var columns: NavigationSplitViewVisibility = .all
+    #else
     @State private var showSettings = false
     @AppStorage("sectionListVisible") private var sectionListVisible = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -67,9 +114,10 @@ struct MainSplitView: View {
 
     #if os(macOS)
     private var split: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             sectionList
                 .navigationSplitViewColumnWidth(min: 340, ideal: 440, max: 600)
+                .environment(\.sectionListVisible, columns != .detailOnly)
         } detail: {
             detailPane
                 .modifier(Header(title: title, entry: servers.selected, section: $section))
