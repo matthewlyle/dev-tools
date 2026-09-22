@@ -103,15 +103,15 @@ struct ResponseView<RequestBar: View>: View {
                             .foregroundStyle(.orange)
                     }
                     Spacer()
+                    if tab == .raw, let document = requests.document {
+                        BodyControls(document: document, response: response)
+                    }
                     Picker("View", selection: $tab) {
                         ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .fixedSize()
-                    if tab == .raw, let response = requests.response, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

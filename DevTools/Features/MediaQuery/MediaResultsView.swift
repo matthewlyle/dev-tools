@@ -127,15 +127,15 @@ struct MediaResultsView: View {
                         PaginationControls(pagination: pagination, server: server)
                     }
                     Spacer()
+                    if tab == .response, let document = requests.document {
+                        BodyControls(document: document, response: response)
+                    }
                     Picker("View", selection: $tab) {
                         ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .fixedSize()
-                    if tab == .response, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
