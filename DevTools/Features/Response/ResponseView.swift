@@ -39,7 +39,8 @@ struct ResponseView<RequestBar: View>: View {
     }
 
     var body: some View {
-        Group {
+        @Bindable var requests = requests
+        return Group {
             if let response = requests.response {
                 switch tab {
                 case .raw:
@@ -78,6 +79,11 @@ struct ResponseView<RequestBar: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .popover(isPresented: $requests.showingDocs, attachmentAnchor: .point(.top), arrowEdge: .top) {
+            if let operation = spec.operation(matching: requests.current.path) {
+                OperationDocs(operation: operation)
+            }
+        }
         .onChange(of: requests.response?.receivedAt) { _, _ in
             collapsed = []
         }

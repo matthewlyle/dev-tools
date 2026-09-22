@@ -241,14 +241,6 @@ extension CodeTextView: NSViewRepresentable {
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
-        // A hosting controller only gains a presentation context — so its
-        // SwiftUI `.popover`/`.sheet` can appear — once it's in the view
-        // controller hierarchy. The header is added as a bare subview, so
-        // adopt it as a child of the window's controller once there's a window.
-        if let host = coordinator.headerHost, host.parent == nil,
-           let parent = scrollView.window?.contentViewController {
-            parent.addChild(host)
-        }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
         coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
@@ -400,11 +392,6 @@ extension CodeTextView: UIViewRepresentable {
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
-        if let host = coordinator.headerHost, host.parent == nil,
-           let parent = textView.parentViewController {
-            parent.addChild(host)
-            host.didMove(toParent: parent)
-        }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
         coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
@@ -449,12 +436,6 @@ extension CodeTextView: UIViewRepresentable {
             container.widthTracksTextView = false
             container.size = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }
-    }
-}
-
-private extension UIResponder {
-    var parentViewController: UIViewController? {
-        next as? UIViewController ?? next?.parentViewController
     }
 }
 #endif
