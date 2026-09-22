@@ -85,9 +85,13 @@ final class RequestStore {
         return headers
     }
 
+    /// Off in Media: its results come from the builder's form, and going back
+    /// would show a query the form no longer holds.
+    var recordsNavigation = true
+
     func send(to server: ConnectedServer) {
         let request = current
-        if let lastSent, lastSent != request {
+        if recordsNavigation, let lastSent, lastSent != request {
             backStack.append(lastSent)
             forwardStack.removeAll()
         }

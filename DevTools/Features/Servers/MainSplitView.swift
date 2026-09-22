@@ -383,6 +383,9 @@ struct MainSplitView: View {
             .onChange(of: connected?.machineID, initial: true) { _, id in
                 if id != nil { hasConnected = true }
             }
+            .onChange(of: section, initial: true) { _, section in
+                requests.recordsNavigation = section != .mediaQuery
+            }
     }
 
     #if os(macOS)

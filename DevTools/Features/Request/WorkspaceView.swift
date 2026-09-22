@@ -33,7 +33,9 @@ struct RequestSummaryBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            HistoryNavButtons(server: server)
+            if requests.recordsNavigation {
+                HistoryNavButtons(server: server)
+            }
             Text("GET")
                 .font(.code(.caption, weight: .semibold))
                 .padding(.horizontal, 6)
