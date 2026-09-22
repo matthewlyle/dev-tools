@@ -110,7 +110,7 @@ dev-tools/
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
       Browser/                   HistoryNavButtons — back/forward at the head of the URL line
-      Response/                  ResponseView (request bar, then status · pagination · tabs · body controls, 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
+      Response/                  ResponseView (request bar, then status · pagination · tabs · body controls, 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
       History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear
       Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events + payload inspector)
       MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
@@ -122,7 +122,7 @@ dev-tools/
     Assets.xcassets              AppIcon, Hosts (Simple Icons host marks)
   DevToolsTests/
     NodeParserTests, HighlighterTests, FoldingTests, JSONFormatterTests,
-    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests, MediaQueryTests, PlaceholderOptionTests, MediaItemTests
+    SpecCatalogTests, ValueMemoryTests, CurlExporterTests, PlexRequestURLTests, ConnectionRankingTests, MediaQueryTests, PlaceholderOptionTests, MediaItemTests, ContentTypeTests
 ```
 
 ## Key behaviors
