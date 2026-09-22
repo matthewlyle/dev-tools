@@ -131,7 +131,6 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
 /// keyboard focus.
 private struct SectionResident: ViewModifier {
     let active: Bool
-    let travel: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -146,11 +145,11 @@ private struct SectionResident: ViewModifier {
             .animation(active && !reduceMotion ? .smooth(duration: 0.12) : nil) {
                 $0.opacity(active ? 1 : 0)
             }
-            .keyframeAnimator(initialValue: CGFloat.zero, trigger: active) { view, x in
-                view.offset(x: x)
+            .keyframeAnimator(initialValue: CGFloat.zero, trigger: active) { view, y in
+                view.offset(y: y)
             } keyframes: { _ in
                 KeyframeTrack {
-                    MoveKeyframe(active && !reduceMotion ? travel * 12 : 0)
+                    MoveKeyframe(active && !reduceMotion ? 6 : 0)
                     SpringKeyframe(0, duration: 0.3, spring: .snappy)
                 }
             }
@@ -162,10 +161,8 @@ private struct SectionResident: ViewModifier {
 }
 
 extension View {
-    /// `travel` is the switch's direction along the switcher: the incoming
-    /// section slides in from that side, forward from the trailing edge.
-    func sectionResident(active: Bool, travel: CGFloat) -> some View {
-        modifier(SectionResident(active: active, travel: travel))
+    func sectionResident(active: Bool) -> some View {
+        modifier(SectionResident(active: active))
     }
 }
 
@@ -271,7 +268,6 @@ struct MainSplitView: View {
     @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @State private var hasConnected = false
-    @State private var sectionTravel: CGFloat = 1
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
@@ -306,8 +302,6 @@ struct MainSplitView: View {
             set: { newValue in
                 guard newValue != section else { return }
                 requests.reset()
-                let order = ServerSection.allCases
-                sectionTravel = order.firstIndex(of: newValue)! > order.firstIndex(of: section)! ? 1 : -1
                 section = newValue
             }
         )
@@ -435,13 +429,13 @@ struct MainSplitView: View {
         } else if let entry = servers.selected {
             ZStack {
                 EndpointListView(server: connected, serverID: entry.id)
-                    .sectionResident(active: section == .endpoints, travel: sectionTravel)
+                    .sectionResident(active: section == .endpoints)
                 HistoryListView(serverID: entry.id)
-                    .sectionResident(active: section == .history, travel: sectionTravel)
+                    .sectionResident(active: section == .history)
                 ActivityControlsView()
-                    .sectionResident(active: section == .activity, travel: sectionTravel)
+                    .sectionResident(active: section == .activity)
                 MediaQueryBuilderView(server: connected)
-                    .sectionResident(active: section == .mediaQuery, travel: sectionTravel)
+                    .sectionResident(active: section == .mediaQuery)
             }
             .id(entry.id)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -466,11 +460,11 @@ struct MainSplitView: View {
             } else {
                 ZStack {
                     WorkspaceView(editable: section == .endpoints)
-                        .sectionResident(active: section == .endpoints || section == .history, travel: sectionTravel)
+                        .sectionResident(active: section == .endpoints || section == .history)
                     ActivityEventsView()
-                        .sectionResident(active: section == .activity, travel: sectionTravel)
+                        .sectionResident(active: section == .activity)
                     MediaResultsView(server: connected)
-                        .sectionResident(active: section == .mediaQuery, travel: sectionTravel)
+                        .sectionResident(active: section == .mediaQuery)
                 }
             }
         }
