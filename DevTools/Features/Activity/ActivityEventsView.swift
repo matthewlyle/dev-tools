@@ -1,14 +1,18 @@
 import SwiftUI
 
-/// The event list. The selected event's payload opens in the detail pane's
-/// inspector (`SectionInspector`); the list lives in its own view so only it
-/// redraws per incoming frame, and this body reads nothing but the selection.
+/// The event list over its connection footer. The selected event's payload
+/// opens in the detail pane's inspector (`SectionInspector`); the list and
+/// the footer are views of their own so only they redraw per incoming
+/// frame, and this body reads nothing but the selection.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
 
     var body: some View {
         EventList()
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ActivityStatusBar()
+            }
             .focusedSceneValue(
                 \.showMediaInfo,
                 isActive && activity.selectedEvent != nil
@@ -18,14 +22,108 @@ struct ActivityEventsView: View {
     }
 }
 
-private struct EventList: View {
+/// The connection, pinned under the events it produces: status, count,
+/// last error, Clear, and Connect or Disconnect.
+private struct ActivityStatusBar: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var connections = 0
 
     private var selectedServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(statusColor)
+                    .symbolEffect(.pulse, options: .repeating, isActive: isConnecting && !reduceMotion)
+                    .symbolEffect(.bounce, value: connections)
+                    .accessibilityHidden(true)
+                Text(statusText)
+                    .font(.code(.callout))
+                    .lineLimit(1)
+                    .contentTransition(.interpolate)
+                if activity.status.isActive {
+                    Text("\(activity.receivedCount.formatted()) received")
+                        .font(.code(.caption))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help("Messages received on the wire since connecting")
+                }
+                Spacer(minLength: 8)
+                if !activity.events.isEmpty {
+                    Button {
+                        activity.clear()
+                    } label: {
+                        Label("Clear Events", systemImage: "trash")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Clear events")
+                }
+                if activity.status.isActive {
+                    Button("Disconnect", role: .destructive) { activity.disconnect() }
+                } else {
+                    Button("Connect") {
+                        guard let selectedServer else { return }
+                        activity.connect(to: selectedServer)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedServer == nil)
+                }
+            }
+            .animation(reduceMotion ? nil : .smooth, value: activity.status)
+            if let error = activity.lastError, activity.status != .failed(error) {
+                Text("Last error: \(error)")
+                    .font(.code(.caption))
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+        .onChange(of: activity.status) { _, status in
+            if status == .connected, !reduceMotion { connections += 1 }
+        }
+    }
+
+    private var statusText: String {
+        switch activity.status {
+        case .disconnected: "Disconnected"
+        case .connecting: "Connecting…"
+        case .connected: "Connected"
+        case .reconnecting(let attempt, let delay): "Reconnecting (attempt \(attempt), in \(delay)s)…"
+        case .failed(let message): "Failed: \(message)"
+        }
+    }
+
+    private var isConnecting: Bool {
+        switch activity.status {
+        case .connecting, .reconnecting: true
+        case .connected, .disconnected, .failed: false
+        }
+    }
+
+    private var statusColor: Color {
+        switch activity.status {
+        case .connected: .green
+        case .connecting, .reconnecting: .orange
+        case .failed: .red
+        case .disconnected: .gray
+        }
+    }
+}
+
+private struct EventList: View {
+    @Environment(ActivityStore.self) private var activity
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         @Bindable var activity = activity
@@ -75,29 +173,14 @@ private struct EventList: View {
     @ViewBuilder
     private var disconnected: some View {
         if case .failed(let message) = activity.status {
-            ContentUnavailableView {
-                Label("Couldn't Connect", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text("\(message) Check that the server is reachable, then try again.")
-            } actions: {
-                connectButton("Try Again")
-            }
+            ContentUnavailableView(
+                "Couldn't Connect",
+                systemImage: "exclamationmark.triangle",
+                description: Text("\(message) Check that the server is reachable, then connect again.")
+            )
         } else {
-            // The list column's Connect can be hidden on iPad, so the resting
-            // state carries its own.
-            ZeroState(text: "Connect to watch playback, library scans, and other server activity as it happens.") {
-                connectButton("Connect")
-                    .controlSize(.small)
-            }
+            ZeroState(text: "Connect to watch playback, library scans, and other server activity as it happens.")
         }
-    }
-
-    private func connectButton(_ title: String) -> some View {
-        Button(title) {
-            guard let selectedServer else { return }
-            activity.connect(to: selectedServer)
-        }
-        .disabled(selectedServer == nil)
     }
 }
 

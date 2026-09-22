@@ -370,6 +370,7 @@ struct MainSplitView: View {
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
     @Environment(RequestStore.self) private var requests
+    @Environment(ActivityStore.self) private var activity
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @State private var hasConnected = false
     #if os(macOS)
@@ -423,8 +424,12 @@ struct MainSplitView: View {
             .task(id: connected?.machineID) {
                 if let connected { await requests.preloadOptions(on: connected) }
             }
-            .onChange(of: servers.selectedID) { _, _ in
+            .onChange(of: servers.selectedID) { _, id in
                 requests.reset()
+                if let listening = activity.server, listening.machineID != id {
+                    activity.disconnect()
+                    activity.clear()
+                }
                 #if os(iOS)
                 pushed.removeAll()
                 #endif
@@ -547,7 +552,12 @@ struct MainSplitView: View {
                 switch item {
                 case .endpoints: EndpointListView(server: connected, serverID: entry.id)
                 case .history: HistoryListView(serverID: entry.id)
-                case .activity: ActivityControlsView()
+                // The list pane only filters the events, which a toolbar menu
+                // does here, so the events are the tab's root and nothing
+                // is pushed.
+                case .activity:
+                    ActivityEventsView()
+                        .modifier(SectionInspector(section: .activity, server: connected))
                 case .mediaQuery: MediaQueryBuilderView(server: connected)
                 }
             }
@@ -571,6 +581,11 @@ struct MainSplitView: View {
                     .disabled(connected == nil)
                 }
             }
+            if item == .activity {
+                ToolbarItem(placement: .primaryAction) {
+                    ActivityTypeMenu()
+                }
+            }
         }
     }
 
@@ -579,8 +594,8 @@ struct MainSplitView: View {
             switch item {
             case .endpoints: WorkspaceView(editable: true)
             case .history: WorkspaceView(editable: false)
-            case .activity: ActivityEventsView()
             case .mediaQuery: MediaResultsView(server: connected)
+            case .activity: EmptyView()
             }
         }
         .modifier(SectionInspector(section: item, server: connected))
@@ -593,8 +608,8 @@ struct MainSplitView: View {
     private func detailTitle(_ item: ServerSection) -> String {
         switch item {
         case .endpoints, .history: "Request"
-        case .activity: "Events"
         case .mediaQuery: "Results"
+        case .activity: ""
         }
     }
 
@@ -655,6 +670,11 @@ struct MainSplitView: View {
                             SectionPicker(section: section)
                                 .fixedSize()
                         }
+                        #if os(iOS)
+                        // A segmented control draws its own glass track; the
+                        // bar's shared capsule behind it doubles it on iOS.
+                        .sharedBackgroundVisibility(.hidden)
+                        #endif
                     }
                 }
                 // A compact bar centres its title, so the popover points at
@@ -683,7 +703,7 @@ struct MainSplitView: View {
                     .sectionResident(active: section == .endpoints)
                 HistoryListView(serverID: entry.id)
                     .sectionResident(active: section == .history)
-                ActivityControlsView()
+                ActivityFiltersView()
                     .sectionResident(active: section == .activity)
                 MediaQueryBuilderView(server: connected)
                     .sectionResident(active: section == .mediaQuery)
