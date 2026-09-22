@@ -50,8 +50,6 @@ private struct EventList: View {
 
         ZStack {
             if activity.events.isEmpty, !activity.status.isActive {
-                // The list column's Connect can be hidden on iPad, so the
-                // pane carries its own.
                 FillingScrollView {
                     disconnected
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -78,12 +76,8 @@ private struct EventList: View {
                 .overlay {
                     ZStack {
                         if visible.isEmpty, activity.status.isActive {
-                            ContentUnavailableView(
-                                "Waiting for Events",
-                                systemImage: "dot.radiowaves.left.and.right",
-                                description: Text("Start playback or a library scan on any client.")
-                            )
-                            .transition(.opacity)
+                            ZeroState(text: "Waiting for events. Start playback or a library scan on any client.")
+                                .transition(.opacity)
                         }
                     }
                     .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: visible.isEmpty)
@@ -107,12 +101,11 @@ private struct EventList: View {
                 connectButton("Try Again")
             }
         } else {
-            ContentUnavailableView {
-                Label("Not Connected", systemImage: "dot.radiowaves.left.and.right")
-            } description: {
-                Text("Connect to watch playback, library scans, and other server activity as it happens.")
-            } actions: {
+            // The list column's Connect can be hidden on iPad, so the resting
+            // state carries its own.
+            ZeroState(text: "Connect to watch playback, library scans, and other server activity as it happens.") {
                 connectButton("Connect")
+                    .controlSize(.small)
             }
         }
     }

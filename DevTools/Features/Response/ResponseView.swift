@@ -182,15 +182,26 @@ struct FillingScrollView<Content: View>: View {
 
 /// The detail's resting state: one muted sentence, centred. No icon or
 /// heading — the section switcher already says where you are.
-struct ZeroState: View {
+struct ZeroState<Action: View>: View {
     let text: String
+    @ViewBuilder let action: () -> Action
 
     var body: some View {
-        Text(text)
-            .font(.subheadline)
-            .foregroundStyle(.tertiary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 12) {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+            action()
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+extension ZeroState where Action == EmptyView {
+    init(text: String) {
+        self.init(text: text) { EmptyView() }
     }
 }
 

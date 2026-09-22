@@ -73,7 +73,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Icon-only buttons are `Label("Verb", systemImage:)` + `.labelStyle(.iconOnly)`, never a bare `Image`, so VoiceOver gets the verb. Decorative symbols get `.accessibilityHidden(true)`. Status colours are always paired with words; the dot is redundant.
 - A row in a selectable `List` opens through `.contextMenu(forSelectionType:menu:primaryAction:)` — a tap on iPad, a double-click on the Mac, where a click already selects — never a tap gesture or a row `Button`, which on macOS swallow the table's own click and arrow-key selection.
 - Spinners are unlabelled; the sentence above them says what's happening. Never "Loading…". Don't block the panel while sending — the spinner replaces Send's icon and the last response stays readable.
-- Empty states are `ContentUnavailableView` with a next step in the description — except a section's *resting* zero state (nothing sent, nothing queried yet), which is `ZeroState`: one muted `subheadline`/`tertiary` sentence, no icon or heading, because the switcher already says where you are.
+- Empty states are `ContentUnavailableView` with a next step in the description — except a section's *resting* zero state (nothing sent, nothing queried yet, not connected, no events yet), which is `ZeroState`: one muted `subheadline`/`tertiary` sentence, no icon or heading, because the switcher already says where you are. A zero state carries a button only when the section's own control can be off screen: Activity's Connect, because iPad can hide the list pane. Failures stay `ContentUnavailableView` (Request Failed, Couldn't Connect).
 - Numbers that change in place roll with `.contentTransition(.numericText(value:))`.
 
 **Colour, type, icons**
