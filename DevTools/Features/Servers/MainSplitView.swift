@@ -34,11 +34,51 @@ extension EnvironmentValues {
 /// in place rather than through `.searchable`: on macOS its search field is a
 /// toolbar item, so entering those sections reconfigured the window toolbar
 /// and reflowed the section switcher mid-animation.
-struct ListFilterField: View {
+struct ListFilterField<Actions: View>: View {
     @Binding var text: String
     let prompt: String
+    private let actions: Actions?
+
+    init(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) {
+        _text = text
+        self.prompt = prompt
+        self.actions = actions()
+    }
 
     var body: some View {
+        placed
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+    }
+
+    /// The list's own actions (sort, clear) sit over the list on both
+    /// platforms: toolbar items over its column on macOS; on iPad, whose one
+    /// bar spans both panes and would push them to its far end, beside the
+    /// field.
+    @ViewBuilder
+    private var placed: some View {
+        #if os(macOS)
+        if let actions {
+            field.sectionListToolbar {
+                ToolbarItemGroup(placement: .primaryAction) { actions }
+            }
+        } else {
+            field
+        }
+        #else
+        HStack(spacing: 12) {
+            field
+            if let actions {
+                actions
+                    .labelStyle(.iconOnly)
+                    .imageScale(.large)
+            }
+        }
+        #endif
+    }
+
+    private var field: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
@@ -60,9 +100,14 @@ struct ListFilterField: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(.quaternary, in: .rect(cornerRadius: 8))
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+    }
+}
+
+extension ListFilterField where Actions == EmptyView {
+    init(text: Binding<String>, prompt: String) {
+        _text = text
+        self.prompt = prompt
+        actions = nil
     }
 }
 
@@ -199,9 +244,6 @@ struct SectionPicker: View {
     }
 }
 
-/// One header over the whole window: the server as the title (and its menu,
-/// which switches it), the section switcher in the centre, the section's
-/// filters trailing. The section list and its detail sit beneath.
 struct MainSplitView: View {
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
