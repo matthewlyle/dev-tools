@@ -61,6 +61,11 @@ struct AppCommands: Commands {
     }
 
     var body: some Commands {
+        CommandGroup(after: .appSettings) {
+            Button("Sign Out…") { account.isConfirmingSignOut = true }
+                .disabled(account.user == nil)
+        }
+
         CommandGroup(after: .sidebar) {
             Divider()
             Picker("Section", selection: $section) {
@@ -85,6 +90,19 @@ struct AppCommands: Commands {
         }
 
         CommandMenu("Server") {
+            Picker("Server", selection: Binding(
+                get: { servers.selectedID },
+                set: { servers.selectedID = $0 }
+            )) {
+                ForEach(servers.sortedEntries) { entry in
+                    Text(entry.resource.name).tag(Optional(entry.id))
+                }
+            }
+            .pickerStyle(.inline)
+            .disabled(servers.entries.isEmpty)
+
+            Divider()
+
             Button("Refresh Servers") {
                 guard let token = account.token else { return }
                 Task { await servers.refresh(token: token) }

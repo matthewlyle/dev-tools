@@ -18,9 +18,10 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach($items) { $item in
+            ForEach(items) { item in
+                let bound = binding(for: item)
                 HStack(spacing: 8) {
-                    Toggle("Enabled", isOn: $item.enabled)
+                    Toggle("Enabled", isOn: bound.enabled)
                         .platformCheckboxToggleStyle()
                         .labelsHidden()
                     if let description = description(for: item.name) {
@@ -32,18 +33,18 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                             .frame(minWidth: 120, idealWidth: 180, maxWidth: 260, alignment: .leading)
                             .help(description)
                     } else {
-                        TextField(namePlaceholder, text: $item.name)
+                        TextField(namePlaceholder, text: bound.name)
                             .textFieldStyle(.roundedBorder)
                             .font(.code(.body))
                             .frame(minWidth: 120, idealWidth: 180, maxWidth: 260)
                     }
-                    TextField(valuePlaceholder, text: $item.value)
+                    TextField(valuePlaceholder, text: bound.value)
                         .textFieldStyle(.roundedBorder)
                         .font(.code(.body))
                     if let values = enumValues(for: item.name) {
                         Menu {
                             ForEach(values, id: \.self) { value in
-                                Button(value) { item.value = value }
+                                Button(value) { bound.wrappedValue.value = value }
                             }
                         } label: {
                             Label("Documented Values", systemImage: "list.bullet")
@@ -93,6 +94,20 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                 .fixedSize()
             }
         }
+    }
+
+    /// Looked up by id on every access rather than captured by index:
+    /// `requests.reset()` empties the array while UIKit-backed controls
+    /// (the switch, the text fields) can still read their bindings during
+    /// the layout pass that removes them, and an index binding traps then.
+    private func binding(for item: Item) -> Binding<Item> {
+        Binding(
+            get: { items.first { $0.id == item.id } ?? item },
+            set: { updated in
+                guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+                items[index] = updated
+            }
+        )
     }
 
     private var unused: [SpecParameter] {

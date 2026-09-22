@@ -52,6 +52,8 @@ struct DevToolsApp: App {
         Settings {
             SettingsView()
                 .environment(requests)
+                .environment(account)
+                .environment(servers)
         }
         #endif
     }

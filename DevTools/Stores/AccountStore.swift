@@ -14,6 +14,8 @@ final class AccountStore {
     private(set) var state: State = .restoring
     private(set) var token: String?
     var errorMessage: String?
+    /// Set by the Sign Out… menu command; the root view owns the confirmation.
+    var isConfirmingSignOut = false
 
     private let plexTV: PlexTVClient
     private var pollTask: Task<Void, Never>?

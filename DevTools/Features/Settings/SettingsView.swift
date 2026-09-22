@@ -2,10 +2,12 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(RequestStore.self) private var requests
+    @Environment(AccountStore.self) private var account
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("rawWrapLines") private var wrapLines = true
     @State private var confirmingClear = false
+    @State private var confirmingSignOut = false
 
     var body: some View {
         #if os(macOS)
@@ -33,6 +35,34 @@ struct SettingsView: View {
         @Bindable var requests = requests
 
         return Form {
+            if let user = account.user {
+                Section {
+                    HStack(spacing: 12) {
+                        AsyncImage(url: user.thumbURL) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .clipShape(.circle)
+                        .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(user.title)
+                            Text(user.username)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Sign Out…", role: .destructive) {
+                        confirmingSignOut = true
+                    }
+                } header: {
+                    Text("Account")
+                }
+            }
+
             Section {
                 Picker("Response format", selection: $requests.acceptFormat) {
                     ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
@@ -64,6 +94,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .signOutConfirmation(isPresented: $confirmingSignOut) { dismiss() }
         .confirmationDialog(
             "Clear all \(requests.history.count.formatted()) recorded requests across every server?",
             isPresented: $confirmingClear,

@@ -32,7 +32,6 @@ struct ActivityEventsView: View {
                 #endif
             }
         }
-        .navigationTitle("Activity")
         .platformNavigationSubtitle(subtitle)
     }
 

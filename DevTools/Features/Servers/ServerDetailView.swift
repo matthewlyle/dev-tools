@@ -10,11 +10,6 @@ struct ServerDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            #if !os(macOS)
-            sectionPicker
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            #endif
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     hostMark
@@ -48,25 +43,6 @@ struct ServerDetailView: View {
                 MediaQueryBuilderView(server: connected)
             }
         }
-        .navigationTitle(entry.resource.name)
-        #if os(macOS)
-        .toolbar {
-            ToolbarItem(placement: .secondaryAction) {
-                sectionPicker
-                    .fixedSize()
-            }
-        }
-        #endif
-    }
-
-    private var sectionPicker: some View {
-        Picker("Section", selection: $section) {
-            ForEach(ServerSection.allCases) { section in
-                Text(section.rawValue).tag(section)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
     }
 
     @ViewBuilder

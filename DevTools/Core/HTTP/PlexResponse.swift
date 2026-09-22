@@ -19,3 +19,9 @@ struct PlexResponse: Sendable, Hashable {
 
     var bodyText: String { String(decoding: body, as: UTF8.self) }
 }
+
+extension Duration {
+    var milliseconds: Int {
+        Int(components.seconds * 1000) + Int(components.attoseconds / 1_000_000_000_000_000)
+    }
+}

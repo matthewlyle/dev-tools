@@ -26,7 +26,6 @@ struct WorkspaceView: View {
             }
             ResponseView(server: server, editable: editable)
         }
-        .navigationTitle(servers.selected?.resource.name ?? "Request")
         .platformNavigationSubtitle(server.map { "\($0.connection.kind.rawValue) · \($0.baseURL.host() ?? "")" } ?? "")
     }
 }

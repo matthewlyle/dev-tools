@@ -7,7 +7,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 | Topic | Decision |
 |---|---|
 | Platform | macOS 26+ and iPadOS 26+ (Liquid Glass), one universal app target (iPad-only device family). Xcode 27.1, Swift 6, strict concurrency. |
-| UI | SwiftUI + `@Observable`. `NavigationSplitView` three-pane. Liquid Glass only where the system puts it (toolbar, sidebar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
+| UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
 | Deps | Minimal. None planned for v1; reassess only if the hand-rolled XML/JSON highlighter proves inadequate. |
 | Bundle ID | `mldgg.devtools` |
 | Methods | **GET only** in v1. No PUT/DELETE/POST. |
@@ -105,9 +105,8 @@ dev-tools/
       ValueMemory.swift          id-like values seen per server for placeholder suggestions; last-used per placeholder
       ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection
     Features/
-      SignIn/                    PIN code, "Open plex.tv/link", polling state
-      Sidebar/                   MainSplitView (three columns, section switcher, preload + reset on switch), SidebarView (servers)
-      Servers/                   ServerDetailView — server header + the selected section's list
+      SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
+      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad; preload + reset on switch), ServerMenu (title menu: servers + Refresh), ServerDetailView — server header + the selected section's list
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (request bar → nav → response; editable vs read-only), RequestBarView, KeyValueEditor
       Browser/                   NavigationBar — back/forward + breadcrumbs (shown once there's a response)
@@ -146,7 +145,7 @@ dev-tools/
 
 ## Liquid Glass usage
 
-- Only where the system puts it: sidebar and toolbar via `NavigationSplitView`, the segmented section switcher and search field as toolbar items, and the Send button (`.glassProminent`).
+- Only where the system puts it: the toolbar via `NavigationSplitView`/`NavigationStack`, the segmented section switcher and search field as toolbar items, and the Send button (`.glassProminent`).
 - No custom `glassEffect` anywhere. The HIG reserves glass for the controls/navigation layer floating above content; the response status readout, pagination, badges, and cards are content, so they use standard fills (`.fill.tertiary`, `.quaternary`).
 - Content areas (raw text, cards) stay opaque for readability.
 

@@ -20,6 +20,8 @@ struct RootView: View {
     }
 
     var body: some View {
+        @Bindable var account = account
+
         Group {
             switch account.state {
             case .restoring:
@@ -39,6 +41,7 @@ struct RootView: View {
             }
         }
         .overlay { LightboxOverlay() }
+        .signOutConfirmation(isPresented: $account.isConfirmingSignOut)
         .task { await account.restore() }
         .task(id: account.token) {
             guard let token = account.token else { return }
