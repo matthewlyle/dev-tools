@@ -39,12 +39,6 @@ struct ServerMenu: View {
         }
         .disabled(account.token == nil || servers.isRefreshing)
 
-        Button("Connect") {
-            guard let id = servers.selectedID else { return }
-            Task { await servers.probe(id: id) }
-        }
-        .disabled(servers.selected == nil || servers.selected?.isProbing == true)
-
         if let showSettings {
             Divider()
             Button("Settings…", action: showSettings)
