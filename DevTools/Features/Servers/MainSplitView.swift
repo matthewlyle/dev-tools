@@ -242,6 +242,7 @@ struct MainSplitView: View {
                 }
             }
             .id(entry.id)
+            .scrollEdgeEffectStyle(.soft, for: .top)
         } else {
             ContentUnavailableView(
                 "No Server Selected",
@@ -251,15 +252,22 @@ struct MainSplitView: View {
         }
     }
 
+    /// Soft edge on both panes: `.automatic` can resolve to the hard style,
+    /// which fills the toolbar while the pointer is over the scroll view even
+    /// with nothing scrolled beneath it. Soft only blurs what actually passes
+    /// under the bar.
     @ViewBuilder
     private var detailPane: some View {
-        switch section {
-        case .activity:
-            ActivityEventsView()
-        case .mediaQuery:
-            MediaResultsView(server: connected)
-        case .endpoints, .history:
-            WorkspaceView(editable: section == .endpoints)
+        Group {
+            switch section {
+            case .activity:
+                ActivityEventsView()
+            case .mediaQuery:
+                MediaResultsView(server: connected)
+            case .endpoints, .history:
+                WorkspaceView(editable: section == .endpoints)
+            }
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 }
