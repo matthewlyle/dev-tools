@@ -18,6 +18,7 @@ struct MediaResultsView: View {
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
     @State private var selectedID: Int?
     @State private var showInfo = false
+    @State private var collapsed: Set<Int> = []
 
     private var items: [MediaItem] {
         requests.document?.tree?.children.map(MediaItem.init) ?? []
@@ -29,28 +30,34 @@ struct MediaResultsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            RequestSummaryBar(server: server)
-            Divider()
+            VStack(spacing: 0) {
+                RequestSummaryBar(server: server)
+                if let response = requests.response {
+                    Divider()
+                    HStack(spacing: 10) {
+                        ResponseStatusBar(response: response)
+                        if let pagination = requests.pagination {
+                            PaginationControls(pagination: pagination, server: server)
+                        }
+                        Spacer()
+                        Picker("View", selection: $tab) {
+                            ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        if tab == .response, let document = requests.document {
+                            BodyControls(document: document, response: response, collapsed: $collapsed)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+            }
+            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+            .padding(12)
 
             if let response = requests.response {
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
-                    }
-                    Spacer()
-                    Picker("View", selection: $tab) {
-                        ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-                Divider()
-
                 Group {
                     switch tab {
                     case .posters:
@@ -67,7 +74,7 @@ struct MediaResultsView: View {
                         }
                     case .response:
                         if let document = requests.document {
-                            RawResponseView(document: document, response: response)
+                            RawResponseView(document: document, response: response, collapsed: $collapsed)
                         } else {
                             ProgressView()
                         }
@@ -101,6 +108,7 @@ struct MediaResultsView: View {
         .onChange(of: requests.response?.receivedAt) { _, _ in
             selectedID = nil
             showInfo = false
+            collapsed = []
         }
         .focusedSceneValue(
             \.showMediaInfo,

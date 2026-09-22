@@ -18,7 +18,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 
 1. Sign in (PIN flow) + server picker with connection probing — done
 2. Request builder + response inspector (Response / Headers), history — done
-3. Response browser: back/forward between requests, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
+3. Response browser: back/forward between requests — done (breadcrumbs removed; they repeated the URL). The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
 4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls — done. The response-customization (include/exclude) menus were removed; `includeFields` etc. are typed as ordinary params
 5. Media Query builder — done as the fourth section, "Media" (⌘4): flat AND/OR filters, sort, group, limit; nested `push`/`pop` grouping and a tag-value picker are deferred
 6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause)
@@ -108,9 +108,9 @@ dev-tools/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
       Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad; preload + reset on switch), ServerMenu (title menu: server names + Server Info…), ServerInfoView (popover from the title: host, version, connection in use)
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
-      Request/                   WorkspaceView (request bar → nav → response; editable vs read-only), RequestBarView, KeyValueEditor
-      Browser/                   NavigationBar — back/forward + breadcrumbs (shown once there's a response)
-      Response/                  ResponseView (status bar, Response/Headers tabs, 400/403 hints), RawResponseView + CodeTextView (highlight, wrap, fold), HeadersView
+      Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
+      Browser/                   HistoryNavButtons — back/forward at the head of the URL line
+      Response/                  ResponseView (one container above the body: request bar, then status · pagination · tabs · body controls; 400/403 hints), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
       History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear
       Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events + payload inspector)
       MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
@@ -133,7 +133,7 @@ dev-tools/
 
 **Requests.** GET only; method picker hidden in v1. Path + query params editable. Token is always sent as the `X-Plex-Token` header, never in the URL, and is never displayed or copyable. Response format is an app-wide setting (`Accept: application/json` by default, or `application/xml`, which is what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send from the builder appends to history; replaying an entry from History does not.
 
-**Response browsing.** Back/forward between sent requests, with a breadcrumb of the current path. In-response hyperlinks and the structured Pretty/Tree views were removed; responses render as highlighted Raw text and a Headers table. A redesigned Pretty view is deferred; when it returns it will re-introduce navigable link attributes and inline thumbnails via `/photo/:/transcode`.
+**Response browsing.** Back/forward between sent requests, at the head of the URL line. In-response hyperlinks and the structured Pretty/Tree views were removed; responses render as highlighted Raw text and a Headers table. A redesigned Pretty view is deferred; when it returns it will re-introduce navigable link attributes and inline thumbnails via `/photo/:/transcode`.
 
 **Endpoint catalog (M4).** Spec operations grouped by tag in the content column. Click → path template loads into the builder; `{placeholder}`s prompt for values in a sheet, each with the richest helper its value allows: a picker when the spec enumerates it (`element`, `transcodeType`, `identifier`, `index`) or the server can list it (`sectionId` → `/library/sections`, `playlistId` → `/playlists`, `collectionId` → each library's `/collections`, grouped by library, `deviceId` → `/media/grabbers/devices`); Now + a date picker for epoch placeholders (`updatedAt`, `timestamp`); otherwise a field plus values seen in earlier responses. Listable options are preloaded when a server connects so pickers don't flash. Typed parameters with descriptions feed the Parameters editor as an autocomplete list. Documented headers (`X-Plex-Container-Start/Size/Focus-Key`, `X-Plex-Pms-Api-Version`, `X-Plex-Client-Profile-*`) offered in the Headers editor.
 

@@ -13,18 +13,12 @@ struct WorkspaceView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ResponseView(server: server, editable: editable) {
             if editable {
                 RequestBarView(server: server)
             } else {
                 RequestSummaryBar(server: server)
             }
-            Divider()
-            if requests.response != nil {
-                NavigationBar(server: server)
-                Divider()
-            }
-            ResponseView(server: server, editable: editable)
         }
     }
 }
@@ -39,6 +33,7 @@ struct RequestSummaryBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            HistoryNavButtons(server: server)
             Text("GET")
                 .font(.code(.caption, weight: .semibold))
                 .padding(.horizontal, 6)

@@ -7,13 +7,15 @@ enum ResponseTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct ResponseView: View {
+struct ResponseView<RequestBar: View>: View {
     let server: ConnectedServer?
     let editable: Bool
+    @ViewBuilder let requestBar: () -> RequestBar
 
     @Environment(RequestStore.self) private var requests
     @Environment(SpecStore.self) private var spec
     @AppStorage("responseTab") private var tab: ResponseTab = .raw
+    @State private var collapsed: Set<Int> = []
 
     /// Documented query parameters for the current route when the server
     /// rejected the request — the spec often omits `required`, so a 400 is
@@ -38,25 +40,41 @@ struct ResponseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let response = requests.response {
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
+            // The request and everything that describes its response, as one
+            // block above the body; the body is the scroller.
+            VStack(spacing: 0) {
+                requestBar()
+                if let response = requests.response {
+                    Divider()
+                    HStack(spacing: 10) {
+                        ResponseStatusBar(response: response)
+                        if let pagination = requests.pagination {
+                            PaginationControls(pagination: pagination, server: server)
+                        }
+                        if tab == .raw, let notice = requests.document?.notice {
+                            Text(notice)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        Spacer()
+                        Picker("View", selection: $tab) {
+                            ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        if tab == .raw, let document = requests.document {
+                            BodyControls(document: document, response: response, collapsed: $collapsed)
+                        }
                     }
-                    Spacer()
-                    Picker("View", selection: $tab) {
-                        ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+            }
+            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+            .padding(12)
 
-                Divider()
-
+            if let response = requests.response {
                 Group {
                     if let hint = missingParameterHint {
                         MissingParametersHint(parameters: hint) {
@@ -71,7 +89,7 @@ struct ResponseView: View {
                     switch tab {
                     case .raw:
                         if let document = requests.document {
-                            RawResponseView(document: document, response: response)
+                            RawResponseView(document: document, response: response, collapsed: $collapsed)
                         } else {
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -96,6 +114,9 @@ struct ResponseView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .onChange(of: requests.response?.receivedAt) { _, _ in
+            collapsed = []
         }
     }
 }

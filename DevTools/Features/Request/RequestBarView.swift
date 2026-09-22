@@ -82,6 +82,7 @@ struct RequestBarView: View {
             }
 
             HStack(spacing: 8) {
+                HistoryNavButtons(server: server)
                 Text(requests.previewURL(for: server))
                     .font(.code(.caption))
                     .foregroundStyle(.secondary)
