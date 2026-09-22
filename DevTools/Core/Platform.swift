@@ -24,8 +24,6 @@ extension Image {
     }
 }
 
-/// The system label/background colours the highlighted response text draws
-/// with, under the name each platform uses.
 extension PlatformColor {
     static var codeLabel: PlatformColor {
         #if os(macOS)
@@ -62,8 +60,6 @@ extension PlatformColor {
         .systemBackground
         #endif
     }
-    /// The recessed backdrop behind content cards — darker than the window
-    /// background on macOS, its darkest system grouped background on iPadOS.
     static var recessedBackground: PlatformColor {
         #if os(macOS)
         .underPageBackgroundColor
@@ -71,6 +67,42 @@ extension PlatformColor {
         .systemGroupedBackground
         #endif
     }
+
+    static let codeTeal = raisedInLight(.systemTeal)
+    static let codeGreen = raisedInLight(.systemGreen)
+    static let codePurple = raisedInLight(.systemPurple)
+    static let codeOrange = raisedInLight(.systemOrange)
+    static let codeBlue = raisedInLight(.systemBlue)
+
+    /// The system hue as-is in dark appearances, and its Increase Contrast
+    /// variant in light ones: the code surface is white, where the standard
+    /// hues fall under 4.5:1.
+    private static func raisedInLight(_ hue: PlatformColor) -> PlatformColor {
+        #if os(macOS)
+        NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let resolving = isDark ? appearance : (highContrastAqua ?? appearance)
+            var resolved = hue
+            resolving.performAsCurrentDrawingAppearance { resolved = hue.usingType(.componentBased) ?? hue }
+            return resolved
+        }
+        #else
+        UIColor { traits in
+            guard traits.userInterfaceStyle != .dark else { return hue.resolvedColor(with: traits) }
+            return hue.resolvedColor(with: traits.modifyingTraits { $0.accessibilityContrast = .high })
+        }
+        #endif
+    }
+
+    #if os(macOS)
+    /// `NSAppearance(named: .accessibilityHighContrastAqua)` silently returns
+    /// plain Aqua; the high-contrast light appearance only loads by its
+    /// catalog name from the system appearance bundle.
+    private nonisolated(unsafe) static let highContrastAqua = NSAppearance(
+        appearanceNamed: NSAppearance.Name("AquaAX"),
+        bundle: Bundle(path: "/System/Library/CoreServices/SystemAppearance.bundle")
+    )
+    #endif
 }
 
 enum Clipboard {

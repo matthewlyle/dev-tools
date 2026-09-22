@@ -88,9 +88,41 @@ struct HistoryListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ListFilterField(text: $search, prompt: "Filter history")
+            ListFilterField(text: $search, prompt: "Filter history") {
+                sortMenu
+                clearButton
+            }
             list
         }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $sort) {
+                ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.inline)
+            Picker("Status", selection: $statusFilter) {
+                Text(StatusFilter.any.label).tag(StatusFilter.any)
+                ForEach(statusOptions, id: \.self) { option in
+                    Text(option.label).tag(option)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("Sort and Filter", systemImage: statusFilter == .any ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+        }
+        .help("Sort order and status filter")
+    }
+
+    private var clearButton: some View {
+        Button(role: .destructive) {
+            confirmingClear = true
+        } label: {
+            Label(isFiltered ? "Clear Shown" : "Clear History", systemImage: "trash")
+        }
+        .disabled(filtered.isEmpty)
+        .help(isFiltered ? "Clear the shown requests" : "Clear this server's history")
     }
 
     private var list: some View {
@@ -117,34 +149,6 @@ struct HistoryListView: View {
         .onChange(of: selection) { _, id in
             guard let entry = rows.first(where: { $0.id == id }), let connected else { return }
             requests.replay(entry, on: connected)
-        }
-        .sectionListToolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Picker("Sort By", selection: $sort) {
-                        ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.inline)
-                    Picker("Status", selection: $statusFilter) {
-                        Text(StatusFilter.any.label).tag(StatusFilter.any)
-                        ForEach(statusOptions, id: \.self) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                } label: {
-                    Label("Sort and Filter", systemImage: statusFilter == .any ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                }
-                .help("Sort order and status filter")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(role: .destructive) {
-                    confirmingClear = true
-                } label: {
-                    Label(isFiltered ? "Clear Shown" : "Clear History", systemImage: "trash")
-                }
-                .disabled(filtered.isEmpty)
-            }
         }
         .focusedSceneValue(\.clearHistory, isActive && !filtered.isEmpty ? ClearHistoryAction(serverID: serverID) { confirmingClear = true } : nil)
         .focusedSceneValue(\.deleteHistoryEntry, isActive ? selection.map { id in DeleteHistoryEntryAction(id: id) { delete(id) } } : nil)

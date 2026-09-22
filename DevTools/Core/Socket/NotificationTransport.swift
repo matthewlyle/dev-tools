@@ -1,9 +1,11 @@
 import Foundation
 import os
 
+/// Frames are parsed here on the receive task, off the main actor, so the
+/// store only inserts.
 enum StreamEvent: Sendable {
     case opened
-    case message(String)
+    case message(NotificationEvent)
 }
 
 enum NotificationTransportError: Error, LocalizedError {
@@ -84,10 +86,10 @@ enum NotificationTransport {
                         switch message {
                         case .string(let text):
                             log.debug("websocket frame \(text.count) chars")
-                            continuation.yield(.message(text))
+                            continuation.yield(.message(NotificationEvent.make(raw: text)))
                         case .data(let data):
                             log.debug("websocket binary frame \(data.count) bytes")
-                            continuation.yield(.message(String(decoding: data, as: UTF8.self)))
+                            continuation.yield(.message(NotificationEvent.make(raw: String(decoding: data, as: UTF8.self))))
                         @unknown default:
                             continue
                         }

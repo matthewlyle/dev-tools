@@ -3,9 +3,12 @@ import SwiftUI
 /// The title menu. The server is the scope everything in the window is a view
 /// of, so it's chosen from the title — the HIG's document menu beside the
 /// title — rather than navigated to from a sidebar. The actions that act on
-/// the server list live here too, on both platforms.
+/// the server list live here too, on both platforms. iPad passes
+/// `showSettings`: the title menu is its one always-present in-window menu,
+/// and the HIG keeps settings out of toolbars. The Mac has a Settings scene.
 struct ServerMenu: View {
     let showInfo: () -> Void
+    var showSettings: (() -> Void)?
 
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
@@ -41,5 +44,10 @@ struct ServerMenu: View {
             Task { await servers.probe(id: id) }
         }
         .disabled(servers.selected == nil || servers.selected?.isProbing == true)
+
+        if let showSettings {
+            Divider()
+            Button("Settings…", action: showSettings)
+        }
     }
 }

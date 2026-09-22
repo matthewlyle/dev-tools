@@ -132,12 +132,12 @@ struct CodeTextView {
 
     private nonisolated static func color(for kind: TokenKind) -> PlatformColor {
         switch kind {
-        case .key, .attributeName: .systemTeal
-        case .string, .attributeValue: .systemGreen
-        case .number: .systemPurple
-        case .literal: .systemOrange
+        case .key, .attributeName: .codeTeal
+        case .string, .attributeValue: .codeGreen
+        case .number: .codePurple
+        case .literal: .codeOrange
         case .punctuation: .codeSecondaryLabel
-        case .tagName: .systemBlue
+        case .tagName: .codeBlue
         case .comment, .processingInstruction: .codeTertiaryLabel
         }
     }

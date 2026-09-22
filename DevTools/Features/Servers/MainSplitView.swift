@@ -34,11 +34,51 @@ extension EnvironmentValues {
 /// in place rather than through `.searchable`: on macOS its search field is a
 /// toolbar item, so entering those sections reconfigured the window toolbar
 /// and reflowed the section switcher mid-animation.
-struct ListFilterField: View {
+struct ListFilterField<Actions: View>: View {
     @Binding var text: String
     let prompt: String
+    private let actions: Actions?
+
+    init(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) {
+        _text = text
+        self.prompt = prompt
+        self.actions = actions()
+    }
 
     var body: some View {
+        placed
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+    }
+
+    /// The list's own actions (sort, clear) sit over the list on both
+    /// platforms: toolbar items over its column on macOS; on iPad, whose one
+    /// bar spans both panes and would push them to its far end, beside the
+    /// field.
+    @ViewBuilder
+    private var placed: some View {
+        #if os(macOS)
+        if let actions {
+            field.sectionListToolbar {
+                ToolbarItemGroup(placement: .primaryAction) { actions }
+            }
+        } else {
+            field
+        }
+        #else
+        HStack(spacing: 12) {
+            field
+            if let actions {
+                actions
+                    .labelStyle(.iconOnly)
+                    .imageScale(.large)
+            }
+        }
+        #endif
+    }
+
+    private var field: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
@@ -60,9 +100,14 @@ struct ListFilterField: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(.quaternary, in: .rect(cornerRadius: 8))
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+    }
+}
+
+extension ListFilterField where Actions == EmptyView {
+    init(text: Binding<String>, prompt: String) {
+        _text = text
+        self.prompt = prompt
+        actions = nil
     }
 }
 
@@ -199,9 +244,6 @@ struct SectionPicker: View {
     }
 }
 
-/// One header over the whole window: the server as the title (and its menu,
-/// which switches it), the section switcher in the centre, the section's
-/// filters trailing. The section list and its detail sit beneath.
 struct MainSplitView: View {
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
@@ -211,9 +253,7 @@ struct MainSplitView: View {
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
-    @State private var showSettings = false
     @AppStorage("sectionListVisible") private var sectionListVisible = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #endif
 
     private var connected: ConnectedServer? {
@@ -282,17 +322,11 @@ struct MainSplitView: View {
         NavigationStack {
             Group {
                 if servers.selected != nil {
-                    HStack(spacing: 0) {
-                        if sectionListVisible {
-                            sectionList
-                                .containerRelativeFrame(.horizontal) { length, _ in min(max(length * 0.4, 320), 460) }
-                                .background(Color(uiColor: .secondarySystemBackground))
-                                .transition(reduceMotion ? .opacity : .move(edge: .leading))
-                            Divider()
-                        }
+                    ListDetailPanes(showsList: sectionListVisible) {
+                        sectionList
+                    } detail: {
                         detailPane
                     }
-                    .animation(.smooth, value: sectionListVisible)
                 } else {
                     sectionList
                 }
@@ -310,17 +344,6 @@ struct MainSplitView: View {
                     .keyboardShortcut("s", modifiers: [.command, .control])
                     .disabled(servers.selected == nil)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Settings…") { showSettings = true }
-                            .keyboardShortcut(",", modifiers: .command)
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
             }
         }
     }
@@ -331,12 +354,16 @@ struct MainSplitView: View {
     /// iPad's title menu shows its chevron permanently; macOS's only on hover,
     /// so there the title is an explicit pull-down and the plain toolbar
     /// title is removed (the window keeps its title for Mission Control and
-    /// the Window menu).
+    /// the Window menu). iPadOS has no Settings scene, so Settings… presents
+    /// a sheet from here, reached from the title menu or the menu bar.
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
         @Binding var section: ServerSection
         @State private var showInfo = false
+        #if os(iOS)
+        @State private var showSettings = false
+        #endif
 
         func body(content: Content) -> some View {
             content
@@ -356,7 +383,9 @@ struct MainSplitView: View {
                     }
                 }
                 #else
-                .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }) }
+                .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }, showSettings: { showSettings = true }) }
+                .sheet(isPresented: $showSettings) { SettingsView() }
+                .focusedSceneValue(\.showSettings, ShowSettingsAction { showSettings = true })
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .secondaryAction) {
@@ -462,3 +491,83 @@ struct MainSplitView: View {
         Task { await servers.refresh(token: token) }
     }
 }
+
+#if os(iOS)
+/// iPad's section list and detail side by side under the one navigation bar.
+/// There is no split view column to resize, so the divider is the drag
+/// handle `NavigationSplitView` gives macOS. The kept width re-clamps to the
+/// window on every layout, so rotation or Split View never squeezes the
+/// detail below its minimum.
+private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
+    let showsList: Bool
+    @ViewBuilder let list: ListPane
+    @ViewBuilder let detail: DetailPane
+
+    @AppStorage("sectionListWidth") private var storedWidth: Double?
+    @GestureState private var dragTranslation: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { proxy in
+            let container = proxy.size.width
+            let range = Self.widthRange(in: container)
+            let resting = Self.clamp(storedWidth.map { CGFloat($0) } ?? min(container * 0.4, 460), to: range)
+            let width = Self.clamp(resting + dragTranslation, to: range)
+            HStack(spacing: 0) {
+                if showsList {
+                    list
+                        .frame(width: width)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .transition(reduceMotion ? .opacity : .move(edge: .leading))
+                    Divider()
+                        .overlay { handle(resting: resting, width: width, range: range, container: container) }
+                        .zIndex(1)
+                }
+                detail
+            }
+            .animation(.smooth, value: showsList)
+            .animation(reduceMotion ? nil : .smooth, value: storedWidth)
+        }
+    }
+
+    /// Wider than the hairline so it's easy to hit, but no wider than the
+    /// rows' trailing padding, so it doesn't cover list or detail content.
+    /// The drag reads global translation because the handle moves with it.
+    private func handle(resting: CGFloat, width: CGFloat, range: ClosedRange<CGFloat>, container: CGFloat) -> some View {
+        Color.clear
+            .frame(width: 20)
+            .contentShape(.rect)
+            .contentShape(.hoverEffect, Capsule().inset(by: 6))
+            .hoverEffect(.highlight)
+            .gesture(
+                DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                    .updating($dragTranslation) { value, state, _ in state = value.translation.width }
+                    .onEnded { value in
+                        storedWidth = Double(Self.clamp(resting + value.translation.width, to: range))
+                    }
+            )
+            .onTapGesture(count: 2) { storedWidth = nil }
+            .accessibilityElement()
+            .accessibilityLabel("Section List Width")
+            .accessibilityValue(Double(width / max(container, 1)).formatted(.percent.precision(.fractionLength(0))))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: storedWidth = Double(Self.clamp(resting + 40, to: range))
+                case .decrement: storedWidth = Double(Self.clamp(resting - 40, to: range))
+                @unknown default: break
+                }
+            }
+    }
+
+    /// The list's minimum (never wider than the window), macOS's column
+    /// maximum, and whatever leaves the detail its own minimum.
+    private static func widthRange(in container: CGFloat) -> ClosedRange<CGFloat> {
+        let lower = min(320, container)
+        return lower...max(lower, min(600, container - 360))
+    }
+
+    private static func clamp(_ width: CGFloat, to range: ClosedRange<CGFloat>) -> CGFloat {
+        min(max(width, range.lowerBound), range.upperBound)
+    }
+}
+#endif

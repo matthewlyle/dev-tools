@@ -11,15 +11,16 @@ struct RemoteImage<Placeholder: View>: View {
     @ViewBuilder let placeholder: () -> Placeholder
 
     @Environment(ImageStore.self) private var images
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var image: PlatformImage?
 
     var body: some View {
         ZStack {
             if let image {
                 if fit {
-                    Image(platformImage: image).resizable().scaledToFit()
+                    Image(platformImage: image).resizable().scaledToFit().transition(.opacity)
                 } else {
-                    Image(platformImage: image).resizable().scaledToFill()
+                    Image(platformImage: image).resizable().scaledToFill().transition(.opacity)
                 }
             } else {
                 placeholder()
@@ -28,9 +29,15 @@ struct RemoteImage<Placeholder: View>: View {
         .frame(width: size.width, height: size.height)
         .clipped()
         .task(id: "\(server?.machineID ?? "")|\(value ?? "")|\(Int(size.width))x\(Int(size.height))") {
+            guard let value, let server else { image = nil; return }
+            let pw = Int(size.width * 2), ph = Int(size.height * 2)
+            if let cached = images.cachedImage(for: value, server: server, width: pw, height: ph) {
+                image = cached
+                return
+            }
             image = nil
-            guard let value, let server else { return }
-            image = await images.image(for: value, server: server, width: Int(size.width * 2), height: Int(size.height * 2))
+            let loaded = await images.image(for: value, server: server, width: pw, height: ph)
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) { image = loaded }
         }
         // Lazy containers keep created cells alive, so drop the decoded image
         // when scrolled away; ImageStore's cache makes the return instant.

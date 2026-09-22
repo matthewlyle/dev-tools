@@ -190,7 +190,8 @@ struct MediaQueryBuilderView: View {
     }
 }
 
-/// Edits one group of the filter tree. The root renders inline; nested
+/// Edits one group of the filter tree. The root's parts are rows of the
+/// Filters section, so its add buttons are Form rows like Add Sort; nested
 /// groups draw a box with their own match toggle and a remove button.
 /// Bindings are keyed by node id, not index: an index-backed
 /// `ForEach($array)` shifts on removal and hangs the view.
@@ -215,51 +216,56 @@ private struct GroupEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !isRoot || !clause.children.isEmpty {
-                HStack {
-                    if !clause.children.isEmpty { matchPicker }
-                    Spacer(minLength: 0)
-                    if let remove {
-                        Button(role: .destructive, action: remove) {
-                            Label("Remove Filter Group", systemImage: "minus.circle")
-                                .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Remove this filter group")
-                    }
-                }
+        if isRoot {
+            parts
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                parts
             }
-
-            ForEach(clause.children) { node in
-                nodeView(node)
-            }
-
-            HStack(spacing: 14) {
-                Button {
-                    if let field = type.fields.first {
-                        clause.children.append(.term(MediaQuery.Term(field: field)))
-                    }
-                } label: {
-                    Label("Add Filter", systemImage: "plus")
-                }
-                .disabled(type.fields.isEmpty)
-                Button {
-                    clause.children.append(.group(MediaQuery.Group()))
-                } label: {
-                    Label("Add Filter Group", systemImage: "rectangle.stack.badge.plus")
-                }
-                .help("Nest filters in parentheses to mix all/any, e.g. (A or B) and C")
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-        }
-        .padding(isRoot ? 0 : 10)
-        .background {
-            if !isRoot {
+            .nestedFormButtonStyle()
+            .padding(10)
+            .background {
                 RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.4))
             }
         }
+    }
+
+    @ViewBuilder
+    private var parts: some View {
+        if !isRoot || !clause.children.isEmpty {
+            HStack {
+                if !clause.children.isEmpty { matchPicker }
+                Spacer(minLength: 0)
+                if let remove {
+                    Button(role: .destructive, action: remove) {
+                        Label("Remove Filter Group", systemImage: "minus.circle")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove this filter group")
+                }
+            }
+        }
+
+        ForEach(clause.children) { node in
+            nodeView(node)
+        }
+
+        Button {
+            if let field = type.fields.first {
+                clause.children.append(.term(MediaQuery.Term(field: field)))
+            }
+        } label: {
+            Label("Add Filter", systemImage: "plus")
+        }
+        .disabled(type.fields.isEmpty)
+
+        Button {
+            clause.children.append(.group(MediaQuery.Group()))
+        } label: {
+            Label("Add Filter Group", systemImage: "plus")
+        }
+        .help("Nest filters in parentheses to mix all/any, e.g. (A or B) and C")
     }
 
     @ViewBuilder
@@ -308,6 +314,22 @@ private struct GroupEditor: View {
                 }
             }
         )
+    }
+}
+
+private extension View {
+    /// Gives buttons inside a nested group the look of a Form row button.
+    /// macOS draws those as push buttons wherever they sit. iOS styles a
+    /// default button as the row itself, and every default button in one row
+    /// fires on any tap in it, so inside a box they go borderless, which is
+    /// the same accent-tinted label without the row.
+    @ViewBuilder
+    func nestedFormButtonStyle() -> some View {
+        #if os(macOS)
+        self
+        #else
+        buttonStyle(.borderless)
+        #endif
     }
 }
 

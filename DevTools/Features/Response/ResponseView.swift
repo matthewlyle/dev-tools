@@ -71,7 +71,9 @@ struct ResponseView<RequestBar: View>: View {
                                 description: Text(error)
                             )
                         } else {
-                            ZeroState(text: "Send a request to see the response here.")
+                            ZeroState(text: editable
+                                ? "Send a request to see the response here."
+                                : "Select a request to see the response here.")
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,9 +106,16 @@ struct ResponseView<RequestBar: View>: View {
                         PaginationControls(pagination: pagination, server: server)
                     }
                     if tab == .raw, let notice = requests.document?.notice {
-                        Text(notice)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                        ViewThatFits(in: .horizontal) {
+                            Text(notice)
+                                .lineLimit(1)
+                                .fixedSize()
+                            Label(notice, systemImage: "exclamationmark.triangle.fill")
+                                .labelStyle(.iconOnly)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .help(notice)
                     }
                     Spacer()
                     if tab == .raw, let document = requests.document {
@@ -250,6 +259,8 @@ struct PaginationControls: View {
             Text(pagination.label)
                 .font(.code(.callout))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
                 .contentTransition(.numericText(value: Double(pagination.start)))
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
@@ -272,27 +283,26 @@ struct PaginationControls: View {
     }
 }
 
+/// Every segment is unsplittable: when the row runs short the pill sheds
+/// detail — content type to its subtype, then gone, then the measurements —
+/// rather than wrap. It outranks its row siblings for width so it only sheds
+/// once the row is genuinely full.
 struct ResponseStatusBar: View {
     let response: PlexResponse
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Digits roll in the direction the value moved whenever a new response
-    /// lands; under Reduce Motion they simply change.
     var body: some View {
-        HStack(spacing: 12) {
-            Text(String(response.status))
-                .fontWeight(.semibold)
-                .foregroundStyle(statusColor)
-                .contentTransition(.numericText(value: Double(response.status)))
-            Text(response.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow)))
-                .contentTransition(.numericText(value: Double(response.duration.milliseconds)))
-            Text(response.byteCount.formatted(.byteCount(style: .file)))
-                .contentTransition(.numericText(value: Double(response.byteCount)))
-            if let type = shortContentType {
-                Text(type)
-                    .contentTransition(.interpolate)
+        let type = response.contentType.flatMap(Self.mediaType)
+        ViewThatFits(in: .horizontal) {
+            readout(type: type)
+            if let type, let subtype = Self.subtype(of: type), subtype != type {
+                readout(type: subtype)
             }
+            if type != nil {
+                readout(type: nil)
+            }
+            readout(type: nil, measurements: false)
         }
         .font(.code(.callout))
         .foregroundStyle(.secondary)
@@ -300,7 +310,44 @@ struct ResponseStatusBar: View {
         .padding(.vertical, 6)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
+        .help(summary.joined(separator: " · "))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(summary.joined(separator: ", "))
         .animation(reduceMotion ? nil : .snappy, value: response.receivedAt)
+        .layoutPriority(1)
+    }
+
+    private func readout(type: String?, measurements: Bool = true) -> some View {
+        HStack(spacing: 12) {
+            Text(String(response.status))
+                .fontWeight(.semibold)
+                .foregroundStyle(statusColor)
+                .contentTransition(.numericText(value: Double(response.status)))
+            if measurements {
+                Text(duration)
+                    .contentTransition(.numericText(value: Double(response.duration.milliseconds)))
+                Text(size)
+                    .contentTransition(.numericText(value: Double(response.byteCount)))
+            }
+            if let type {
+                Text(type)
+                    .contentTransition(.interpolate)
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    private var duration: String {
+        response.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow))
+    }
+
+    private var size: String {
+        response.byteCount.formatted(.byteCount(style: .file))
+    }
+
+    private var summary: [String] {
+        [String(response.status), duration, size] + [response.contentType].compactMap(\.self)
     }
 
     private var statusColor: Color {
@@ -311,7 +358,16 @@ struct ResponseStatusBar: View {
         }
     }
 
-    private var shortContentType: String? {
-        response.contentType?.split(separator: ";").first.map(String.init)
+    nonisolated static func mediaType(_ contentType: String) -> String? {
+        let type = contentType.prefix { $0 != ";" }.trimmingCharacters(in: .whitespaces)
+        return type.isEmpty ? nil : type
+    }
+
+    /// `application/json` → `json`; a structured suffix wins, so
+    /// `application/vnd.api+json` → `json`.
+    nonisolated static func subtype(of contentType: String) -> String? {
+        guard let type = mediaType(contentType), let slash = type.firstIndex(of: "/") else { return nil }
+        let token = type[type.index(after: slash)...].split(separator: "+").last.map(String.init)
+        return token?.isEmpty == false ? token : nil
     }
 }

@@ -1,24 +1,74 @@
 import SwiftUI
 
-/// The event list, with the selected event's payload in an inspector — the
-/// same list-plus-inspector shape as the Media section, on both platforms.
+/// The event list, with the selected event's payload in an inspector that
+/// opens on selection and closes by deselecting — the Media section's shape.
+/// The list lives in its own view so only it redraws per incoming frame; this
+/// body, and with it the inspector, reads nothing but the selection.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
-    @State private var showInspector = false
+
+    var body: some View {
+        EventList()
+            .inspector(isPresented: Binding(
+                get: { isActive && activity.selectedEvent != nil },
+                set: { presented in
+                    if !presented, isActive { activity.selectedEventID = nil }
+                }
+            )) {
+                if let event = activity.selectedEvent {
+                    EventInspector(event: event)
+                        .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
+                        // Where the inspector adapts to a sheet or an overlay
+                        // (compact width, a portrait or split-screen iPad),
+                        // the list stays live behind it so another tap
+                        // re-targets it instead of first dismissing it.
+                        .presentationBackgroundInteraction(.enabled)
+                }
+            }
+            .focusedSceneValue(
+                \.showMediaInfo,
+                isActive && activity.selectedEvent != nil
+                    ? ShowMediaInfoAction(visible: true) { activity.selectedEventID = nil }
+                    : nil
+            )
+    }
+}
+
+private struct EventList: View {
+    @Environment(ActivityStore.self) private var activity
+    @Environment(ServerStore.self) private var servers
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var selectedServer: ConnectedServer? {
+        servers.selected.flatMap { servers.connectedServer(for: $0) }
+    }
 
     var body: some View {
         @Bindable var activity = activity
 
         Group {
             if activity.events.isEmpty, !activity.status.isActive {
-                // Disconnected with nothing captured: the Connect button in the
-                // Activity panel is the only affordance, so this pane stays empty.
-                FillingScrollView { Color.clear }
+                // The list column's Connect can be hidden on iPad, so the
+                // pane carries its own.
+                FillingScrollView {
+                    disconnected
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
-                    EventRow(event: event)
+                    EventRow(event: event, title: activity.title(for: event))
                         .tag(event.id)
+                }
+                // A row tap on iPadOS runs the list's primary action — the
+                // platform's "open this item" — while macOS runs it on
+                // double-click and keeps native click and arrow-key
+                // selection. Selecting here opens the inspector from a tap on
+                // both; a tap gesture instead would swallow the macOS table's
+                // own selection.
+                .contextMenu(forSelectionType: NotificationEvent.ID.self) { _ in
+                } primaryAction: { ids in
+                    if let id = ids.first { activity.selectedEventID = id }
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
@@ -31,21 +81,47 @@ struct ActivityEventsView: View {
                         )
                     }
                 }
+                .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .inspector(isPresented: Binding(get: { isActive && showInspector }, set: { showInspector = $0 })) {
-            EventInspector(event: activity.selectedEvent)
-                .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
+    }
+
+    @ViewBuilder
+    private var disconnected: some View {
+        if case .failed(let message) = activity.status {
+            ContentUnavailableView {
+                Label("Couldn't Connect", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text("\(message) Check that the server is reachable, then try again.")
+            } actions: {
+                connectButton("Try Again")
+            }
+        } else {
+            ContentUnavailableView {
+                Label("Not Connected", systemImage: "dot.radiowaves.left.and.right")
+            } description: {
+                Text("Connect to watch playback, library scans, and other server activity as it happens.")
+            } actions: {
+                connectButton("Connect")
+            }
         }
-        .onChange(of: activity.visibleEvents.isEmpty, initial: true) { _, isEmpty in
-            showInspector = !isEmpty
+    }
+
+    private func connectButton(_ title: String) -> some View {
+        Button(title) {
+            guard let selectedServer else { return }
+            activity.connect(to: selectedServer)
         }
+        .disabled(selectedServer == nil)
     }
 }
 
 private struct EventRow: View {
     let event: NotificationEvent
+    let title: String?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -53,74 +129,91 @@ private struct EventRow: View {
                 .font(.code(.caption))
                 .foregroundStyle(.secondary)
             EventTypeBadge(type: event.type)
-            Text(event.summary)
+            Text(title.map(event.summary(title:)) ?? event.summary)
                 .font(.callout)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .contentTransition(.interpolate)
+                .animation(reduceMotion ? nil : .snappy, value: title)
         }
         .padding(.vertical, 2)
     }
 }
 
 private struct EventInspector: View {
-    let event: NotificationEvent?
+    let event: NotificationEvent
 
-    @State private var document: ResponseDocument?
+    @Environment(ActivityStore.self) private var activity
+    @State private var built: Built?
     @State private var collapsed: Set<Int> = []
 
+    /// A payload document and the event it was built from. The text view is
+    /// only shown for a document that belongs to `event`, so its `version`
+    /// (the event's time) can never be paired with another event's text.
+    private struct Built {
+        let eventID: NotificationEvent.ID
+        let document: ResponseDocument
+    }
+
+    private var document: ResponseDocument? {
+        built.flatMap { $0.eventID == event.id ? $0.document : nil }
+    }
+
     var body: some View {
-        if let event {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    EventTypeBadge(type: event.type)
-                    Text(event.receivedAt.formatted(.dateTime.hour().minute().second().secondFraction(.fractional(3))))
-                        .font(.code(.caption))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        Clipboard.copy(document?.text ?? event.raw)
-                    } label: {
-                        Label("Copy Payload", systemImage: "doc.on.doc")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Copy payload")
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                EventTypeBadge(type: event.type)
+                Text(event.receivedAt.formatted(.dateTime.hour().minute().second().secondFraction(.fractional(3))))
+                    .font(.code(.caption))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    Clipboard.copy(document?.text ?? event.raw)
+                } label: {
+                    Label("Copy Payload", systemImage: "doc.on.doc")
+                        .labelStyle(.iconOnly)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .buttonStyle(.borderless)
+                .help("Copy payload")
+                Button {
+                    activity.selectedEventID = nil
+                } label: {
+                    Label("Hide Info", systemImage: "xmark")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .help("Hide Info (⌘I)")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
 
-                Divider()
+            Divider()
 
-                if let document {
-                    CodeTextView(
-                        text: document.text,
-                        tokens: document.tokens,
-                        folds: document.folds,
-                        collapsed: $collapsed,
-                        wrap: true,
-                        version: event.receivedAt,
-                        header: AnyView(EmptyView())
-                    )
+            if let document {
+                CodeTextView(
+                    text: document.text,
+                    tokens: document.tokens,
+                    folds: document.folds,
+                    collapsed: $collapsed,
+                    wrap: true,
+                    version: event.receivedAt,
+                    header: AnyView(EmptyView())
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
             }
-            .task(id: event.id) {
-                collapsed = []
-                document = nil
-                let raw = event.raw
-                document = await Task.detached {
-                    ResponseDocument.build(body: Data(raw.utf8), contentType: "application/json")
-                }.value
-            }
-        } else {
-            ContentUnavailableView(
-                "No Event Selected",
-                systemImage: "waveform",
-                description: Text("Select an event to inspect its payload.")
-            )
+        }
+        .task(id: event.id) {
+            let id = event.id
+            let raw = event.raw
+            let document = await Task.detached(priority: .userInitiated) {
+                ResponseDocument.build(body: Data(raw.utf8), contentType: "application/json")
+            }.value
+            guard !Task.isCancelled else { return }
+            collapsed = []
+            built = Built(eventID: id, document: document)
         }
     }
 }

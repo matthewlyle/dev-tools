@@ -24,7 +24,8 @@ struct DeleteHistoryEntryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
-/// Published by the Media results grid while a poster is selected.
+/// Published by the Media results grid while a poster is selected, and by the
+/// Activity event list while an event is (its inspector only ever hides).
 struct ShowMediaInfoAction: Equatable {
     let visible: Bool
     let run: () -> Void
@@ -39,12 +40,25 @@ struct ShowServerInfoAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
+#if os(iOS)
+/// Published by the iPad window header. iPadOS has no Settings scene, so the
+/// App menu's Settings… presents the header's sheet in the focused window.
+struct ShowSettingsAction: Equatable {
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+}
+#endif
+
 extension FocusedValues {
     @Entry var clearHistory: ClearHistoryAction?
     @Entry var deleteHistoryEntry: DeleteHistoryEntryAction?
     @Entry var runMediaQuery: RunMediaQueryAction?
     @Entry var showMediaInfo: ShowMediaInfoAction?
     @Entry var showServerInfo: ShowServerInfoAction?
+    #if os(iOS)
+    @Entry var showSettings: ShowSettingsAction?
+    #endif
 }
 
 struct AppCommands: Commands {
@@ -59,6 +73,9 @@ struct AppCommands: Commands {
     @FocusedValue(\.runMediaQuery) private var runMediaQuery
     @FocusedValue(\.showMediaInfo) private var showMediaInfo
     @FocusedValue(\.showServerInfo) private var showServerInfo
+    #if os(iOS)
+    @FocusedValue(\.showSettings) private var showSettings
+    #endif
     @Environment(\.openURL) private var openURL
 
     private var activeServer: ConnectedServer? {
@@ -70,6 +87,14 @@ struct AppCommands: Commands {
     }
 
     var body: some Commands {
+        #if os(iOS)
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { showSettings?.run() }
+                .keyboardShortcut(",", modifiers: .command)
+                .disabled(showSettings == nil)
+        }
+        #endif
+
         CommandGroup(after: .appSettings) {
             Button("Sign Out…") { account.isConfirmingSignOut = true }
                 .disabled(account.user == nil)
