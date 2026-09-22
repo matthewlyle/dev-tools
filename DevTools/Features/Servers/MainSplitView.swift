@@ -389,7 +389,7 @@ struct MainSplitView: View {
     private var split: some View {
         NavigationSplitView(columnVisibility: $columns) {
             sectionList
-                .navigationSplitViewColumnWidth(min: 340, ideal: 340, max: 600)
+                .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 800)
                 .environment(\.sectionListVisible, columns != .detailOnly)
         } detail: {
             detailPane
@@ -601,9 +601,10 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
                 if showsList {
                     list
                         .frame(width: width)
-                        .background(Color(uiColor: .secondarySystemBackground))
+                        .background(Self.listBackground)
                         .transition(reduceMotion ? .opacity : .move(edge: .leading))
-                    Divider()
+                    Self.listBackground
+                        .frame(width: 1)
                         .overlay { handle(resting: resting, width: width, range: range, container: container) }
                         .zIndex(1)
                 }
@@ -643,11 +644,13 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
             }
     }
 
+    private static var listBackground: Color { Color(uiColor: .secondarySystemBackground) }
+
     /// The list's minimum (never wider than the window), macOS's column
     /// maximum, and whatever leaves the detail its own minimum.
     private static func widthRange(in container: CGFloat) -> ClosedRange<CGFloat> {
-        let lower = min(320, container)
-        return lower...max(lower, min(600, container - 360))
+        let lower = min(260, container)
+        return lower...max(lower, min(800, container - 360))
     }
 
     private static func clamp(_ width: CGFloat, to range: ClosedRange<CGFloat>) -> CGFloat {
