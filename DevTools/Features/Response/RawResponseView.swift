@@ -10,13 +10,10 @@ struct RawResponseView<Header: View>: View {
 
     var body: some View {
         if document.format == .image {
-            VStack(spacing: 0) {
+            FillingScrollView {
                 header()
-                ContentUnavailableView(
-                    "Binary Image Body",
-                    systemImage: "photo",
-                    description: Text("\(response.byteCount.formatted(.byteCount(style: .file))) — see the Pretty tab.")
-                )
+                ImageBody(response: response)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
             CodeTextView(
@@ -28,6 +25,45 @@ struct RawResponseView<Header: View>: View {
                 version: response.receivedAt,
                 header: AnyView(header())
             )
+        }
+    }
+}
+
+/// An image response shown as the image, never upscaled, with its pixel size.
+private struct ImageBody: View {
+    let response: PlexResponse
+
+    @State private var image: PlatformImage?
+    @State private var failed = false
+
+    var body: some View {
+        Group {
+            if let image {
+                VStack(spacing: 8) {
+                    Image(platformImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: image.size.width, maxHeight: image.size.height)
+                        .clipShape(.rect(cornerRadius: 8))
+                        .accessibilityLabel("Response image")
+                    Text("\(Int(image.size.width)) × \(Int(image.size.height))")
+                        .font(.code(.caption))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+            } else if failed {
+                ContentUnavailableView(
+                    "Can't Show Image",
+                    systemImage: "photo",
+                    description: Text("The body is labelled \(response.contentType ?? "an image") but couldn't be decoded. Check the Headers tab.")
+                )
+            } else {
+                ProgressView()
+            }
+        }
+        .task(id: response.receivedAt) {
+            image = PlatformImage(data: response.body)
+            failed = image == nil
         }
     }
 }
@@ -48,13 +84,18 @@ struct BodyControls: View {
     }
 
     var body: some View {
+        let isImage = document.format == .image
         Button {
-            Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
+            if isImage {
+                if let image = PlatformImage(data: response.body) { Clipboard.copy(image) }
+            } else {
+                Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
+            }
         } label: {
-            Label("Copy Body", systemImage: "doc.on.doc")
+            Label(isImage ? "Copy Image" : "Copy Body", systemImage: "doc.on.doc")
                 .labelStyle(.iconOnly)
         }
-        .help("Copy body")
+        .help(isImage ? "Copy image" : "Copy body")
         .buttonStyle(.borderless)
     }
 }

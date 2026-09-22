@@ -133,6 +133,15 @@ enum Clipboard {
         UIPasteboard.general.string = string
         #endif
     }
+
+    static func copy(_ image: PlatformImage) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        #else
+        UIPasteboard.general.image = image
+        #endif
+    }
 }
 
 extension Font.TextStyle {
