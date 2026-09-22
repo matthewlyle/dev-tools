@@ -1,4 +1,7 @@
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 struct ClientIdentity: Sendable, Hashable {
     let clientIdentifier: String
@@ -22,6 +25,7 @@ struct ClientIdentity: Sendable, Hashable {
         ]
     }
 
+    @MainActor
     static func current() -> ClientIdentity {
         let defaults = UserDefaults.standard
         let key = "clientIdentifier"
@@ -40,8 +44,8 @@ struct ClientIdentity: Sendable, Hashable {
         let deviceName = Host.current().localizedName ?? "Mac"
         #else
         let platform = "iOS"
-        let device = "iPad"
-        let deviceName = "iPad"
+        let device = UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad"
+        let deviceName = device
         #endif
         return ClientIdentity(
             clientIdentifier: id,

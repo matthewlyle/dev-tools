@@ -1,13 +1,13 @@
 # dev-tools — Plex API Playground
 
-Native macOS developer tool for exploring the Plex Media Server API. Postman-shaped, but it *knows* Plex: handles auth, discovers servers, drives every documented endpoint from the spec, and renders responses as highlighted, browsable documents.
+Native macOS, iPadOS, and iOS developer tool for exploring the Plex Media Server API. Postman-shaped, but it *knows* Plex: handles auth, discovers servers, drives every documented endpoint from the spec, and renders responses as highlighted, browsable documents.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
-| Platform | macOS 26+ and iPadOS 26+ (Liquid Glass), one universal app target (iPad-only device family). Xcode 27.1, Swift 6, strict concurrency. |
-| UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
+| Platform | macOS 26+, iPadOS 26+, and iOS 26+ (Liquid Glass), one universal app target (iPhone and iPad device families). Xcode 27.1, Swift 6, strict concurrency. |
+| UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. On a compact width (iPhone, narrow iPad split) each section is a tab: its list at the root, its detail pushed. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
 | Deps | Minimal. None planned for v1; reassess only if the hand-rolled XML/JSON highlighter proves inadequate. |
 | Bundle ID | `mldgg.devtools` |
 | Methods | **GET only** in v1. No PUT/DELETE/POST. |
@@ -56,7 +56,7 @@ dev-tools/
     RootView.swift               sign-in vs main split
     Core/
       Typeface.swift             Commit Mono via Font.code(_:); the only monospace path
-      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, SystemBrowser, checkbox/searchable helpers (macOS vs iPadOS)
+      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, isCompactWidth (never on macOS)
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (persisted UUID) + Product/Version/Platform/Device headers
       Auth/
@@ -106,16 +106,16 @@ dev-tools/
       ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection, item titles looked up per server + ratingKey
     Features/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
-      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; preload + reset on switch), ServerMenu (title menu: server names + Server Info…, Refresh Servers; Settings… on iPad), ServerInfoView (popover from the title: host, version, connection in use)
+      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; on a compact width a tab per section, list at the root and detail pushed via showSectionDetail; preload + reset on switch), ServerMenu (title menu: server names + Server Info…, Refresh Servers; Settings… on iPad and iPhone), ServerInfoView (popover from the title: host, version, connection in use)
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
       Browser/                   HistoryNavButtons — back/forward at the head of the URL line (Endpoints and History; Media records no navigation, since Back would show a query its form no longer holds)
-      Response/                  ResponseView (request bar, then status · pagination · tabs · body controls, 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
-      History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear; sort/status menu and Clear over the list (toolbar on macOS, beside the filter field on iPad); the detail rests on "Select a request…" (Endpoints' says "Send a request…")
-      Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events, or Not Connected / Couldn't Connect with its own Connect when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
+      Response/                  ResponseView (request bar, then ResponseInfoRow — status · pagination · tabs · body controls, two lines on a compact width — and 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
+      History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, swipe on a compact width, ⌫, ⌘⌫) or clear; sort/status menu and Clear over the list (toolbar on macOS, beside the filter field on iPad); the detail rests on "Select a request…" (Endpoints' says "Send a request…")
+      Activity/                  ActivityControlsView (connect/disconnect, clear, event types; Show Events where the events are pushed), ActivityEventsView (events, or Not Connected / Couldn't Connect with its own Connect when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
       MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts in precedence order, reordered from a row's context menu or by drag where the form allows, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
-      Saved/                     SavedRequestRow
-      Settings/                  SettingsView — app-wide response format, wrap lines, code theme (System, Xcode, GitHub, Atom One; light and dark), clear all history (confirmed); macOS Settings scene, iPad sheet from the title menu or the App menu (⌘,)
+      Saved/                     SavedRequestRow (context menu, or swipe on a compact width: Rename…, Delete…)
+      Settings/                  SettingsView — app-wide response format, wrap lines, code theme (System, Xcode, GitHub, Atom One; light and dark), clear all history (confirmed); macOS Settings scene, iOS sheet from the title menu or the App menu (⌘,)
     Resources/
       plex-openapi.json          generated by Tools/extract-spec.sh
       Fonts/                     Commit Mono
@@ -162,6 +162,7 @@ Each ends with a smoke-test proof, not a test suite.
 6. **Activity monitor.** Socket, event list, type filters, payload inspector, item titles in rows — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
 8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion, section-switch crossfade, response status settle, empty states fading out as content arrives, poster press and selection settle, parameter and header rows in and out with a rolling count, Activity connection status that pulses while connecting and bounces on connect), resizable iPad list pane — in progress.
+9. **iPhone.** Compact-width shell (a tab per section, list → pushed detail, Edit Request on Endpoints), two-line response info row and parameter rows, swipe actions on History and Saved, iPhone client identity, local-network usage string, Activity reconnect on return from the background — done. Deferred: Dynamic Type for the code face.
 
 ## Tests (targeted, fixture-driven)
 

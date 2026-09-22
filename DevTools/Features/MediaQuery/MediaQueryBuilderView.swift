@@ -14,6 +14,7 @@ struct MediaQueryBuilderView: View {
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.showSectionDetail) private var showDetail
 
     @State private var sectionsChecked = false
 
@@ -196,6 +197,7 @@ struct MediaQueryBuilderView: View {
         guard let server, store.currentType != nil else { return }
         requests.load(store.query.request())
         requests.send(to: server)
+        showDetail?()
     }
 
     private func moveSort(_ id: MediaQuery.Sort.ID, by offset: Int) {

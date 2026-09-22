@@ -17,53 +17,34 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
     let makeItem: (_ name: String, _ value: String) -> Item
     @State private var showAdd = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(items) { item in
                 let bound = binding(for: item)
-                HStack(spacing: 8) {
-                    Toggle("Enabled", isOn: bound.enabled)
-                        .labelsHidden()
-                    if let description = description(for: item.name) {
-                        Text(item.name)
-                            .font(.code(.body))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 5))
-                            .frame(minWidth: 120, idealWidth: 180, maxWidth: 260, alignment: .leading)
-                            .help(description)
-                    } else {
-                        TextField(namePlaceholder, text: bound.name)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.code(.body))
-                            .frame(minWidth: 120, idealWidth: 180, maxWidth: 260)
-                    }
-                    TextField(valuePlaceholder, text: bound.value)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.code(.body))
-                    if let values = enumValues(for: item.name) {
-                        Menu {
-                            ForEach(values, id: \.self) { value in
-                                Button(value) { bound.wrappedValue.value = value }
+                Group {
+                    // A compact width can't fit a name and a value beside the
+                    // switch, so the value takes a line of its own.
+                    if compact {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                enabledToggle(bound)
+                                nameField(item, bound)
+                                valuesMenu(item, bound)
+                                removeButton(item)
                             }
-                        } label: {
-                            Label("Documented Values", systemImage: "list.bullet")
-                                .labelStyle(.iconOnly)
+                            valueField(bound)
                         }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
-                        .help("Documented values")
+                    } else {
+                        HStack(spacing: 8) {
+                            enabledToggle(bound)
+                            nameField(item, bound)
+                            valueField(bound)
+                            valuesMenu(item, bound)
+                            removeButton(item)
+                        }
                     }
-                    Button {
-                        edit { items.removeAll { $0.id == item.id } }
-                    } label: {
-                        Label("Remove", systemImage: "minus.circle")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Remove")
                 }
                 .autocorrectionDisabled()
                 .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
@@ -96,6 +77,64 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                 }
             }
         }
+    }
+
+    private func enabledToggle(_ bound: Binding<Item>) -> some View {
+        Toggle("Enabled", isOn: bound.enabled)
+            .labelsHidden()
+    }
+
+    @ViewBuilder
+    private func nameField(_ item: Item, _ bound: Binding<Item>) -> some View {
+        if let description = description(for: item.name) {
+            Text(item.name)
+                .font(.code(.body))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 5))
+                .frame(minWidth: 120, idealWidth: 180, maxWidth: compact ? .infinity : 260, alignment: .leading)
+                .help(description)
+        } else {
+            TextField(namePlaceholder, text: bound.name)
+                .textFieldStyle(.roundedBorder)
+                .font(.code(.body))
+                .frame(minWidth: 120, idealWidth: 180, maxWidth: compact ? .infinity : 260)
+        }
+    }
+
+    private func valueField(_ bound: Binding<Item>) -> some View {
+        TextField(valuePlaceholder, text: bound.value)
+            .textFieldStyle(.roundedBorder)
+            .font(.code(.body))
+    }
+
+    @ViewBuilder
+    private func valuesMenu(_ item: Item, _ bound: Binding<Item>) -> some View {
+        if let values = enumValues(for: item.name) {
+            Menu {
+                ForEach(values, id: \.self) { value in
+                    Button(value) { bound.wrappedValue.value = value }
+                }
+            } label: {
+                Label("Documented Values", systemImage: "list.bullet")
+                    .labelStyle(.iconOnly)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Documented values")
+        }
+    }
+
+    private func removeButton(_ item: Item) -> some View {
+        Button {
+            edit { items.removeAll { $0.id == item.id } }
+        } label: {
+            Label("Remove", systemImage: "minus.circle")
+                .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.borderless)
+        .help("Remove")
     }
 
     /// Animates only the user's own adds and removes. `requests.reset()`

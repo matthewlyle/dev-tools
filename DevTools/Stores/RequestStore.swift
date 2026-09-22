@@ -48,7 +48,9 @@ final class RequestStore {
         Self.tokenAttributeNames.contains(name)
     }
 
-    private(set) var pathFocusToken = 0
+    /// Set by Focus Path and consumed by the request bar, which may not be on
+    /// screen yet: a compact width pushes it after the request.
+    var pathFocusPending = false
 
     /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
@@ -357,10 +359,11 @@ final class RequestStore {
         backStack = []
         forwardStack = []
         editingSavedID = nil
+        pathFocusPending = false
     }
 
     func requestPathFocus() {
-        pathFocusToken &+= 1
+        pathFocusPending = true
     }
 
     func previewURL(for server: ConnectedServer?) -> String {

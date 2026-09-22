@@ -10,6 +10,7 @@ struct SavedRequestRow: View {
     @Environment(SavedStore.self) private var saved
     @Environment(RequestStore.self) private var requests
     @Environment(ServerStore.self) private var servers
+    @Environment(\.showSectionDetail) private var showDetail
 
     @State private var renaming = false
     @State private var deleting = false
@@ -24,6 +25,7 @@ struct SavedRequestRow: View {
         Button {
             requests.load(saved: item)
             if let connected { requests.send(to: connected) }
+            showDetail?()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "bookmark.fill")
@@ -49,6 +51,13 @@ struct SavedRequestRow: View {
             Button("Rename…") { renaming = true }
             Divider()
             Button("Delete…", role: .destructive) { deleting = true }
+        }
+        // Delete asks first, so it isn't the destructive role: that role
+        // removes the row as the swipe ends, before the confirmation.
+        .swipeActions {
+            Button("Delete…") { deleting = true }
+                .tint(.red)
+            Button("Rename…") { renaming = true }
         }
         .sheet(isPresented: $renaming) {
             SaveRequestSheet(title: "Rename Request", name: item.name, notes: item.notes, action: "Save") { name, notes in

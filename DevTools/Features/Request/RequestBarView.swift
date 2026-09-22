@@ -122,7 +122,9 @@ struct RequestBarView: View {
             }
         }
         .padding(12)
-        .onChange(of: requests.pathFocusToken) { _, _ in
+        .task(id: requests.pathFocusPending) {
+            guard requests.pathFocusPending else { return }
+            requests.pathFocusPending = false
             pathFocused = true
         }
         .onChange(of: requests.saveRequestToken) { _, _ in

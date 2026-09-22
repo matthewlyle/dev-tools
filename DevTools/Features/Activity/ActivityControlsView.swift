@@ -4,6 +4,7 @@ struct ActivityControlsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.showSectionDetail) private var showDetail
     @State private var connections = 0
 
     private var selectedServer: ConnectedServer? {
@@ -48,6 +49,7 @@ struct ActivityControlsView: View {
                             Button("Connect") {
                                 guard let selectedServer else { return }
                                 activity.connect(to: selectedServer)
+                                showDetail?()
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(selectedServer == nil)
@@ -66,6 +68,31 @@ struct ActivityControlsView: View {
                 .padding(.vertical, 4)
             }
             .listRowSeparator(.hidden)
+
+            // Where the events are pushed rather than beside the controls,
+            // a row gets back to them.
+            if let showDetail, activity.status.isActive || !activity.events.isEmpty {
+                Section {
+                    Button {
+                        showDetail()
+                    } label: {
+                        HStack {
+                            Text("Show Events")
+                            Spacer()
+                            Text(activity.events.count.formatted())
+                                .font(.code(.callout))
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.forward")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .listRowSeparator(.hidden)
+            }
 
             if !activity.typeCounts.isEmpty || activity.status.isActive {
                 Section("Event Types") {

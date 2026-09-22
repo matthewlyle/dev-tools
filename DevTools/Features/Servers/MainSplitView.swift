@@ -28,6 +28,16 @@ extension EnvironmentValues {
     /// toolbar items or focused commands, or Send/Delete would act on a
     /// section that isn't on screen.
     @Entry var sectionIsActive = true
+    /// Brings the section's detail on screen after its list acts. Set only
+    /// where the detail isn't already beside the list: a compact width, which
+    /// pushes it.
+    @Entry var showSectionDetail: ShowSectionDetailAction? = nil
+}
+
+struct ShowSectionDetailAction {
+    let run: () -> Void
+
+    func callAsFunction() { run() }
 }
 
 /// A filter field pinned atop a section list. Endpoints and History filter
@@ -176,7 +186,8 @@ extension View {
 /// open: an Activity event's payload or a Media item's info. Sections are
 /// resident siblings, and two `.inspector` modifiers in one column compete
 /// for the same presentation, so a section's own would present or fill from
-/// whichever sibling SwiftUI read last.
+/// whichever sibling SwiftUI read last. On a compact width each tab's detail
+/// hosts its own, and only the active tab's presents.
 private struct SectionInspector: ViewModifier {
     let section: ServerSection
     let server: ConnectedServer?
@@ -184,6 +195,7 @@ private struct SectionInspector: ViewModifier {
     @Environment(ActivityStore.self) private var activity
     @Environment(MediaQueryStore.self) private var mediaQuery
     @Environment(RequestStore.self) private var requests
+    @Environment(\.sectionIsActive) private var isActive
 
     private enum Shown {
         case event(NotificationEvent)
@@ -193,6 +205,7 @@ private struct SectionInspector: ViewModifier {
     // Resolved in the body, not in the binding or content closures, so
     // Observation ties this view to exactly the state it presents.
     private var shown: Shown? {
+        guard isActive else { return nil }
         switch section {
         case .activity:
             return activity.selectedEvent.map(Shown.event)
@@ -208,7 +221,8 @@ private struct SectionInspector: ViewModifier {
 
     func body(content: Content) -> some View {
         let shown = shown
-        content.inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0 { dismiss() } })) {
+        let isActive = isActive
+        content.inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0, isActive { dismiss() } })) {
             switch shown {
             case .event(let event):
                 EventInspector(event: event)
@@ -216,11 +230,14 @@ private struct SectionInspector: ViewModifier {
                     // Where the inspector adapts to a sheet or an overlay
                     // (compact width, a portrait or split-screen iPad), the
                     // list stays live behind it so another tap re-targets it
-                    // instead of first dismissing it.
+                    // instead of first dismissing it; a half-height sheet
+                    // leaves the list in view to tap.
+                    .presentationDetents([.medium, .large])
                     .presentationBackgroundInteraction(.enabled)
             case .item(let item):
                 MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
                     .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
+                    .presentationDetents([.medium, .large])
                     .presentationBackgroundInteraction(.enabled)
             case nil:
                 EmptyView()
@@ -252,15 +269,30 @@ extension View {
 /// them all when the list appears, so hundreds of rows stall each section
 /// switch; iPadOS's list is lazy and never did. A `LazyVStack` realizes only
 /// what's on screen on both. Short columns (Activity, Media) keep `List`.
+/// A compact width is always iOS, so it takes the lazy `List`: rows swipe
+/// there, and a stack can't.
 struct SectionColumnList<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
+    @Environment(\.isCompactWidth) private var compact
+
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                content()
+        if compact {
+            List {
+                Group { content() }
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
-            .padding(.vertical, 6)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    content()
+                }
+                .padding(.vertical, 6)
+            }
         }
     }
 }
@@ -276,6 +308,7 @@ struct SectionColumnHeader: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 4)
+            .listRowInsets(EdgeInsets())
     }
 }
 
@@ -337,6 +370,9 @@ struct MainSplitView: View {
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
     @AppStorage("sectionListVisible") private var sectionListVisible = true
+    @Environment(\.isCompactWidth) private var compact
+    /// The sections whose detail is pushed over their list on a compact width.
+    @State private var pushed: Set<ServerSection> = []
     #endif
 
     private var connected: ConnectedServer? {
@@ -360,13 +396,17 @@ struct MainSplitView: View {
     /// built — not reactively after. Otherwise the incoming Endpoints/History
     /// detail builds `ResponseView`/`CodeTextView` for the previous response
     /// (an `NSTextView` on macOS) only to tear it down when the reset lands,
-    /// stalling the switch.
+    /// stalling the switch. On a compact width the details that showed the
+    /// reset workspace are popped with it.
     private var sectionBinding: Binding<ServerSection> {
         Binding(
             get: { section },
             set: { newValue in
                 guard newValue != section else { return }
                 requests.reset()
+                #if os(iOS)
+                pushed.subtract([.endpoints, .history, .mediaQuery])
+                #endif
                 section = newValue
             }
         )
@@ -379,6 +419,9 @@ struct MainSplitView: View {
             }
             .onChange(of: servers.selectedID) { _, _ in
                 requests.reset()
+                #if os(iOS)
+                pushed.removeAll()
+                #endif
             }
             .onChange(of: connected?.machineID, initial: true) { _, id in
                 if id != nil { hasConnected = true }
@@ -386,6 +429,16 @@ struct MainSplitView: View {
             .onChange(of: section, initial: true) { _, section in
                 requests.recordsNavigation = section != .mediaQuery
             }
+            #if os(iOS)
+            .onChange(of: requests.pathFocusPending) { _, pending in
+                guard pending, compact, servers.selected != nil else { return }
+                if section != .endpoints {
+                    sectionBinding.wrappedValue = .endpoints
+                    requests.requestPathFocus()
+                }
+                pushed.insert(.endpoints)
+            }
+            #endif
     }
 
     #if os(macOS)
@@ -400,11 +453,20 @@ struct MainSplitView: View {
         }
     }
     #else
+    @ViewBuilder
+    private var split: some View {
+        if compact {
+            compactSplit
+        } else {
+            regularSplit
+        }
+    }
+
     /// iPad has no window-wide toolbar over split columns, so the list and
     /// detail are two panes under one navigation bar. The `.editor` role is
     /// what keeps the title leading with `.secondaryAction` in the centre,
     /// matching the Mac toolbar.
-    private var split: some View {
+    private var regularSplit: some View {
         NavigationStack {
             Group {
                 if servers.selected != nil {
@@ -433,6 +495,108 @@ struct MainSplitView: View {
             }
         }
     }
+
+    /// A compact width (an iPhone, a narrow iPad split) can't hold the list
+    /// beside its detail, or the switcher beside the title, so each section
+    /// is a tab: its list at the root, its detail pushed. The tabs replace
+    /// the switcher, not the title — the server is still the title menu in
+    /// every tab.
+    @ViewBuilder
+    private var compactSplit: some View {
+        if isInitialLoad || servers.selected == nil {
+            NavigationStack {
+                Group {
+                    if isInitialLoad {
+                        connectionStatus
+                    } else {
+                        noServer
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background { WellBackground() }
+                .modifier(Header(title: title, entry: servers.selected, section: nil))
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        } else {
+            TabView(selection: sectionBinding) {
+                ForEach(ServerSection.allCases) { item in
+                    Tab(item.rawValue, systemImage: item.systemImage, value: item) {
+                        NavigationStack {
+                            compactList(item)
+                                .navigationDestination(isPresented: pushBinding(item)) {
+                                    compactDetail(item)
+                                }
+                        }
+                        .environment(\.sectionIsActive, section == item)
+                    }
+                }
+            }
+            .tabBarMinimizeBehavior(.onScrollDown)
+        }
+    }
+
+    private func compactList(_ item: ServerSection) -> some View {
+        Group {
+            if let entry = servers.selected {
+                switch item {
+                case .endpoints: EndpointListView(server: connected, serverID: entry.id)
+                case .history: HistoryListView(serverID: entry.id)
+                case .activity: ActivityControlsView()
+                case .mediaQuery: MediaQueryBuilderView(server: connected)
+                }
+            }
+        }
+        .id(servers.selected?.id)
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .environment(\.showSectionDetail, ShowSectionDetailAction { pushed.insert(item) })
+        .modifier(Header(title: title, entry: servers.selected, section: nil))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // The request bar is pushed, so a path can be typed without
+            // picking an endpoint first. Same action as Focus Path (⌘L).
+            if item == .endpoints {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        requests.requestPathFocus()
+                    } label: {
+                        Label("Edit Request", systemImage: "square.and.pencil")
+                    }
+                    .disabled(connected == nil)
+                }
+            }
+        }
+    }
+
+    private func compactDetail(_ item: ServerSection) -> some View {
+        Group {
+            switch item {
+            case .endpoints: WorkspaceView(editable: true)
+            case .history: WorkspaceView(editable: false)
+            case .activity: ActivityEventsView()
+            case .mediaQuery: MediaResultsView(server: connected)
+            }
+        }
+        .modifier(SectionInspector(section: item, server: connected))
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .background { WellBackground() }
+        .navigationTitle(detailTitle(item))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func detailTitle(_ item: ServerSection) -> String {
+        switch item {
+        case .endpoints, .history: "Request"
+        case .activity: "Events"
+        case .mediaQuery: "Results"
+        }
+    }
+
+    private func pushBinding(_ item: ServerSection) -> Binding<Bool> {
+        Binding(
+            get: { pushed.contains(item) },
+            set: { if $0 { pushed.insert(item) } else { pushed.remove(item) } }
+        )
+    }
     #endif
 
     /// Title leading (the server, with its menu), section switcher centre.
@@ -441,12 +605,17 @@ struct MainSplitView: View {
     /// so there the title is an explicit pull-down and the plain toolbar
     /// title is removed (the window keeps its title for Mission Control and
     /// the Window menu). iPadOS has no Settings scene, so Settings… presents
-    /// a sheet from here, reached from the title menu or the menu bar.
+    /// a sheet from here, reached from the title menu or the menu bar. On a
+    /// compact width every tab's root carries one, without the switcher, and
+    /// only the active tab's publishes its commands.
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
-        @Binding var section: ServerSection
+        /// The section switcher; nil where tabs switch sections instead.
+        let section: Binding<ServerSection>?
         @State private var showInfo = false
+        @Environment(\.sectionIsActive) private var isActive
+        @Environment(\.isCompactWidth) private var compact
         #if os(iOS)
         @State private var showSettings = false
         #endif
@@ -471,22 +640,29 @@ struct MainSplitView: View {
                 #else
                 .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }, showSettings: { showSettings = true }) }
                 .sheet(isPresented: $showSettings) { SettingsView() }
-                .focusedSceneValue(\.showSettings, ShowSettingsAction { showSettings = true })
+                .focusedSceneValue(\.showSettings, isActive ? ShowSettingsAction { showSettings = true } : nil)
                 #endif
                 .toolbar {
-                    ToolbarItem(placement: .secondaryAction) {
-                        SectionPicker(section: $section)
-                            .fixedSize()
+                    if let section {
+                        ToolbarItem(placement: .secondaryAction) {
+                            SectionPicker(section: section)
+                                .fixedSize()
+                        }
                     }
                 }
+                // A compact bar centres its title, so the popover points at
+                // the middle rather than the leading title.
                 .popover(
                     isPresented: $showInfo,
-                    attachmentAnchor: .rect(.rect(CGRect(x: 48, y: 0, width: 1, height: 1))),
+                    attachmentAnchor: compact ? .point(.top) : .rect(.rect(CGRect(x: 48, y: 0, width: 1, height: 1))),
                     arrowEdge: .top
                 ) {
-                    if let entry { ServerInfoView(entry: entry) }
+                    if let entry {
+                        ServerInfoView(entry: entry)
+                            .presentationCompactAdaptation(.popover)
+                    }
                 }
-                .focusedSceneValue(\.showServerInfo, entry == nil ? nil : ShowServerInfoAction { showInfo = true })
+                .focusedSceneValue(\.showServerInfo, entry == nil || !isActive ? nil : ShowServerInfoAction { showInfo = true })
         }
     }
 
@@ -508,12 +684,16 @@ struct MainSplitView: View {
             .id(entry.id)
             .scrollEdgeEffectStyle(.soft, for: .top)
         } else {
-            ContentUnavailableView(
-                "No Server Selected",
-                systemImage: "server.rack",
-                description: Text("Choose a server from the title menu.")
-            )
+            noServer
         }
+    }
+
+    private var noServer: some View {
+        ContentUnavailableView(
+            "No Server Selected",
+            systemImage: "server.rack",
+            description: Text("Choose a server from the title menu.")
+        )
     }
 
     /// Soft edge on both panes: `.automatic` can resolve to the hard style,

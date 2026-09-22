@@ -155,3 +155,15 @@ extension Font.TextStyle {
         #endif
     }
 }
+
+extension EnvironmentValues {
+    /// A horizontally compact layout: an iPhone, or an iPad in Slide Over or
+    /// a narrow split. The Mac has no size classes and is never compact.
+    var isCompactWidth: Bool {
+        #if os(macOS)
+        false
+        #else
+        horizontalSizeClass == .compact
+        #endif
+    }
+}

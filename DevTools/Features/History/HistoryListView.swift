@@ -6,6 +6,7 @@ struct HistoryListView: View {
     @Environment(RequestStore.self) private var requests
     @Environment(ServerStore.self) private var servers
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.showSectionDetail) private var showDetail
 
     private var connected: ConnectedServer? {
         servers.entry(id: serverID).flatMap { servers.connectedServer(for: $0) }
@@ -129,7 +130,14 @@ struct HistoryListView: View {
         SectionColumnList {
             ForEach(rows) { entry in
                 Button {
-                    selection = entry.id
+                    // Selecting replays; the already-selected row replays
+                    // again, since a section switch may have reset the workspace.
+                    if selection == entry.id, let connected {
+                        requests.replay(entry, on: connected)
+                    } else {
+                        selection = entry.id
+                    }
+                    showDetail?()
                 } label: {
                     HistoryRow(entry: entry)
                         .sectionColumnRow(selected: selection == entry.id)
@@ -137,6 +145,9 @@ struct HistoryListView: View {
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
+                    Button("Delete", role: .destructive) { delete(entry.id) }
+                }
+                .swipeActions {
                     Button("Delete", role: .destructive) { delete(entry.id) }
                 }
             }

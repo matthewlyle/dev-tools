@@ -110,27 +110,13 @@ struct ResponseView<RequestBar: View>: View {
             requestBar()
             if let response = requests.response {
                 Divider()
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
-                    }
-                    if tab == .raw, let notice = requests.document?.notice {
-                        ViewThatFits(in: .horizontal) {
-                            Text(notice)
-                                .lineLimit(1)
-                                .fixedSize()
-                            Label(notice, systemImage: "exclamationmark.triangle.fill")
-                                .labelStyle(.iconOnly)
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .help(notice)
-                    }
-                    Spacer()
-                    if tab == .raw, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
+                ResponseInfoRow(
+                    response: response,
+                    pagination: requests.pagination,
+                    server: server,
+                    notice: tab == .raw ? requests.document?.notice : nil,
+                    controls: tab == .raw ? requests.document.map { BodyControls(document: $0, response: response) } : nil
+                ) {
                     Picker("View", selection: $tab) {
                         ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -138,8 +124,6 @@ struct ResponseView<RequestBar: View>: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
         }
         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
@@ -284,6 +268,69 @@ private struct AccessHint: View {
         .padding(.vertical, 8)
         .background(.orange.opacity(0.08))
         .overlay(alignment: .bottom) { Divider() }
+    }
+}
+
+/// The status row under the request: status, paging, any notice, the body's
+/// controls, and the view tabs. A compact width can't hold all of them on
+/// one line, so the tabs share the first with the status and the rest drop
+/// to a second, shown only when it has something in it.
+struct ResponseInfoRow<Tabs: View>: View {
+    let response: PlexResponse
+    let pagination: PaginationInfo?
+    let server: ConnectedServer?
+    var notice: String? = nil
+    var controls: BodyControls? = nil
+    @ViewBuilder let tabs: () -> Tabs
+
+    @Environment(\.isCompactWidth) private var compact
+
+    var body: some View {
+        Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        ResponseStatusBar(response: response)
+                        Spacer(minLength: 0)
+                        tabs()
+                    }
+                    if pagination != nil || notice != nil || controls != nil {
+                        HStack(spacing: 10) {
+                            secondary
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 10) {
+                    ResponseStatusBar(response: response)
+                    secondary
+                    tabs()
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var secondary: some View {
+        if let pagination {
+            PaginationControls(pagination: pagination, server: server)
+        }
+        if let notice {
+            ViewThatFits(in: .horizontal) {
+                Text(notice)
+                    .lineLimit(1)
+                    .fixedSize()
+                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                    .labelStyle(.iconOnly)
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .help(notice)
+        }
+        Spacer()
+        controls
     }
 }
 

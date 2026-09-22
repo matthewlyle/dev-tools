@@ -128,15 +128,12 @@ struct MediaResultsView: View {
             RequestSummaryBar(server: server)
             if let response = requests.response {
                 Divider()
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
-                    }
-                    Spacer()
-                    if tab == .response, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
+                ResponseInfoRow(
+                    response: response,
+                    pagination: requests.pagination,
+                    server: server,
+                    controls: tab == .response ? requests.document.map { BodyControls(document: $0, response: response) } : nil
+                ) {
                     Picker("View", selection: $tab) {
                         ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -144,8 +141,6 @@ struct MediaResultsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
         }
         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
