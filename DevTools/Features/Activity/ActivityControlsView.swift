@@ -24,7 +24,7 @@ struct ActivityControlsView: View {
                             .symbolEffect(.bounce, value: connections)
                             .accessibilityHidden(true)
                         Text(statusText)
-                            .font(.callout)
+                            .font(.code(.callout))
                             .contentTransition(.interpolate)
                         Spacer()
                         if activity.status.isActive {
@@ -37,7 +37,7 @@ struct ActivityControlsView: View {
                     .animation(reduceMotion ? nil : .smooth, value: activity.status)
                     if let error = activity.lastError, activity.status != .failed(error) {
                         Text("Last error: \(error)")
-                            .font(.caption)
+                            .font(.code(.caption))
                             .foregroundStyle(.red)
                     }
 

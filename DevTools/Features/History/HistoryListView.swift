@@ -218,7 +218,7 @@ private struct HistoryRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(detail)
-                    .font(.caption)
+                    .font(.code(.caption))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

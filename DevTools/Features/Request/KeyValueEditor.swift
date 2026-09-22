@@ -165,7 +165,7 @@ private struct ParameterAddList: View {
                                         .font(.code(.callout))
                                     if let type = parameter.type {
                                         Text(type)
-                                            .font(.caption2)
+                                            .font(.code(.caption2))
                                             .foregroundStyle(.secondary)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)

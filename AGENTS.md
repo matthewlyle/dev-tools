@@ -79,7 +79,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 **Colour, type, icons**
 - System semantic colours only. Anything hashed to a colour maps into the 12-colour system palette, never raw HSL.
 - Syntax colours are system hues (`PlatformColor.codeTeal` …) resolved to their Increase Contrast variant in a light appearance and left standard in dark: the code surface is white, where the standard teal, green, and orange fall far under 4.5:1. Add a token colour the same way, never a raw system hue.
-- Text styles for hierarchy; no Light/Thin weights; no hand-set `.tracking`. Monospace only via `Font.code(_:)`.
+- Text styles for hierarchy; no Light/Thin weights; no hand-set `.tracking`. Monospace only via `Font.code(_:)`, and it's for what the machine says: paths, keys, values, types, counts and count badges, timings, status and error readouts (the Activity status line, a history row's detail). Prose — descriptions, zero states, headings, controls — stays in the system face.
 - SF Symbols used for their meaning. There are no OS/brand logos in SF Symbols: host marks come from bundled Simple Icons (`Assets/Hosts`, template vectors) plus `apple.logo`; Windows is hand-drawn. App icon is Lucide `braces` on the 1024 grid.
 
 **Copy**

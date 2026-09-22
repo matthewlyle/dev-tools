@@ -56,6 +56,7 @@ struct ServerInfoView: View {
         } else if let probe = servers.activeProbe(for: entry), case .ok(let latency) = probe.outcome {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(probe.connection.kind.rawValue) · \(latency.milliseconds) ms")
+                    .font(.code(.callout))
                 Text(probe.connection.uri)
                     .font(.code(.caption))
                     .foregroundStyle(.secondary)

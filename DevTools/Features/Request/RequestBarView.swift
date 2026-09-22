@@ -165,7 +165,7 @@ struct RequestBarView: View {
             if count > 0 {
                 Text(String(count))
                     .contentTransition(.numericText(value: Double(count)))
-                    .font(.caption2.weight(.semibold))
+                    .font(.code(.caption2, weight: .semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(.tint.opacity(0.18), in: .capsule)
@@ -229,7 +229,7 @@ struct OperationDocs: View {
                                     Text(parameter.name)
                                         .font(.code(.callout))
                                     Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
-                                        .font(.caption2)
+                                        .font(.code(.caption2))
                                         .foregroundStyle(.tertiary)
                                 }
                                 Text(parameter.description ?? "")
