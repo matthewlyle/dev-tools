@@ -132,9 +132,16 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
 private struct SectionResident: ViewModifier {
     let active: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func body(content: Content) -> some View {
+        // The body-scoped animation touches only the opacity: the section
+        // flag flows into toolbar items and focused values, which must swap
+        // in the same frame.
         content
-            .opacity(active ? 1 : 0)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.2)) {
+                $0.opacity(active ? 1 : 0)
+            }
             .allowsHitTesting(active)
             .disabled(!active)
             .accessibilityHidden(!active)
