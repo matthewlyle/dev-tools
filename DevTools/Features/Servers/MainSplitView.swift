@@ -187,7 +187,10 @@ extension View {
 /// resident siblings, and two `.inspector` modifiers in one column compete
 /// for the same presentation, so a section's own would present or fill from
 /// whichever sibling SwiftUI read last. On a compact width each tab's detail
-/// hosts its own, and only the active tab's presents.
+/// hosts its own, and only the active tab's presents. A Media item on a
+/// regular-width iPad opens in a centred sheet while the detail is taller
+/// than wide: a side panel there squeezes the poster grid, and a full-width
+/// iPad sheet can't rest at a bottom detent the way a phone's does.
 private struct SectionInspector: ViewModifier {
     let section: ServerSection
     let server: ConnectedServer?
@@ -196,6 +199,8 @@ private struct SectionInspector: ViewModifier {
     @Environment(MediaQueryStore.self) private var mediaQuery
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.isCompactWidth) private var compact
+    @State private var tall = false
 
     private enum Shown {
         case event(NotificationEvent)
@@ -219,17 +224,28 @@ private struct SectionInspector: ViewModifier {
         }
     }
 
+    private var itemInSheet: Bool {
+        #if os(iOS)
+        !compact && tall
+        #else
+        false
+        #endif
+    }
+
     func body(content: Content) -> some View {
         let shown = shown
         let isActive = isActive
+        let itemInSheet = itemInSheet
+        let sheetItem: MediaItem? = if itemInSheet, case .item(let item) = shown { item } else { nil }
+        let inspected = sheetItem == nil ? shown : nil
         content
             #if os(iOS)
             // UIKit hosts an inspector's main content in its own opaque
             // container, which covers a well drawn behind the modifier.
             .background { WellBackground() }
             #endif
-            .inspector(isPresented: Binding(get: { shown != nil }, set: { if !$0, isActive { dismiss() } })) {
-                switch shown {
+            .inspector(isPresented: Binding(get: { inspected != nil }, set: { if !$0, isActive, sheetItem == nil { dismiss() } })) {
+                switch inspected {
                 case .event(let event):
                     EventInspector(event: event)
                         .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
@@ -241,14 +257,30 @@ private struct SectionInspector: ViewModifier {
                         .presentationDetents([.medium, .large])
                         .presentationBackgroundInteraction(.enabled)
                 case .item(let item):
-                    MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
+                    mediaInfo(item)
                         .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
                         .presentationDetents([.medium, .large])
                         .presentationBackgroundInteraction(.enabled)
+                        // A compact inspector is a sheet, over the window's
+                        // lightbox; the sheet needs its own.
+                        .overlay { if compact { LightboxOverlay() } }
                 case nil:
                     EmptyView()
                 }
             }
+            #if os(iOS)
+            .sheet(isPresented: Binding(get: { sheetItem != nil }, set: { if !$0, isActive, itemInSheet { dismiss() } })) {
+                if let sheetItem {
+                    mediaInfo(sheetItem)
+                        .overlay { LightboxOverlay() }
+                }
+            }
+            .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { tall = $0 }
+            #endif
+    }
+
+    private func mediaInfo(_ item: MediaItem) -> some View {
+        MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
     }
 
     private func dismiss() {
