@@ -42,50 +42,62 @@ struct MediaResultsView: View {
     }
 
     var body: some View {
-        Group {
+        // Resting, error, and no-items states fade out; results arrive without
+        // one — the grid runs its own entrance, and the body can't take one.
+        ZStack {
             if let response = requests.response {
-                switch tab {
-                case .posters:
-                    if requests.document == nil {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group {
+                    switch tab {
+                    case .posters:
+                        ZStack {
+                            if requests.document == nil {
+                                FillingScrollView {
+                                    headerBlock
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                                .transition(.identity)
+                            } else if items.isEmpty {
+                                FillingScrollView {
+                                    headerBlock
+                                    ContentUnavailableView(
+                                        "No Items",
+                                        systemImage: "square.grid.3x3",
+                                        description: Text("The query matched nothing. Loosen a filter and run it again.")
+                                    )
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                                .transition(.opacity)
+                                .zIndex(1)
+                            } else {
+                                grid
+                                    .transition(.identity)
+                            }
                         }
-                    } else if items.isEmpty {
-                        FillingScrollView {
-                            headerBlock
-                            ContentUnavailableView(
-                                "No Items",
-                                systemImage: "square.grid.3x3",
-                                description: Text("The query matched nothing. Loosen a filter and run it again.")
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: items.isEmpty)
+                    case .response:
+                        if let document = requests.document {
+                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                                headerBlock
+                            }
+                        } else {
+                            FillingScrollView {
+                                headerBlock
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                         }
-                    } else {
-                        grid
-                    }
-                case .response:
-                    if let document = requests.document {
-                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                    case .headers:
+                        HeadersView(response: response, server: server, editable: false) {
                             headerBlock
                         }
-                    } else {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                case .headers:
-                    HeadersView(response: response, server: server, editable: false) {
-                        headerBlock
                     }
                 }
+                .transition(.identity)
             } else {
                 FillingScrollView {
                     headerBlock
-                    Group {
+                    ZStack {
                         if let error = requests.errorMessage {
                             ContentUnavailableView(
                                 "Request Failed",
@@ -96,10 +108,14 @@ struct MediaResultsView: View {
                             ZeroState(text: "Run a query to see its items as posters.")
                         }
                     }
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.errorMessage != nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.response != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .inspector(isPresented: $showInfo) {
             if let selected {

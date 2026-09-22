@@ -46,8 +46,9 @@ private struct EventList: View {
 
     var body: some View {
         @Bindable var activity = activity
+        let visible = activity.visibleEvents
 
-        Group {
+        ZStack {
             if activity.events.isEmpty, !activity.status.isActive {
                 // The list column's Connect can be hidden on iPad, so the
                 // pane carries its own.
@@ -55,8 +56,10 @@ private struct EventList: View {
                     disconnected
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .transition(.opacity)
+                .zIndex(1)
             } else {
-                List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
+                List(visible, selection: $activity.selectedEventID) { event in
                     EventRow(event: event, title: activity.title(for: event))
                         .tag(event.id)
                 }
@@ -73,17 +76,23 @@ private struct EventList: View {
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
                 .overlay {
-                    if activity.visibleEvents.isEmpty, activity.status.isActive {
-                        ContentUnavailableView(
-                            "Waiting for Events",
-                            systemImage: "dot.radiowaves.left.and.right",
-                            description: Text("Start playback or a library scan on any client.")
-                        )
+                    ZStack {
+                        if visible.isEmpty, activity.status.isActive {
+                            ContentUnavailableView(
+                                "Waiting for Events",
+                                systemImage: "dot.radiowaves.left.and.right",
+                                description: Text("Start playback or a library scan on any client.")
+                            )
+                            .transition(.opacity)
+                        }
                     }
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: visible.isEmpty)
                 }
                 .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
+                .transition(.identity)
             }
         }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: activity.events.isEmpty && !activity.status.isActive)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 

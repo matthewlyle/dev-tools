@@ -16,6 +16,7 @@ struct ResponseView<RequestBar: View>: View {
     @Environment(SpecStore.self) private var spec
     @AppStorage("responseTab") private var tab: ResponseTab = .raw
     @State private var collapsed: Set<Int> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Documented query parameters for the current route when the server
     /// rejected the request — the spec often omits `required`, so a 400 is
@@ -40,30 +41,35 @@ struct ResponseView<RequestBar: View>: View {
 
     var body: some View {
         @Bindable var requests = requests
-        return Group {
+        // Only the resting and error states fade; the body arrives instantly
+        // because a transition on the text view forces a full-document layout.
+        return ZStack {
             if let response = requests.response {
-                switch tab {
-                case .raw:
-                    if let document = requests.document {
-                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                Group {
+                    switch tab {
+                    case .raw:
+                        if let document = requests.document {
+                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                                headerBlock
+                            }
+                        } else {
+                            FillingScrollView {
+                                headerBlock
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                    case .headers:
+                        HeadersView(response: response, server: server, editable: editable) {
                             headerBlock
                         }
-                    } else {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                case .headers:
-                    HeadersView(response: response, server: server, editable: editable) {
-                        headerBlock
                     }
                 }
+                .transition(.identity)
             } else {
                 FillingScrollView {
                     headerBlock
-                    Group {
+                    ZStack {
                         if let error = requests.errorMessage {
                             ContentUnavailableView(
                                 "Request Failed",
@@ -76,10 +82,14 @@ struct ResponseView<RequestBar: View>: View {
                                 : "Select a request to see the response here.")
                         }
                     }
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.errorMessage != nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.response != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .popover(isPresented: $requests.showingDocs, attachmentAnchor: .point(.top), arrowEdge: .top) {
             if let operation = spec.operation(matching: requests.current.path) {
