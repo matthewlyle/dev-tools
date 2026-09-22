@@ -54,7 +54,7 @@ private struct EventList: View {
                     disconnected
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .transition(.opacity)
+                .restingStateTransition(rising: true)
                 .zIndex(1)
             } else {
                 List(visible, selection: $activity.selectedEventID) { event in
@@ -77,16 +77,14 @@ private struct EventList: View {
                     ZStack {
                         if visible.isEmpty, activity.status.isActive {
                             ZeroState(text: "Waiting for events. Start playback or a library scan on any client.")
-                                .transition(.opacity)
+                                .restingStateTransition(rising: true)
                         }
                     }
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: visible.isEmpty)
                 }
                 .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
                 .transition(.identity)
             }
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: activity.events.isEmpty && !activity.status.isActive)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 

@@ -131,19 +131,28 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
 /// keyboard focus.
 private struct SectionResident: ViewModifier {
     let active: Bool
+    let travel: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        // Only the incoming section fades. The outgoing one leaves at once:
+        // Only the incoming section moves. The outgoing one leaves at once:
         // the toolbar's edge effect already belongs to the new section, so a
         // fading-out section shows through the toolbar unblurred. The
         // body-scoped animation touches only the opacity, because the section
         // flag flows into toolbar items and focused values, which must swap
         // in the same frame.
         content
-            .animation(active && !reduceMotion ? .smooth(duration: 0.15) : nil) {
+            .animation(active && !reduceMotion ? .smooth(duration: 0.12) : nil) {
                 $0.opacity(active ? 1 : 0)
+            }
+            .keyframeAnimator(initialValue: CGFloat.zero, trigger: active) { view, x in
+                view.offset(x: x)
+            } keyframes: { _ in
+                KeyframeTrack {
+                    MoveKeyframe(active && !reduceMotion ? travel * 12 : 0)
+                    SpringKeyframe(0, duration: 0.3, spring: .snappy)
+                }
             }
             .allowsHitTesting(active)
             .disabled(!active)
@@ -153,8 +162,10 @@ private struct SectionResident: ViewModifier {
 }
 
 extension View {
-    func sectionResident(active: Bool) -> some View {
-        modifier(SectionResident(active: active))
+    /// `travel` is the switch's direction along the switcher: the incoming
+    /// section slides in from that side, forward from the trailing edge.
+    func sectionResident(active: Bool, travel: CGFloat) -> some View {
+        modifier(SectionResident(active: active, travel: travel))
     }
 }
 
@@ -260,6 +271,7 @@ struct MainSplitView: View {
     @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @State private var hasConnected = false
+    @State private var sectionTravel: CGFloat = 1
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
@@ -294,6 +306,8 @@ struct MainSplitView: View {
             set: { newValue in
                 guard newValue != section else { return }
                 requests.reset()
+                let order = ServerSection.allCases
+                sectionTravel = order.firstIndex(of: newValue)! > order.firstIndex(of: section)! ? 1 : -1
                 section = newValue
             }
         )
@@ -421,13 +435,13 @@ struct MainSplitView: View {
         } else if let entry = servers.selected {
             ZStack {
                 EndpointListView(server: connected, serverID: entry.id)
-                    .sectionResident(active: section == .endpoints)
+                    .sectionResident(active: section == .endpoints, travel: sectionTravel)
                 HistoryListView(serverID: entry.id)
-                    .sectionResident(active: section == .history)
+                    .sectionResident(active: section == .history, travel: sectionTravel)
                 ActivityControlsView()
-                    .sectionResident(active: section == .activity)
+                    .sectionResident(active: section == .activity, travel: sectionTravel)
                 MediaQueryBuilderView(server: connected)
-                    .sectionResident(active: section == .mediaQuery)
+                    .sectionResident(active: section == .mediaQuery, travel: sectionTravel)
             }
             .id(entry.id)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -452,11 +466,11 @@ struct MainSplitView: View {
             } else {
                 ZStack {
                     WorkspaceView(editable: section == .endpoints)
-                        .sectionResident(active: section == .endpoints || section == .history)
+                        .sectionResident(active: section == .endpoints || section == .history, travel: sectionTravel)
                     ActivityEventsView()
-                        .sectionResident(active: section == .activity)
+                        .sectionResident(active: section == .activity, travel: sectionTravel)
                     MediaResultsView(server: connected)
-                        .sectionResident(active: section == .mediaQuery)
+                        .sectionResident(active: section == .mediaQuery, travel: sectionTravel)
                 }
             }
         }

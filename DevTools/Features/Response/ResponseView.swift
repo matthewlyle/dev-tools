@@ -16,7 +16,6 @@ struct ResponseView<RequestBar: View>: View {
     @Environment(SpecStore.self) private var spec
     @AppStorage("responseTab") private var tab: ResponseTab = .raw
     @State private var collapsed: Set<Int> = []
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Documented query parameters for the current route when the server
     /// rejected the request — the spec often omits `required`, so a 400 is
@@ -41,8 +40,9 @@ struct ResponseView<RequestBar: View>: View {
 
     var body: some View {
         @Bindable var requests = requests
-        // Only the resting and error states fade; the body arrives instantly
-        // because a transition on the text view forces a full-document layout.
+        // Only the resting and error states transition; the body arrives
+        // instantly because a transition on the text view forces a
+        // full-document layout.
         return ZStack {
             if let response = requests.response {
                 Group {
@@ -76,20 +76,20 @@ struct ResponseView<RequestBar: View>: View {
                                 systemImage: "exclamationmark.triangle",
                                 description: Text(error)
                             )
+                            .restingStateTransition(rising: true)
                         } else {
                             ZeroState(text: editable
                                 ? "Send a request to see the response here."
                                 : "Select a request to see the response here.")
+                            .restingStateTransition(rising: true)
                         }
                     }
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.errorMessage != nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .transition(.opacity)
+                .restingStateTransition()
                 .zIndex(1)
             }
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.response != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .popover(isPresented: $requests.showingDocs, attachmentAnchor: .point(.top), arrowEdge: .top) {
             if let operation = spec.operation(matching: requests.current.path) {
@@ -202,6 +202,35 @@ struct ZeroState<Action: View>: View {
 extension ZeroState where Action == EmptyView {
     init(text: String) {
         self.init(text: text) { EmptyView() }
+    }
+}
+
+extension View {
+    /// How a resting, empty, or error state swaps with content: it arrives
+    /// over a beat and leaves at once, so content never waits on it. `rising`
+    /// adds a small lift on arrival, for states that don't carry the request
+    /// bar — the bar must not move.
+    func restingStateTransition(rising: Bool = false) -> some View {
+        modifier(RestingStateTransition(rising: rising))
+    }
+}
+
+private struct RestingStateTransition: ViewModifier {
+    let rising: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.transition(transition)
+    }
+
+    private var transition: AnyTransition {
+        if reduceMotion { return .identity }
+        let insertion: AnyTransition = rising ? .opacity.combined(with: .offset(y: 6)) : .opacity
+        return .asymmetric(
+            insertion: insertion.animation(.snappy(duration: 0.3)),
+            removal: .opacity.animation(.smooth(duration: 0.1))
+        )
     }
 }
 
@@ -336,7 +365,7 @@ struct ResponseStatusBar: View {
         } keyframes: { _ in
             KeyframeTrack {
                 CubicKeyframe(0.97, duration: 0)
-                SpringKeyframe(1.0, duration: 0.28, spring: .snappy)
+                SpringKeyframe(1.0, duration: 0.35, spring: .bouncy)
             }
         }
         .help(summary.joined(separator: " · "))

@@ -16,7 +16,6 @@ struct MediaResultsView: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
     @State private var selectedID: Int?
     @State private var showInfo = false
@@ -41,8 +40,9 @@ struct MediaResultsView: View {
     }
 
     var body: some View {
-        // Resting, error, and no-items states fade out; results arrive without
-        // one — the grid runs its own entrance, and the body can't take one.
+        // Resting, error, and no-items states transition; results arrive
+        // without one — the grid runs its own entrance, and the body can't
+        // take one.
         ZStack {
             if let response = requests.response {
                 Group {
@@ -66,14 +66,13 @@ struct MediaResultsView: View {
                                     )
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
-                                .transition(.opacity)
+                                .restingStateTransition()
                                 .zIndex(1)
                             } else {
                                 grid
                                     .transition(.identity)
                             }
                         }
-                        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: items.isEmpty)
                     case .response:
                         if let document = requests.document {
                             RawResponseView(document: document, response: response, collapsed: $collapsed) {
@@ -103,18 +102,18 @@ struct MediaResultsView: View {
                                 systemImage: "exclamationmark.triangle",
                                 description: Text(error)
                             )
+                            .restingStateTransition(rising: true)
                         } else {
                             ZeroState(text: "Run a query to see its items as posters.")
+                                .restingStateTransition(rising: true)
                         }
                     }
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.errorMessage != nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .transition(.opacity)
+                .restingStateTransition()
                 .zIndex(1)
             }
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: requests.response != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .inspector(isPresented: $showInfo) {
             if let selected {
@@ -234,7 +233,7 @@ private struct PosterCell: View {
                                     .transition(.opacity.combined(with: .scale(reduceMotion ? 1 : 1.04)))
                             }
                         }
-                        .animation(.snappy, value: isSelected)
+                        .animation(.bouncy, value: isSelected)
                     }
                 Text(item.caption(sortedBy: sortKey))
                     .font(.callout)

@@ -66,7 +66,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                     .help("Remove")
                 }
                 .autocorrectionDisabled()
-                .transition(.opacity.combined(with: .offset(y: 6)))
+                .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
             }
 
             if suggestions.isEmpty {
@@ -100,9 +100,10 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
 
     /// Animates only the user's own adds and removes. `requests.reset()`
     /// empties `items` on a section or server switch, which must not play
-    /// as a cascade of removals, so there's no animation keyed to the array.
+    /// as a cascade of removals — so no animation keyed to the array, and
+    /// none attached to the row transition, which would run on reset too.
     private func edit(_ change: () -> Void) {
-        withAnimation(reduceMotion ? nil : .smooth, change)
+        withAnimation(reduceMotion ? nil : .snappy, change)
     }
 
     /// Looked up by id on every access rather than captured by index:
