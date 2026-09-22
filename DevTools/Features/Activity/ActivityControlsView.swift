@@ -3,6 +3,8 @@ import SwiftUI
 struct ActivityControlsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var connections = 0
 
     private var selectedServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
@@ -15,11 +17,15 @@ struct ActivityControlsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 8, height: 8)
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(statusColor)
+                            .symbolEffect(.pulse, options: .repeating, isActive: isConnecting && !reduceMotion)
+                            .symbolEffect(.bounce, value: connections)
+                            .accessibilityHidden(true)
                         Text(statusText)
                             .font(.callout)
+                            .contentTransition(.interpolate)
                         Spacer()
                         if activity.status.isActive {
                             Text("\(activity.receivedCount.formatted()) received")
@@ -28,6 +34,7 @@ struct ActivityControlsView: View {
                                 .help("Messages received on the wire since connecting")
                         }
                     }
+                    .animation(reduceMotion ? nil : .smooth, value: activity.status)
                     if let error = activity.lastError, activity.status != .failed(error) {
                         Text("Last error: \(error)")
                             .font(.caption)
@@ -93,6 +100,9 @@ struct ActivityControlsView: View {
             activity.disconnect()
             activity.clear()
         }
+        .onChange(of: activity.status) { _, status in
+            if status == .connected, !reduceMotion { connections += 1 }
+        }
     }
 
     private var statusText: String {
@@ -102,6 +112,13 @@ struct ActivityControlsView: View {
         case .connected: "Connected to \(activity.server?.name ?? "server")"
         case .reconnecting(let attempt, let delay): "Reconnecting (attempt \(attempt), in \(delay)s)…"
         case .failed(let message): "Failed: \(message)"
+        }
+    }
+
+    private var isConnecting: Bool {
+        switch activity.status {
+        case .connecting, .reconnecting: true
+        case .connected, .disconnected, .failed: false
         }
     }
 
