@@ -4,7 +4,8 @@ import SwiftUI
 /// of, so it's chosen from the title — the HIG's document menu beside the
 /// title — rather than navigated to from a sidebar.
 struct ServerMenu: View {
-    @Environment(AccountStore.self) private var account
+    let showInfo: () -> Void
+
     @Environment(ServerStore.self) private var servers
 
     var body: some View {
@@ -24,10 +25,7 @@ struct ServerMenu: View {
 
         Divider()
 
-        Button("Refresh Servers") {
-            guard let token = account.token else { return }
-            Task { await servers.refresh(token: token) }
-        }
-        .disabled(account.token == nil || servers.isRefreshing)
+        Button("Server Info…", action: showInfo)
+            .disabled(servers.selected == nil)
     }
 }

@@ -106,7 +106,7 @@ dev-tools/
       ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection
     Features/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
-      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad; preload + reset on switch), ServerMenu (title menu: server names + Refresh), ServerInfoView (ⓘ popover beside the title: host, version, connection in use)
+      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad; preload + reset on switch), ServerMenu (title menu: server names + Server Info…), ServerInfoView (popover from the title: host, version, connection in use)
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (request bar → nav → response; editable vs read-only), RequestBarView, KeyValueEditor
       Browser/                   NavigationBar — back/forward + breadcrumbs (shown once there's a response)

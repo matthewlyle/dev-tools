@@ -36,6 +36,7 @@ struct SectionPicker: View {
 /// which switches it), the section switcher in the centre, the section's
 /// filters trailing. The section list and its detail sit beneath.
 struct MainSplitView: View {
+    @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
     @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
@@ -112,6 +113,18 @@ struct MainSplitView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button("Refresh Servers") {
+                            guard let token = account.token else { return }
+                            Task { await servers.refresh(token: token) }
+                        }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .disabled(account.token == nil || servers.isRefreshing)
+                        Button("Connect") {
+                            guard let id = servers.selectedID else { return }
+                            Task { await servers.probe(id: id) }
+                        }
+                        .disabled(servers.selected == nil || servers.selected?.isProbing == true)
+                        Divider()
                         Button("Settings…") { showSettings = true }
                             .keyboardShortcut(",", modifiers: .command)
                     } label: {
@@ -126,8 +139,8 @@ struct MainSplitView: View {
     }
     #endif
 
-    /// Title leading (the server, with its menu, then its ⓘ), section
-    /// switcher centre. `.secondaryAction` begins right after the title.
+    /// Title leading (the server, with its menu), section switcher centre.
+    /// Server Info… is a menu item, so its popover drops from the title area.
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
@@ -137,24 +150,19 @@ struct MainSplitView: View {
         func body(content: Content) -> some View {
             content
                 .navigationTitle(title)
-                .toolbarTitleMenu { ServerMenu() }
+                .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }) }
                 .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Button {
-                            showInfo = true
-                        } label: {
-                            Label("Server Info", systemImage: "info.circle")
-                        }
-                        .help("Server info")
-                        .disabled(entry == nil)
-                        .popover(isPresented: $showInfo, arrowEdge: .bottom) {
-                            if let entry { ServerInfoView(entry: entry) }
-                        }
-                    }
                     ToolbarItem(placement: .secondaryAction) {
                         SectionPicker(section: $section)
                             .fixedSize()
                     }
+                }
+                .popover(
+                    isPresented: $showInfo,
+                    attachmentAnchor: .rect(.rect(CGRect(x: 48, y: 0, width: 1, height: 1))),
+                    arrowEdge: .top
+                ) {
+                    if let entry { ServerInfoView(entry: entry) }
                 }
                 .focusedSceneValue(\.showServerInfo, entry == nil ? nil : ShowServerInfoAction { showInfo = true })
         }
