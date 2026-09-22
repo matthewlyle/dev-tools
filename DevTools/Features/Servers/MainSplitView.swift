@@ -41,6 +41,8 @@ struct MainSplitView: View {
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
     #if !os(macOS)
     @State private var showSettings = false
+    @AppStorage("sectionListVisible") private var sectionListVisible = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #endif
 
     private var connected: ConnectedServer? {
@@ -82,11 +84,15 @@ struct MainSplitView: View {
             Group {
                 if servers.selected != nil {
                     HStack(spacing: 0) {
-                        sectionList
-                            .containerRelativeFrame(.horizontal) { length, _ in min(max(length * 0.4, 320), 460) }
-                        Divider()
+                        if sectionListVisible {
+                            sectionList
+                                .containerRelativeFrame(.horizontal) { length, _ in min(max(length * 0.4, 320), 460) }
+                                .transition(reduceMotion ? .opacity : .move(edge: .leading))
+                            Divider()
+                        }
                         detailPane
                     }
+                    .animation(.smooth, value: sectionListVisible)
                 } else {
                     sectionList
                 }
@@ -95,6 +101,15 @@ struct MainSplitView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        sectionListVisible.toggle()
+                    } label: {
+                        Label(sectionListVisible ? "Hide Section List" : "Show Section List", systemImage: "sidebar.leading")
+                    }
+                    .keyboardShortcut("s", modifiers: [.command, .control])
+                    .disabled(servers.selected == nil)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
