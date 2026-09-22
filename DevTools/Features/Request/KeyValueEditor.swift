@@ -15,6 +15,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
     let valuePlaceholder: String
     var suggestions: [SpecParameter] = []
     let makeItem: (_ name: String, _ value: String) -> Item
+    @State private var showAdd = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -76,22 +77,22 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
             } else {
-                Menu {
-                    Button("Custom…") { items.append(makeItem("", "")) }
-                    Divider()
-                    ForEach(unused) { parameter in
-                        Button {
-                            items.append(makeItem(parameter.name, parameter.suggestedValue))
-                        } label: {
-                            Text(menuTitle(parameter))
-                        }
-                    }
+                Button {
+                    showAdd = true
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
-                .menuStyle(.borderlessButton)
+                .buttonStyle(.borderless)
                 .controlSize(.small)
-                .fixedSize()
+                .popover(isPresented: $showAdd, arrowEdge: .bottom) {
+                    ParameterAddList(parameters: unused) { parameter in
+                        items.append(makeItem(parameter.name, parameter.suggestedValue))
+                        showAdd = false
+                    } onCustom: {
+                        items.append(makeItem("", ""))
+                        showAdd = false
+                    }
+                }
             }
         }
     }
@@ -125,11 +126,77 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         return values.isEmpty ? nil : values
     }
 
-    private func menuTitle(_ parameter: SpecParameter) -> String {
-        guard let description = parameter.description?.split(separator: "\n").first, !description.isEmpty else {
-            return parameter.name
+}
+
+/// The Add-parameter popover: documented parameters with their descriptions
+/// as subtitles (a plain `Menu` forces one line and drops them), plus a
+/// Custom entry. Tapping one adds it and closes.
+private struct ParameterAddList: View {
+    let parameters: [SpecParameter]
+    let onPick: (SpecParameter) -> Void
+    let onCustom: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                row {
+                    Label("Custom Parameter", systemImage: "plus")
+                        .font(.callout)
+                } action: {
+                    onCustom()
+                }
+
+                if !parameters.isEmpty {
+                    Divider().padding(.horizontal, 12)
+                    ForEach(parameters) { parameter in
+                        row {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(parameter.name)
+                                        .font(.code(.callout))
+                                    if let type = parameter.type {
+                                        Text(type)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(.quaternary, in: .capsule)
+                                    }
+                                    if parameter.required {
+                                        Text("required")
+                                            .font(.caption2)
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                                if let description = parameter.description, !description.isEmpty {
+                                    Text(description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                        } action: {
+                            onPick(parameter)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 4)
         }
-        let short = description.count > 70 ? String(description.prefix(67)) + "…" : String(description)
-        return "\(parameter.name) — \(short)"
+        .frame(width: 360)
+        .frame(maxHeight: 400)
+    }
+
+    @ViewBuilder
+    private func row<Label: View>(@ViewBuilder label: () -> Label, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 }
