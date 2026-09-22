@@ -32,13 +32,13 @@ struct ServerMenu: View {
     }
 }
 
+/// One line: a `Picker` option can't carry a subtitle, it splits into rows.
 private struct ServerMenuRow: View {
     let entry: ServerStore.Entry
     let active: ProbeResult?
 
     var body: some View {
-        Text(entry.resource.name)
-        Text(subtitle)
+        Text(verbatim: "\(entry.resource.name) — \(subtitle)")
     }
 
     private var subtitle: String {
