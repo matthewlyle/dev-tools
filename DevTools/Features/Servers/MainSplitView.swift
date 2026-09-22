@@ -771,7 +771,8 @@ struct MainSplitView: View {
 /// There is no split view column to resize, so the divider is the drag
 /// handle `NavigationSplitView` gives macOS. The kept width re-clamps to the
 /// window on every layout, so rotation or Split View never squeezes the
-/// detail below its minimum.
+/// detail below its minimum. One well spans both panes, so the list sits on
+/// the same backdrop as the detail with no seam where they meet.
 private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
     let showsList: Bool
     @ViewBuilder let list: ListPane
@@ -791,15 +792,15 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
                 if showsList {
                     list
                         .frame(width: width)
-                        .background(Self.listBackground)
                         .transition(reduceMotion ? .opacity : .move(edge: .leading))
-                    Self.listBackground
+                    Color.clear
                         .frame(width: 1)
                         .overlay { handle(resting: resting, width: width, range: range, container: container) }
                         .zIndex(1)
                 }
                 detail
             }
+            .background { WellBackground() }
             .animation(.smooth, value: showsList)
             .animation(reduceMotion ? nil : .smooth, value: storedWidth)
         }
@@ -833,8 +834,6 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
                 }
             }
     }
-
-    private static var listBackground: Color { Color(uiColor: .secondarySystemBackground) }
 
     /// The list's minimum (never wider than the window), macOS's column
     /// maximum, and whatever leaves the detail its own minimum.
