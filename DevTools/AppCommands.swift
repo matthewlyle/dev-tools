@@ -24,7 +24,8 @@ struct DeleteHistoryEntryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
-/// Published by the Media results grid while a poster is selected.
+/// Published by the Media results grid while a poster is selected, and by the
+/// Activity event list while an event is (its inspector only ever hides).
 struct ShowMediaInfoAction: Equatable {
     let visible: Bool
     let run: () -> Void
