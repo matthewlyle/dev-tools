@@ -52,6 +52,33 @@ struct MediaItem: Identifiable, Hashable, Sendable {
         return present.isEmpty ? nil : present.joined(separator: " · ")
     }
 
+    /// The one line under a poster: the value the results are sorted by, so
+    /// a grid sorted by duration reads as durations and one sorted by title
+    /// as titles. Falls back to the title when the sort has nothing to show
+    /// (`random`, or a field the item lacks).
+    func caption(sortedBy key: String?) -> String {
+        guard let key, key != "title", key != "titleSort", let resolved = sortValue(key) else { return title }
+        switch resolved.name {
+        case "rating", "audienceRating", "userRating": return MediaValue.rating(resolved.value) ?? resolved.value
+        case "viewCount": return MediaValue.count(resolved.value, "play", "plays") ?? resolved.value
+        default: return MediaValue.display(name: resolved.name, value: resolved.value) ?? resolved.value
+        }
+    }
+
+    /// `media…` sort keys (`mediaBitrate`, `mediaHeight`) live on the
+    /// `Media` child, not the item.
+    private func sortValue(_ key: String) -> (name: String, value: String)? {
+        if let value = node[key], !value.isEmpty { return (key, value) }
+        if key.hasPrefix("media"), key.count > 5 {
+            let inner = key.dropFirst(5)
+            let name = inner.prefix(1).lowercased() + inner.dropFirst()
+            if let media = node.children.first(where: { $0.name == "Media" }), let value = media[name], !value.isEmpty {
+                return (name, value)
+            }
+        }
+        return nil
+    }
+
     private var episodeCode: String? {
         guard let episode = node["index"] else { return nil }
         if let season = node["parentIndex"] { return "S\(season)·E\(episode)" }

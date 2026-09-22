@@ -231,3 +231,90 @@ indirect enum JSONValue: Sendable, Hashable {
         }
     }
 }
+
+extension JSONValue {
+    /// Re-serialized with member order and number text intact, two-space
+    /// indented — the response's own JSON for one node, not a lossy rebuild
+    /// from the parsed `Node` (whose attributes are sorted and typed away).
+    func prettyPrinted() -> String {
+        var out = ""
+        write(into: &out, indent: 0)
+        return out
+    }
+
+    private func write(into out: inout String, indent: Int) {
+        let pad = String(repeating: "  ", count: indent)
+        let inner = pad + "  "
+        switch self {
+        case .object(let members):
+            guard !members.isEmpty else { out += "{}"; return }
+            out += "{\n"
+            for (i, member) in members.enumerated() {
+                out += inner + "\"" + Self.escape(member.key) + "\": "
+                member.value.write(into: &out, indent: indent + 1)
+                out += i == members.count - 1 ? "\n" : ",\n"
+            }
+            out += pad + "}"
+        case .array(let items):
+            guard !items.isEmpty else { out += "[]"; return }
+            out += "[\n"
+            for (i, item) in items.enumerated() {
+                out += inner
+                item.write(into: &out, indent: indent + 1)
+                out += i == items.count - 1 ? "\n" : ",\n"
+            }
+            out += pad + "]"
+        case .string(let value): out += "\"" + Self.escape(value) + "\""
+        case .number(let value): out += value
+        case .bool(let value): out += value ? "true" : "false"
+        case .null: out += "null"
+        }
+    }
+
+    private static func escape(_ string: String) -> String {
+        var result = ""
+        for scalar in string.unicodeScalars {
+            switch scalar {
+            case "\"": result += "\\\""
+            case "\\": result += "\\\\"
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default:
+                if scalar.value < 0x20 { result += String(format: "\\u%04x", scalar.value) }
+                else { result.unicodeScalars.append(scalar) }
+            }
+        }
+        return result
+    }
+
+    private var scalarText: String? {
+        switch self {
+        case .string(let value): value
+        case .number(let value): value
+        case .bool(let value): value ? "true" : "false"
+        default: nil
+        }
+    }
+
+    /// The first object anywhere in the tree with a scalar member `name`
+    /// equal to `value` — used to pull one item's object out of a response by
+    /// its `ratingKey`.
+    func firstObject(scalar name: String, equals value: String) -> JSONValue? {
+        switch self {
+        case .object(let members):
+            if members.contains(where: { $0.key == name && $0.value.scalarText == value }) { return self }
+            for member in members {
+                if let hit = member.value.firstObject(scalar: name, equals: value) { return hit }
+            }
+            return nil
+        case .array(let items):
+            for item in items {
+                if let hit = item.firstObject(scalar: name, equals: value) { return hit }
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+}

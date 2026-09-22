@@ -60,6 +60,19 @@ struct MediaItemTests {
         #expect(MediaValue.runtime("500") == nil)
     }
 
+    @Test func captionShowsTheSortedFieldAndFallsBackToTitle() throws {
+        let heat = try item(#"{"MediaContainer":{"Metadata":[{"type":"movie","title":"Heat","year":1995,"duration":10200000,"rating":8.4,"addedAt":1700000000,"Media":[{"id":1,"bitrate":12000}]}]}}"#)
+        #expect(heat.caption(sortedBy: nil) == "Heat")
+        #expect(heat.caption(sortedBy: "titleSort") == "Heat")
+        #expect(heat.caption(sortedBy: "year") == "1995")
+        #expect(heat.caption(sortedBy: "duration") == MediaValue.runtime("10200000"))
+        #expect(heat.caption(sortedBy: "rating") == "★ 8.4")
+        #expect(heat.caption(sortedBy: "addedAt") == MediaValue.display(name: "addedAt", value: "1700000000"))
+        #expect(heat.caption(sortedBy: "mediaBitrate") == "12.0 Mbps")
+        #expect(heat.caption(sortedBy: "random") == "Heat")
+        #expect(heat.caption(sortedBy: "lastViewedAt") == "Heat")
+    }
+
     @Test func ultraBlurHexParsesSixDigitsWithOrWithoutHash() {
         #expect(Color(plexHex: "1a2b3c") != nil)
         #expect(Color(plexHex: "#1A2B3C") != nil)

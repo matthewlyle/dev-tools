@@ -14,16 +14,20 @@ struct MediaQueryTests {
         return t
     }
 
+    private func node(_ key: String, _ type: MediaFieldType, _ op: String, _ value: String) -> MediaQuery.Node {
+        .term(term(key, type, op, value))
+    }
+
     @Test func operatorCharactersRideOnTheKey() {
         var q = MediaQuery()
         q.sectionKey = "1"
         q.type = 1
-        q.terms = [
-            term("year", .integer, ">>=", "2000"),
-            term("addedAt", .date, ">>=", "-3y"),
-            term("title", .string, "==", "Heat"),
-            term("title", .string, "!==", "Heat 2"),
-            term("rating", .integer, ">=", "8"),
+        q.root.children = [
+            node("year", .integer, ">>=", "2000"),
+            node("addedAt", .date, ">>=", "-3y"),
+            node("title", .string, "==", "Heat"),
+            node("title", .string, "!==", "Heat 2"),
+            node("rating", .integer, ">=", "8"),
         ]
         #expect(query(q.queryParams) == "type=1&year>>=2000&addedAt>>=-3y&title==Heat&title!==Heat 2&rating>=8")
         #expect(q.path == "/library/sections/1/all")
@@ -36,7 +40,7 @@ struct MediaQueryTests {
         let unwatched = term("unwatched", .boolean, "=", "1")
         var watched = term("unwatched", .boolean, "=", "0")
         watched.value = "0"
-        q.terms = [unwatched, watched]
+        q.root.children = [.term(unwatched), .term(watched)]
         #expect(query(q.queryParams) == "type=1&unwatched=1&unwatched=0")
         #expect(MediaQuery.Term(field: MediaField(key: "unwatched", title: "", type: .boolean)).isActive)
     }
@@ -45,11 +49,11 @@ struct MediaQueryTests {
         var q = MediaQuery()
         q.sectionKey = "2"
         q.type = 4
-        q.matchAny = true
-        q.terms = [
-            term("index", .integer, "=", "1"),
-            term("title", .string, "=", ""),
-            term("rating", .integer, "=", "2"),
+        q.root.matchAny = true
+        q.root.children = [
+            node("index", .integer, "=", "1"),
+            node("title", .string, "=", ""),
+            node("rating", .integer, "=", "2"),
         ]
         #expect(query(q.queryParams) == "type=4&index=1&or=1&rating=2")
     }
@@ -68,7 +72,7 @@ struct MediaQueryTests {
         var q = MediaQuery()
         q.sectionKey = "1"
         q.type = 1
-        q.terms = [term("year", .integer, ">>=", "2000")]
+        q.root.children = [node("year", .integer, ">>=", "2000")]
         let url = try #require(q.request().url(base: URL(string: "http://host:32400")!))
         #expect(url.absoluteString.contains("year%3E%3E=2000"))
         #expect(!url.absoluteString.contains("X-Plex-Token"))
@@ -150,7 +154,39 @@ struct MediaQueryTests {
         q.type = 1
         var genre = term("genre", .tag, "=", "12")
         genre.label = "Action"
-        q.terms = [genre]
+        q.root.children = [.term(genre)]
         #expect(query(q.queryParams) == "type=1&genre=12")
+    }
+
+    @Test func subgroupsEmitPushAndPop() {
+        var q = MediaQuery()
+        q.type = 1
+        let genres = MediaQuery.Group(matchAny: true, children: [
+            node("genre", .tag, "=", "1"),
+            node("genre", .tag, "=", "2"),
+        ])
+        q.root.children = [.group(genres), node("year", .integer, ">>=", "2000")]
+        #expect(query(q.queryParams) == "type=1&push=1&genre=1&or=1&genre=2&pop=1&year>>=2000")
+    }
+
+    @Test func orBetweenSubgroups() {
+        var q = MediaQuery()
+        q.type = 1
+        q.root.matchAny = true
+        q.root.children = [
+            .group(MediaQuery.Group(children: [node("year", .integer, ">=", "2000"), node("rating", .integer, ">=", "8")])),
+            .group(MediaQuery.Group(children: [node("unwatched", .boolean, "=", "1")])),
+        ]
+        #expect(query(q.queryParams) == "type=1&push=1&year>=2000&rating>=8&pop=1&or=1&push=1&unwatched=1&pop=1")
+    }
+
+    @Test func emptySubgroupsAreDropped() {
+        var q = MediaQuery()
+        q.type = 1
+        q.root.children = [
+            .group(MediaQuery.Group(children: [node("title", .string, "=", "")])),
+            node("year", .integer, ">=", "2000"),
+        ]
+        #expect(query(q.queryParams) == "type=1&year>=2000")
     }
 }

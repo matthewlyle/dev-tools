@@ -62,6 +62,15 @@ extension PlatformColor {
         .systemBackground
         #endif
     }
+    /// The recessed backdrop behind content cards — darker than the window
+    /// background on macOS, its darkest system grouped background on iPadOS.
+    static var recessedBackground: PlatformColor {
+        #if os(macOS)
+        .underPageBackgroundColor
+        #else
+        .systemGroupedBackground
+        #endif
+    }
 }
 
 enum Clipboard {
@@ -95,18 +104,6 @@ extension View {
         toggleStyle(.checkbox)
         #else
         toggleStyle(.switch)
-        #endif
-    }
-}
-
-extension SearchFieldPlacement {
-    /// `.toolbar` is macOS-only; iPadOS resolves the search field automatically
-    /// within the column's navigation bar.
-    static var platformToolbar: SearchFieldPlacement {
-        #if os(macOS)
-        .toolbar
-        #else
-        .automatic
         #endif
     }
 }

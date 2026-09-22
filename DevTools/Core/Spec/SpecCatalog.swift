@@ -34,6 +34,12 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     let supportsMediaQuery: Bool
     let access: Access
 
+    /// Split once at build time so path matching never re-splits the
+    /// template or re-parses placeholders on the hot path (it runs several
+    /// times per frame while the section switcher animates).
+    let templateSegments: [Substring]
+    let placeholders: [String]
+
     /// Who the spec says may call this, from the `user_token` scopes: the
     /// document default is `shared user` + `admin`; some operations narrow
     /// to `admin`; `/identity` needs no token at all.
@@ -48,6 +54,38 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
             let scopes = Set(requirements.flatMap { $0.values.flatMap { $0 } }.map { $0.lowercased() })
             self = scopes == ["admin"] ? .admin : .anyUser
         }
+    }
+
+    init(
+        template: String,
+        tag: String,
+        operationID: String?,
+        summary: String,
+        description: String?,
+        parameters: [SpecParameter],
+        supportsMediaQuery: Bool,
+        access: Access
+    ) {
+        self.template = template
+        self.tag = tag
+        self.operationID = operationID
+        self.summary = summary
+        self.description = description
+        self.parameters = parameters
+        self.supportsMediaQuery = supportsMediaQuery
+        self.access = access
+        self.templateSegments = template.split(separator: "/", omittingEmptySubsequences: false)
+        self.placeholders = Self.placeholders(in: template)
+    }
+
+    private static func placeholders(in template: String) -> [String] {
+        var result: [String] = []
+        var rest = template[...]
+        while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
+            result.append(String(rest[rest.index(after: open)..<close]))
+            rest = rest[rest.index(after: close)...]
+        }
+        return result
     }
 
     /// developer.plex.tv is a stock Redoc site, whose deep links are
@@ -66,16 +104,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     var queryParameters: [SpecParameter] { parameters.filter { $0.location == .query } }
     var headerParameters: [SpecParameter] { parameters.filter { $0.location == .header } }
 
-    var placeholders: [String] {
-        var result: [String] = []
-        var rest = template[...]
-        while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
-            result.append(String(rest[rest.index(after: open)..<close]))
-            rest = rest[rest.index(after: close)...]
-        }
-        return result
-    }
-
     func path(filling values: [String: String]) -> String {
         var result = template
         for (name, value) in values where !value.isEmpty {
@@ -87,9 +115,7 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     /// Whether `path` (no query) is an instance of this template. Compared
     /// segment by segment; placeholders match any non-empty run within a
     /// segment, and `.*` (the transcoder's `start.*`) matches any suffix.
-    func matches(_ path: String) -> Bool {
-        let templateSegments = template.split(separator: "/", omittingEmptySubsequences: false)
-        let pathSegments = path.split(separator: "/", omittingEmptySubsequences: false)
+    func matches(_ pathSegments: [Substring]) -> Bool {
         guard templateSegments.count == pathSegments.count else { return false }
         return zip(templateSegments, pathSegments).allSatisfy { Self.segmentMatches($0, $1) }
     }
@@ -200,8 +226,9 @@ struct SpecCatalog: Sendable {
     func match(path: String) -> SpecOperation? {
         let pure = PlexRequest.splitPath(path).path
         let trimmed = pure.count > 1 && pure.hasSuffix("/") ? String(pure.dropLast()) : pure
+        let segments = trimmed.split(separator: "/", omittingEmptySubsequences: false)
         return operations
-            .filter { $0.matches(trimmed) }
+            .filter { $0.matches(segments) }
             .min { $0.placeholders.count < $1.placeholders.count }
     }
 

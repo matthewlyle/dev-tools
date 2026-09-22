@@ -46,7 +46,9 @@ struct CodeTextView {
             header
                 .environment(\.self, environment)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                    if abs(height - coordinator.headerHeight) > 0.5 { coordinator.relayoutHeader?() }
+                    MainActor.assumeIsolated {
+                        if abs(height - coordinator.headerHeight) > 0.5 { coordinator.relayoutHeader?() }
+                    }
                 }
         )
     }
@@ -57,7 +59,11 @@ struct CodeTextView {
         let string: NSAttributedString
     }
 
-    private nonisolated(unsafe) static let font = Typeface.code(size: 12)
+    #if os(macOS)
+    private nonisolated(unsafe) static let font = Typeface.code(size: 12)  // NSFont isn't Sendable
+    #else
+    private static let font = Typeface.code(size: 12)
+    #endif
     private nonisolated(unsafe) static let placeholderAttributes: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: PlatformColor.codeSecondaryLabel,
@@ -276,7 +282,7 @@ extension CodeTextView: NSViewRepresentable {
         }
     }
 
-    private static func applyWrap(_ wrap: Bool, to textView: NSTextView, in scrollView: NSScrollView) {
+    @MainActor private static func applyWrap(_ wrap: Bool, to textView: NSTextView, in scrollView: NSScrollView) {
         guard let container = textView.textContainer else { return }
         if wrap {
             container.widthTracksTextView = true

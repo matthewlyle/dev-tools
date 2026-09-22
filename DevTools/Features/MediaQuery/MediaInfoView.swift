@@ -11,6 +11,7 @@ struct MediaInfoView: View {
     let dismiss: () -> Void
 
     @Environment(RequestStore.self) private var requests
+    @State private var itemJSON: String?
 
     /// Attributes already surfaced above the details grid.
     private static let surfaced: Set<String> = ["title", "summary", "tagline"]
@@ -23,17 +24,20 @@ struct MediaInfoView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.title)
-                            .font(.title.weight(.semibold))
-                            .textSelection(.enabled)
-                        if let subtitle = item.subtitle {
-                            Text(subtitle)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text(item.title)
+                        .font(.title.weight(.semibold))
+                        .textSelection(.enabled)
                     Spacer(minLength: 12)
+                    if let itemJSON {
+                        Button {
+                            Clipboard.copy(itemJSON)
+                        } label: {
+                            Label("Copy JSON", systemImage: "curlybraces")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Copy this item's JSON from the response")
+                    }
                     Button(action: dismiss) {
                         Label("Hide Info", systemImage: "xmark")
                             .labelStyle(.iconOnly)
@@ -46,7 +50,7 @@ struct MediaInfoView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         if let tagline = item.tagline {
                             Text(tagline)
-                                .font(.body.italic())
+                                .font(.title3.italic())
                                 .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
                         }
@@ -107,6 +111,22 @@ struct MediaInfoView: View {
                 }
             }
             .padding(20)
+        }
+        .task(id: item.id) {
+            itemJSON = nil
+            guard let body = requests.response?.body else { return }
+            let ratingKey = item.ratingKey
+            let key = item.node["key"]
+            itemJSON = await Task.detached {
+                guard let root = JSONValue.parse(body) else { return nil }
+                if let ratingKey, let object = root.firstObject(scalar: "ratingKey", equals: ratingKey) {
+                    return object.prettyPrinted()
+                }
+                if let key, let object = root.firstObject(scalar: "key", equals: key) {
+                    return object.prettyPrinted()
+                }
+                return nil
+            }.value
         }
     }
 

@@ -55,7 +55,7 @@ final class RequestStore {
 
     private(set) var backStack: [PlexRequest] = []
     private(set) var forwardStack: [PlexRequest] = []
-    private var lastSent: PlexRequest?
+    private(set) var lastSent: PlexRequest?
 
     private let http: PlexHTTP
     private let memory: ValueMemory

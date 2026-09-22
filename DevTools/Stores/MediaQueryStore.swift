@@ -71,7 +71,7 @@ final class MediaQueryStore {
         let fields = Set(type.fields.map(\.key))
         let sorts = Set(type.sorts.map(\.key))
         var pruned = query
-        pruned.terms.removeAll { !fields.contains($0.field) }
+        pruned.pruneTerms(keepingFields: fields)
         pruned.sorts.removeAll { !sorts.contains($0.key) }
         if !fields.contains(pruned.group) { pruned.group = "" }
         if pruned != query { query = pruned }
@@ -108,6 +108,10 @@ final class MediaQueryStore {
             }
             detailsByServer[machineID, default: [:]][sectionKey] = details
             ensureValidType()
+        } catch is CancellationError {
+            return
+        } catch let error as URLError where error.code == .cancelled {
+            return
         } catch {
             errorMessage = (error as? URLError)?.shortDescription ?? error.localizedDescription
         }

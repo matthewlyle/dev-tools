@@ -18,34 +18,61 @@ enum ServerSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// Whether the section-list column is showing. Its search field and toolbar
-/// items act on that list, so they leave the window's toolbar with it — on
-/// macOS a collapsed column's view stays alive and would otherwise keep
-/// contributing them.
+/// Whether the section-list column is showing. Its toolbar items act on that
+/// list, so they leave the window's toolbar with it — on macOS a collapsed
+/// column's view stays alive and would otherwise keep contributing them.
 extension EnvironmentValues {
     @Entry var sectionListVisible = true
+    /// Whether this section is the one the switcher shows. Every section stays
+    /// mounted so switching is instant; an inactive one must not publish
+    /// toolbar items or focused commands, or Send/Delete would act on a
+    /// section that isn't on screen.
+    @Entry var sectionIsActive = true
 }
 
-private struct SectionListSearch: ViewModifier {
-    @Environment(\.sectionListVisible) private var visible
+/// A filter field pinned atop a section list. Endpoints and History filter
+/// in place rather than through `.searchable`: on macOS its search field is a
+/// toolbar item, so entering those sections reconfigured the window toolbar
+/// and reflowed the section switcher mid-animation.
+struct ListFilterField: View {
     @Binding var text: String
     let prompt: String
 
-    func body(content: Content) -> some View {
-        if visible {
-            content.searchable(text: $text, placement: .platformToolbar, prompt: Text(prompt))
-        } else {
-            content
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Label("Clear Filter", systemImage: "xmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.quaternary, in: .rect(cornerRadius: 8))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 }
 
 private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     @Environment(\.sectionListVisible) private var visible
+    @Environment(\.sectionIsActive) private var active
     let items: Items
 
     func body(content: Content) -> some View {
-        if visible {
+        if visible && active {
             content.toolbar { items }
         } else {
             content
@@ -53,11 +80,30 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     }
 }
 
-extension View {
-    func sectionListSearch(text: Binding<String>, prompt: String) -> some View {
-        modifier(SectionListSearch(text: text, prompt: prompt))
-    }
+/// Keeps a section's views mounted while another is showing, so switching
+/// never rebuilds them. The hidden section is transparent, untouchable, out
+/// of the accessibility tree, and disabled so nothing in it can take
+/// keyboard focus.
+private struct SectionResident: ViewModifier {
+    let active: Bool
 
+    func body(content: Content) -> some View {
+        content
+            .opacity(active ? 1 : 0)
+            .allowsHitTesting(active)
+            .disabled(!active)
+            .accessibilityHidden(!active)
+            .environment(\.sectionIsActive, active)
+    }
+}
+
+extension View {
+    func sectionResident(active: Bool) -> some View {
+        modifier(SectionResident(active: active))
+    }
+}
+
+extension View {
     func sectionListToolbar<Items: ToolbarContent>(@ToolbarContentBuilder items: () -> Items) -> some View {
         modifier(SectionListToolbar(items: items()))
     }
@@ -73,10 +119,64 @@ extension View {
     }
 }
 
+/// The column for a long section (the endpoint catalog, a deep history).
+/// `List` on macOS hosts every row in its own `NSHostingView` and measures
+/// them all when the list appears, so hundreds of rows stall each section
+/// switch; iPadOS's list is lazy and never did. A `LazyVStack` realizes only
+/// what's on screen on both. Short columns (Activity, Media) keep `List`.
+struct SectionColumnList<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                content()
+            }
+            .padding(.vertical, 6)
+        }
+    }
+}
+
+struct SectionColumnHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+    }
+}
+
+extension View {
+    /// Inset-list row metrics for a `SectionColumnList` row, with the
+    /// selected row tinted the way an inset list highlights it.
+    func sectionColumnRow(selected: Bool = false) -> some View {
+        padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(selected ? Color.accentColor.opacity(0.22) : .clear, in: .rect(cornerRadius: 6))
+            .padding(.horizontal, 6)
+    }
+}
+
 struct SectionPicker: View {
     @Binding var section: ServerSection
 
     var body: some View {
+        // Segmented while it fits the toolbar; a labelled pop-up when the
+        // window is too narrow, so a collapsed switcher still shows the
+        // current section and every choice (a segmented control renders
+        // unusably in the toolbar overflow menu).
+        ViewThatFits(in: .horizontal) {
+            segmented
+            menu
+        }
+    }
+
+    private var segmented: some View {
         Picker("Section", selection: $section) {
             ForEach(ServerSection.allCases) { section in
                 Text(section.rawValue).tag(section)
@@ -84,6 +184,18 @@ struct SectionPicker: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .fixedSize()
+    }
+
+    private var menu: some View {
+        Picker("Section", selection: $section) {
+            ForEach(ServerSection.allCases) { section in
+                Label(section.rawValue, systemImage: section.systemImage).tag(section)
+            }
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .fixedSize()
     }
 }
 
@@ -95,6 +207,7 @@ struct MainSplitView: View {
     @Environment(ServerStore.self) private var servers
     @Environment(RequestStore.self) private var requests
     @AppStorage("serverSection") private var section: ServerSection = .endpoints
+    @State private var hasConnected = false
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
@@ -107,18 +220,45 @@ struct MainSplitView: View {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
 
+    /// Discovery or probing still in flight before any server has connected.
+    private var stillConnecting: Bool {
+        servers.isRefreshing || servers.entries.contains { $0.isProbing || $0.probes.isEmpty }
+    }
+
+    /// Before the first connection this session the shell is up but has no
+    /// content yet, so it shows an inline loading/empty state in the detail —
+    /// the HIG alternative to a splash. Once connected, per-server states take
+    /// over and a later switch never falls back here.
+    private var isInitialLoad: Bool { !hasConnected && connected == nil }
+
     private var title: String { servers.selected?.resource.name ?? "Servers" }
+
+    /// Section changes reset the workspace *before* the new section's view is
+    /// built — not reactively after. Otherwise the incoming Endpoints/History
+    /// detail builds `ResponseView`/`CodeTextView` for the previous response
+    /// (an `NSTextView` on macOS) only to tear it down when the reset lands,
+    /// stalling the switch.
+    private var sectionBinding: Binding<ServerSection> {
+        Binding(
+            get: { section },
+            set: { newValue in
+                guard newValue != section else { return }
+                requests.reset()
+                section = newValue
+            }
+        )
+    }
 
     var body: some View {
         split
             .task(id: connected?.machineID) {
                 if let connected { await requests.preloadOptions(on: connected) }
             }
-            .onChange(of: section) { _, _ in
-                requests.reset()
-            }
             .onChange(of: servers.selectedID) { _, _ in
                 requests.reset()
+            }
+            .onChange(of: connected?.machineID, initial: true) { _, id in
+                if id != nil { hasConnected = true }
             }
     }
 
@@ -126,11 +266,11 @@ struct MainSplitView: View {
     private var split: some View {
         NavigationSplitView(columnVisibility: $columns) {
             sectionList
-                .navigationSplitViewColumnWidth(min: 340, ideal: 440, max: 600)
+                .navigationSplitViewColumnWidth(min: 340, ideal: 340, max: 600)
                 .environment(\.sectionListVisible, columns != .detailOnly)
         } detail: {
             detailPane
-                .modifier(Header(title: title, entry: servers.selected, section: $section))
+                .modifier(Header(title: title, entry: servers.selected, section: sectionBinding))
         }
     }
     #else
@@ -146,6 +286,7 @@ struct MainSplitView: View {
                         if sectionListVisible {
                             sectionList
                                 .containerRelativeFrame(.horizontal) { length, _ in min(max(length * 0.4, 320), 460) }
+                                .background(Color(uiColor: .secondarySystemBackground))
                                 .transition(reduceMotion ? .opacity : .move(edge: .leading))
                             Divider()
                         }
@@ -156,7 +297,7 @@ struct MainSplitView: View {
                     sectionList
                 }
             }
-            .modifier(Header(title: title, entry: servers.selected, section: $section))
+            .modifier(Header(title: title, entry: servers.selected, section: sectionBinding))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {
@@ -248,18 +389,18 @@ struct MainSplitView: View {
 
     @ViewBuilder
     private var sectionList: some View {
-        if let entry = servers.selected {
-            Group {
-                switch section {
-                case .endpoints:
-                    EndpointListView(server: connected, serverID: entry.id)
-                case .history:
-                    HistoryListView(serverID: entry.id)
-                case .activity:
-                    ActivityControlsView()
-                case .mediaQuery:
-                    MediaQueryBuilderView(server: connected)
-                }
+        if isInitialLoad {
+            Color.clear
+        } else if let entry = servers.selected {
+            ZStack {
+                EndpointListView(server: connected, serverID: entry.id)
+                    .sectionResident(active: section == .endpoints)
+                HistoryListView(serverID: entry.id)
+                    .sectionResident(active: section == .history)
+                ActivityControlsView()
+                    .sectionResident(active: section == .activity)
+                MediaQueryBuilderView(server: connected)
+                    .sectionResident(active: section == .mediaQuery)
             }
             .id(entry.id)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -279,15 +420,57 @@ struct MainSplitView: View {
     @ViewBuilder
     private var detailPane: some View {
         Group {
-            switch section {
-            case .activity:
-                ActivityEventsView()
-            case .mediaQuery:
-                MediaResultsView(server: connected)
-            case .endpoints, .history:
-                WorkspaceView(editable: section == .endpoints)
+            if isInitialLoad {
+                connectionStatus
+            } else {
+                ZStack {
+                    WorkspaceView(editable: section == .endpoints)
+                        .sectionResident(active: section == .endpoints || section == .history)
+                    ActivityEventsView()
+                        .sectionResident(active: section == .activity)
+                    MediaResultsView(server: connected)
+                        .sectionResident(active: section == .mediaQuery)
+                }
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .background { WellBackground() }
+    }
+
+    /// The shell's content before the first connection: a spinner while
+    /// discovery/probing runs, then a resolvable empty state.
+    @ViewBuilder
+    private var connectionStatus: some View {
+        if stillConnecting {
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(servers.isRefreshing ? "Finding your servers" : "Connecting to \(servers.selected?.resource.name ?? "your server")")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if servers.entries.isEmpty {
+            ContentUnavailableView {
+                Label("No Servers", systemImage: "server.rack")
+            } description: {
+                Text("No Plex Media Servers on your account yet. Add one, then refresh.")
+            } actions: {
+                Button("Refresh Servers") { refreshServers() }
+            }
+        } else {
+            ContentUnavailableView {
+                Label("Can't Reach Your Servers", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text("None of your servers answered. Check they're online and on the same network, then try again.")
+            } actions: {
+                Button("Refresh Servers") { refreshServers() }
+            }
+        }
+    }
+
+    private func refreshServers() {
+        guard let token = account.token else { return }
+        Task { await servers.refresh(token: token) }
     }
 }

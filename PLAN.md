@@ -20,7 +20,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 2. Request builder + response inspector (Response / Headers), history — done
 3. Response browser: back/forward between requests — done (breadcrumbs removed; they repeated the URL). The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
 4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls — done. The response-customization (include/exclude) menus were removed; `includeFields` etc. are typed as ordinary params
-5. Media Query builder — done as the fourth section, "Media" (⌘4): flat AND/OR filters, sort, group, limit; nested `push`/`pop` grouping and a tag-value picker are deferred
+5. Media Query builder — done as the fourth section, "Media" (⌘4): filters with nested `push`/`pop` grouping (AND/OR per group), a tag-value picker over the server's filter values, sort, group, limit
 6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause)
 7. Saved requests — done
 

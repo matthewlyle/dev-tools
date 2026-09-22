@@ -15,6 +15,7 @@ struct MediaResultsView: View {
     let server: ConnectedServer?
 
     @Environment(RequestStore.self) private var requests
+    @Environment(\.sectionIsActive) private var isActive
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
     @State private var selectedID: Int?
     @State private var showInfo = false
@@ -26,6 +27,16 @@ struct MediaResultsView: View {
 
     private var selected: MediaItem? {
         items.first { $0.id == selectedID }
+    }
+
+    /// The field the shown results are ordered by, from the request that
+    /// produced them — not the builder's current pick, which may have changed
+    /// since the query ran.
+    private var sortKey: String? {
+        requests.lastSent?.query.first { $0.enabled && $0.name == "sort" }?.value
+            .split(separator: ",").first?
+            .split(separator: ":").first
+            .map(String.init)
     }
 
     var body: some View {
@@ -80,11 +91,7 @@ struct MediaResultsView: View {
                                 description: Text(error)
                             )
                         } else {
-                            ContentUnavailableView(
-                                "No Results",
-                                systemImage: "square.grid.3x3",
-                                description: Text("Run a query to see its items as posters.")
-                            )
+                            ZeroState(text: "Run a query to see its items as posters.")
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -105,7 +112,7 @@ struct MediaResultsView: View {
         }
         .focusedSceneValue(
             \.showMediaInfo,
-            selectedID == nil ? nil : ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() }
+            isActive && selectedID != nil ? ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() } : nil
         )
     }
 
@@ -127,14 +134,14 @@ struct MediaResultsView: View {
                     .labelsHidden()
                     .fixedSize()
                     if tab == .response, let document = requests.document {
-                        BodyControls(document: document, response: response, collapsed: $collapsed)
+                        BodyControls(document: document, response: response)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
         }
-        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+        .background(.fill.tertiary, in: .rect(cornerRadius: 12))
         .padding(12)
     }
 
@@ -147,7 +154,7 @@ struct MediaResultsView: View {
                 spacing: 20
             ) {
                 ForEach(items) { item in
-                    PosterCell(item: item, server: server, isSelected: item.id == selectedID) {
+                    PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
                         selectedID = item.id
                         showInfo = true
                     }
@@ -161,6 +168,7 @@ struct MediaResultsView: View {
 private struct PosterCell: View {
     let item: MediaItem
     let server: ConnectedServer?
+    let sortKey: String?
     let isSelected: Bool
     let select: () -> Void
 
@@ -206,23 +214,18 @@ private struct PosterCell: View {
                             .stroke(.tint, lineWidth: 3)
                     }
                 }
-
-                Text(item.title)
+                Text(item.caption(sortedBy: sortKey))
                     .font(.callout)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                if let subtitle = item.subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
             }
             .frame(width: Self.width, alignment: .leading)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .help(item.title)
+        .accessibilityLabel(item.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

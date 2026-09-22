@@ -12,6 +12,7 @@ struct MediaQueryBuilderView: View {
 
     @Environment(MediaQueryStore.self) private var store
     @Environment(RequestStore.self) private var requests
+    @Environment(\.sectionIsActive) private var isActive
 
     @State private var sectionsChecked = false
 
@@ -83,24 +84,7 @@ struct MediaQueryBuilderView: View {
 
                     if let type = store.currentType {
                         Section {
-                            ForEach(store.query.terms) { term in
-                                TermRow(term: termBinding(term), type: type, server: server) {
-                                    store.query.terms.removeAll { $0.id == term.id }
-                                }
-                            }
-                            Button {
-                                if let field = type.fields.first {
-                                    store.query.terms.append(MediaQuery.Term(field: field))
-                                }
-                            } label: {
-                                Label("Add Filter", systemImage: "plus")
-                            }
-                            .disabled(type.fields.isEmpty)
-                            if store.query.terms.count > 1 {
-                                Toggle("Match any filter", isOn: $store.query.matchAny)
-                                    .platformCheckboxToggleStyle()
-                                    .help("Join filters with OR instead of AND")
-                            }
+                            GroupEditor(clause: $store.query.root, type: type, server: server, isRoot: true, remove: nil)
                         } header: {
                             Text("Filters")
                         }
@@ -130,6 +114,7 @@ struct MediaQueryBuilderView: View {
                                     Text(field.title).tag(field.key)
                                 }
                             }
+                            .help("Collapse results that share this field, like SQL GROUP BY — one result per value")
                             TextField("Limit", text: $store.query.limit, prompt: Text("all"))
                                 .font(.code(.body))
                         } header: {
@@ -146,6 +131,7 @@ struct MediaQueryBuilderView: View {
                                 run()
                             } label: {
                                 Label("Run Query", systemImage: "play.fill")
+                                    .foregroundStyle(.white)
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(!canRun)
@@ -182,7 +168,7 @@ struct MediaQueryBuilderView: View {
         }
         .focusedSceneValue(
             \.runMediaQuery,
-            canRun ? RunMediaQueryAction(summary: store.query.request().summary, run: run) : nil
+            isActive && canRun ? RunMediaQueryAction(summary: store.query.request().summary, run: run) : nil
         )
     }
 
@@ -192,27 +178,133 @@ struct MediaQueryBuilderView: View {
         requests.send(to: server)
     }
 
-    /// Bindings keyed by id, not index: when a row removes its element the
-    /// others keep pointing at their own, the removed row reads its last
-    /// snapshot, and writes to a gone element are dropped. Index-backed
-    /// `ForEach($array)` bindings shift on removal and hang the view.
-    private func termBinding(_ term: MediaQuery.Term) -> Binding<MediaQuery.Term> {
-        Binding(
-            get: { store.query.terms.first { $0.id == term.id } ?? term },
-            set: { updated in
-                if let index = store.query.terms.firstIndex(where: { $0.id == term.id }) {
-                    store.query.terms[index] = updated
-                }
-            }
-        )
-    }
-
     private func sortBinding(_ sort: MediaQuery.Sort) -> Binding<MediaQuery.Sort> {
         Binding(
             get: { store.query.sorts.first { $0.id == sort.id } ?? sort },
             set: { updated in
                 if let index = store.query.sorts.firstIndex(where: { $0.id == sort.id }) {
                     store.query.sorts[index] = updated
+                }
+            }
+        )
+    }
+}
+
+/// Edits one group of the filter tree. The root renders inline; nested
+/// groups draw a box with their own match toggle and a remove button.
+/// Bindings are keyed by node id, not index: an index-backed
+/// `ForEach($array)` shifts on removal and hangs the view.
+private struct GroupEditor: View {
+    @Binding var clause: MediaQuery.Group
+    let type: MediaType
+    let server: ConnectedServer?
+    let isRoot: Bool
+    let remove: (() -> Void)?
+
+    /// The group's join, as Finder's Smart Folders put it: "Match All/Any".
+    /// Shown as soon as the group has a filter so the join is visible while
+    /// the group is being built, not only once a second filter exists.
+    private var matchPicker: some View {
+        Picker("Match", selection: $clause.matchAny) {
+            Text("All").tag(false)
+            Text("Any").tag(true)
+        }
+        .pickerStyle(.menu)
+        .fixedSize()
+        .help("All: every filter must match (AND). Any: one is enough (OR).")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !isRoot || !clause.children.isEmpty {
+                HStack {
+                    if !clause.children.isEmpty { matchPicker }
+                    Spacer(minLength: 0)
+                    if let remove {
+                        Button(role: .destructive, action: remove) {
+                            Label("Remove Filter Group", systemImage: "minus.circle")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove this filter group")
+                    }
+                }
+            }
+
+            ForEach(clause.children) { node in
+                nodeView(node)
+            }
+
+            HStack(spacing: 14) {
+                Button {
+                    if let field = type.fields.first {
+                        clause.children.append(.term(MediaQuery.Term(field: field)))
+                    }
+                } label: {
+                    Label("Add Filter", systemImage: "plus")
+                }
+                .disabled(type.fields.isEmpty)
+                Button {
+                    clause.children.append(.group(MediaQuery.Group()))
+                } label: {
+                    Label("Add Filter Group", systemImage: "rectangle.stack.badge.plus")
+                }
+                .help("Nest filters in parentheses to mix all/any, e.g. (A or B) and C")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+        }
+        .padding(isRoot ? 0 : 10)
+        .background {
+            if !isRoot {
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.4))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nodeView(_ node: MediaQuery.Node) -> some View {
+        switch node {
+        case .term:
+            TermRow(term: termBinding(node.id, fallback: node), type: type, server: server) {
+                clause.children.removeAll { $0.id == node.id }
+            }
+        case .group(let group):
+            GroupEditor(
+                clause: groupBinding(node.id, fallback: group),
+                type: type,
+                server: server,
+                isRoot: false,
+                remove: { clause.children.removeAll { $0.id == node.id } }
+            )
+        }
+    }
+
+    private func termBinding(_ id: UUID, fallback: MediaQuery.Node) -> Binding<MediaQuery.Term> {
+        Binding(
+            get: {
+                let node = clause.children.first { $0.id == id } ?? fallback
+                if case .term(let term) = node { return term }
+                if case .term(let term) = fallback { return term }
+                return MediaQuery.Term(field: MediaField(key: "", title: "", type: .string))
+            },
+            set: { updated in
+                if let index = clause.children.firstIndex(where: { $0.id == id }) {
+                    clause.children[index] = .term(updated)
+                }
+            }
+        )
+    }
+
+    private func groupBinding(_ id: UUID, fallback: MediaQuery.Group) -> Binding<MediaQuery.Group> {
+        Binding(
+            get: {
+                if case .group(let group) = (clause.children.first { $0.id == id } ?? .group(fallback)) { return group }
+                return fallback
+            },
+            set: { updated in
+                if let index = clause.children.firstIndex(where: { $0.id == id }) {
+                    clause.children[index] = .group(updated)
                 }
             }
         )

@@ -70,11 +70,7 @@ struct ResponseView<RequestBar: View>: View {
                                 description: Text(error)
                             )
                         } else {
-                            ContentUnavailableView(
-                                "No Response",
-                                systemImage: "paperplane",
-                                description: Text("Send a request to see the response here.")
-                            )
+                            ZeroState(text: "Send a request to see the response here.")
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -114,14 +110,14 @@ struct ResponseView<RequestBar: View>: View {
                     .labelsHidden()
                     .fixedSize()
                     if tab == .raw, let response = requests.response, let document = requests.document {
-                        BodyControls(document: document, response: response, collapsed: $collapsed)
+                        BodyControls(document: document, response: response)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
         }
-        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+        .background(.fill.tertiary, in: .rect(cornerRadius: 12))
         .padding(12)
 
         if requests.response != nil {
@@ -156,6 +152,20 @@ struct FillingScrollView<Content: View>: View {
                 .frame(minHeight: proxy.size.height)
             }
         }
+    }
+}
+
+/// The detail's resting state: one muted sentence, centred. No icon or
+/// heading — the section switcher already says where you are.
+struct ZeroState: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.tertiary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

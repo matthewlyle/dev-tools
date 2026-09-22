@@ -208,12 +208,31 @@ struct MediaQuery: Hashable, Sendable {
         var token: String { descending ? "\(key):desc" : key }
     }
 
+    /// One node of the filter tree: a leaf condition or a parenthesized
+    /// subgroup. Subgroups emit `push=1` … `pop=1` around their contents.
+    enum Node: Hashable, Sendable, Identifiable {
+        case term(Term)
+        case group(Group)
+
+        var id: UUID {
+            switch self {
+            case .term(let term): term.id
+            case .group(let group): group.id
+            }
+        }
+    }
+
+    /// A parenthesized set of nodes. `matchAny` joins them with `or=1`;
+    /// otherwise they AND together.
+    struct Group: Hashable, Sendable, Identifiable {
+        var id = UUID()
+        var matchAny = false
+        var children: [Node] = []
+    }
+
     var sectionKey = ""
     var type = 0
-    var terms: [Term] = []
-    /// `or=1` between every term; otherwise terms AND together. Nested
-    /// grouping (`push`/`pop`) is not expressed here.
-    var matchAny = false
+    var root = Group()
     var sorts: [Sort] = []
     var group = ""
     var limit = ""
@@ -223,10 +242,7 @@ struct MediaQuery: Hashable, Sendable {
 
     var queryParams: [QueryParam] {
         var params = [QueryParam(name: "type", value: String(type))]
-        for (index, term) in terms.filter(\.isActive).enumerated() {
-            if index > 0, matchAny { params.append(QueryParam(name: "or", value: "1")) }
-            params.append(term.queryParam)
-        }
+        params += clauseParams(root)
         if !sorts.isEmpty {
             params.append(QueryParam(name: "sort", value: sorts.map(\.token).joined(separator: ",")))
         }
@@ -235,6 +251,46 @@ struct MediaQuery: Hashable, Sendable {
         let limit = limit.trimmingCharacters(in: .whitespaces)
         if !limit.isEmpty { params.append(QueryParam(name: "limit", value: limit)) }
         return params
+    }
+
+    /// Walks a group in order: active terms emit their param, non-empty
+    /// subgroups emit `push=1` … `pop=1`, and `or=1` precedes every sibling
+    /// after the first when the group matches any.
+    private func clauseParams(_ clause: Group) -> [QueryParam] {
+        var params: [QueryParam] = []
+        var emitted = 0
+        for node in clause.children {
+            let nodeParams: [QueryParam]
+            switch node {
+            case .term(let term):
+                guard term.isActive else { continue }
+                nodeParams = [term.queryParam]
+            case .group(let child):
+                let inner = clauseParams(child)
+                guard !inner.isEmpty else { continue }
+                nodeParams = [QueryParam(name: "push", value: "1")] + inner + [QueryParam(name: "pop", value: "1")]
+            }
+            if emitted > 0, clause.matchAny { params.append(QueryParam(name: "or", value: "1")) }
+            params += nodeParams
+            emitted += 1
+        }
+        return params
+    }
+
+    mutating func pruneTerms(keepingFields fields: Set<String>) {
+        root.children = MediaQuery.prunedChildren(root.children, keepingFields: fields)
+    }
+
+    private static func prunedChildren(_ children: [Node], keepingFields fields: Set<String>) -> [Node] {
+        children.compactMap { node in
+            switch node {
+            case .term(let term):
+                return fields.contains(term.field) ? node : nil
+            case .group(let group):
+                let kept = prunedChildren(group.children, keepingFields: fields)
+                return kept.isEmpty ? nil : .group(Group(id: group.id, matchAny: group.matchAny, children: kept))
+            }
+        }
     }
 
     func request() -> PlexRequest {

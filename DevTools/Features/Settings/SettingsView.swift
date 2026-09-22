@@ -6,6 +6,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("rawWrapLines") private var wrapLines = true
+    #if os(macOS)
+    @AppStorage("translucentBackground") private var translucent = true
+    #endif
     @State private var confirmingClear = false
     @State private var confirmingSignOut = false
 
@@ -75,6 +78,17 @@ struct SettingsView: View {
             } header: {
                 Text("Requests")
             }
+
+            #if os(macOS)
+            Section {
+                Toggle("Translucent background", isOn: $translucent)
+                Text("Blurs the desktop behind the content area, like Safari's start page. Off uses a solid background.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Appearance")
+            }
+            #endif
 
             Section {
                 LabeledContent("Recorded requests") {

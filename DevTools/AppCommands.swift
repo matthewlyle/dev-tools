@@ -53,7 +53,6 @@ struct AppCommands: Commands {
     let requests: RequestStore
     let spec: SpecStore
 
-    @AppStorage("serverSection") private var section: ServerSection = .endpoints
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
     @FocusedValue(\.deleteHistoryEntry) private var deleteHistoryEntry
@@ -73,22 +72,6 @@ struct AppCommands: Commands {
         CommandGroup(after: .appSettings) {
             Button("Sign Out…") { account.isConfirmingSignOut = true }
                 .disabled(account.user == nil)
-        }
-
-        CommandGroup(after: .sidebar) {
-            Divider()
-            Picker("Section", selection: $section) {
-                Text("Endpoints").tag(ServerSection.endpoints)
-                    .keyboardShortcut("1", modifiers: .command)
-                Text("History").tag(ServerSection.history)
-                    .keyboardShortcut("2", modifiers: .command)
-                Text("Activity").tag(ServerSection.activity)
-                    .keyboardShortcut("3", modifiers: .command)
-                Text("Media").tag(ServerSection.mediaQuery)
-                    .keyboardShortcut("4", modifiers: .command)
-            }
-            .pickerStyle(.inline)
-            .disabled(servers.selected == nil)
         }
 
         CommandGroup(after: .toolbar) {

@@ -58,6 +58,7 @@ struct ActivityControlsView: View {
                 }
                 .padding(.vertical, 4)
             }
+            .listRowSeparator(.hidden)
 
             if !activity.typeCounts.isEmpty || activity.status.isActive {
                 Section("Event Types") {
@@ -83,6 +84,8 @@ struct ActivityControlsView: View {
                         }
                     }
                 }
+                .listRowSeparator(.hidden)
+                .listSectionSeparator(.hidden)
             }
         }
         .sectionListStyle()

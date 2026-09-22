@@ -32,6 +32,7 @@ struct ActivityEventsView: View {
                 #endif
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
@@ -42,6 +43,7 @@ struct ActivityEventsView: View {
                 .tag(event.id)
         }
         .listStyle(.inset)
+        .scrollContentBackground(.hidden)
         .frame(minWidth: 320, idealWidth: 460)
         .overlay {
             if activity.visibleEvents.isEmpty, activity.status.isActive {
@@ -112,6 +114,7 @@ private struct EventInspector: View {
                         version: event.receivedAt,
                         header: AnyView(EmptyView())
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

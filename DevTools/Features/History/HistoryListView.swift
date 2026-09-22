@@ -5,6 +5,7 @@ struct HistoryListView: View {
 
     @Environment(RequestStore.self) private var requests
     @Environment(ServerStore.self) private var servers
+    @Environment(\.sectionIsActive) private var isActive
 
     private var connected: ConnectedServer? {
         servers.entry(id: serverID).flatMap { servers.connectedServer(for: $0) }
@@ -86,15 +87,28 @@ struct HistoryListView: View {
     private var rows: [HistoryEntry] { filtered.sorted(by: sort.areInIncreasingOrder) }
 
     var body: some View {
-        List(rows, selection: $selection) { entry in
-            HistoryRow(entry: entry)
-                .tag(entry.id)
-                .listRowSeparator(.hidden)
+        VStack(spacing: 0) {
+            ListFilterField(text: $search, prompt: "Filter history")
+            list
+        }
+    }
+
+    private var list: some View {
+        SectionColumnList {
+            ForEach(rows) { entry in
+                Button {
+                    selection = entry.id
+                } label: {
+                    HistoryRow(entry: entry)
+                        .sectionColumnRow(selected: selection == entry.id)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
                 .contextMenu {
                     Button("Delete", role: .destructive) { delete(entry.id) }
                 }
+            }
         }
-        .sectionListStyle()
         #if os(macOS)
         .onDeleteCommand {
             if let selection { delete(selection) }
@@ -104,10 +118,6 @@ struct HistoryListView: View {
             guard let entry = rows.first(where: { $0.id == id }), let connected else { return }
             requests.replay(entry, on: connected)
         }
-        .onAppear {
-            if selection == nil { selection = rows.first?.id }
-        }
-        .sectionListSearch(text: $search, prompt: "Filter history")
         .sectionListToolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -136,8 +146,8 @@ struct HistoryListView: View {
                 .disabled(filtered.isEmpty)
             }
         }
-        .focusedSceneValue(\.clearHistory, filtered.isEmpty ? nil : ClearHistoryAction(serverID: serverID) { confirmingClear = true })
-        .focusedSceneValue(\.deleteHistoryEntry, selection.map { id in DeleteHistoryEntryAction(id: id) { delete(id) } })
+        .focusedSceneValue(\.clearHistory, isActive && !filtered.isEmpty ? ClearHistoryAction(serverID: serverID) { confirmingClear = true } : nil)
+        .focusedSceneValue(\.deleteHistoryEntry, isActive ? selection.map { id in DeleteHistoryEntryAction(id: id) { delete(id) } } : nil)
         .confirmationDialog(
             isFiltered ? "Clear the \(filtered.count) shown requests?" : "Clear all history for this server?",
             isPresented: $confirmingClear,
@@ -152,11 +162,7 @@ struct HistoryListView: View {
         }
         .overlay {
             if filtered.isEmpty {
-                ContentUnavailableView(
-                    "No History",
-                    systemImage: "clock",
-                    description: Text(isFiltered ? "No requests match the filter." : "Requests you send to this server show up here.")
-                )
+                ZeroState(text: isFiltered ? "No requests match the filter." : "Requests you send to this server show up here.")
             }
         }
         .onChange(of: statusOptions) { _, options in

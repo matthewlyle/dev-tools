@@ -248,7 +248,7 @@ private struct OperationDocs: View {
             }
             .padding(16)
         }
-        .frame(width: 520)
+        .frame(maxWidth: 440)
         .frame(maxHeight: 480)
     }
 }
