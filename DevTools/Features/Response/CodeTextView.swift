@@ -181,10 +181,18 @@ extension CodeTextView: NSViewRepresentable {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.linkTextAttributes = [.cursor: NSCursor.pointingHand]
 
+        // contentInsets inset the clip view's frame, so a header placed above
+        // the document sits outside the clip view's bounds: it still draws
+        // (views don't clip subviews) but the default hit test ignores it.
         scrollView.automaticallyAdjustsContentInsets = false
+        let clipView = HeaderClipView()
+        clipView.drawsBackground = false
+        scrollView.contentView = clipView
+        scrollView.documentView = textView
         let host = NSHostingController(rootView: AnyView(EmptyView()))
         host.sizingOptions = []
-        scrollView.contentView.addSubview(host.view)
+        clipView.addSubview(host.view)
+        clipView.header = host.view
         context.coordinator.headerHost = host
         scrollView.contentView.postsFrameChangedNotifications = true
         context.coordinator.frameObserver = NotificationCenter.default.addObserver(
@@ -208,7 +216,7 @@ extension CodeTextView: NSViewRepresentable {
         guard let host = coordinator.headerHost else { return }
         let width = scrollView.contentView.bounds.width
         guard force || coordinator.headerWidth != width else { return }
-        let wasAtTop = scrollView.contentView.bounds.origin.y <= -coordinator.headerHeight + 1
+        let wasAtTop = scrollView.contentView.bounds.origin.y <= 1
         coordinator.headerWidth = width
         coordinator.headerHeight = host.sizeThatFits(in: NSSize(width: width, height: .greatestFiniteMagnitude)).height
         host.view.frame = NSRect(x: 0, y: -coordinator.headerHeight, width: width, height: coordinator.headerHeight)
@@ -283,6 +291,22 @@ extension CodeTextView: NSViewRepresentable {
             textView.autoresizingMask = []
         }
         textView.needsLayout = true
+    }
+}
+
+/// Routes clicks to the header hosted above the document, which lies
+/// outside the clip view's bounds once `contentInsets` push the frame down.
+final class HeaderClipView: NSClipView {
+    weak var header: NSView?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let header, let superview {
+            let local = convert(point, from: superview)
+            if header.frame.contains(local) {
+                return header.hitTest(local)
+            }
+        }
+        return super.hitTest(point)
     }
 }
 #else
