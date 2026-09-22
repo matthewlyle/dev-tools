@@ -111,7 +111,7 @@ A feature is complete when every line below is true, in the same commit. This is
 8. **Token policy** holds: nothing new shows, copies, or URL-encodes a credential.
 9. **Persistence** through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
 10. **Tests** for any new contract — parsing, URL/string building, matching, redaction — none for plumbing.
-11. **Verified on screen** by launching the built app, not by reading the code back.
+11. **Verified by building**: `xcodebuild` is green for macOS and iPad, and behavioural changes are covered by a test where testable. NEVER take screenshots or drive the running app to verify — the user does visual checks; call out exactly what to look at.
 12. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
 13. **One commit**, message explains why.
 
@@ -120,6 +120,6 @@ A feature is complete when every line below is true, in the same commit. This is
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
 - Build: `xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'platform=macOS' -derivedDataPath DerivedData/Build build`. Test: same with `test` (Swift Testing, `DevToolsTests/`). Both must be green before a commit.
 - Tests are fixture-driven and target contracts (parsers, URL building, spec matching, redaction, cURL). Add one when you add a contract; don't test plumbing.
-- Verify UI changes on screen (`screencapture`), not by reading the code back.
+- NEVER take screenshots (`screencapture`) or script/drive the running app for verification — it grabs the user's whole screen and is disruptive, and multiple app instances clash with their Xcode session. `xcodebuild` (build + `test`) is the verifier; reason from the code, and leave visual confirmation to the user, telling them precisely what to check.
 - One commit per coherent change; the message explains why and records the constraint behind any non-obvious choice.
 - SourceKit diagnostics in this workspace report the whole module as unresolved ("Cannot find type … in scope"). They are noise; `xcodebuild` is the verifier.
