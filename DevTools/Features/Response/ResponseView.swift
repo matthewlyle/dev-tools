@@ -71,7 +71,9 @@ struct ResponseView<RequestBar: View>: View {
                                 description: Text(error)
                             )
                         } else {
-                            ZeroState(text: "Send a request to see the response here.")
+                            ZeroState(text: editable
+                                ? "Send a request to see the response here."
+                                : "Select a request to see the response here.")
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
