@@ -148,20 +148,51 @@ struct MediaResultsView: View {
     private var grid: some View {
         ScrollView {
             headerBlock
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 130, maximum: 150), spacing: 16, alignment: .top)],
-                alignment: .leading,
-                spacing: 20
-            ) {
-                ForEach(items) { item in
-                    PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
-                        selectedID = item.id
-                        showInfo = true
-                    }
-                }
+            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { id in
+                selectedID = id
+                showInfo = true
             }
-            .padding(16)
+            .id(requests.response?.receivedAt)
         }
+    }
+}
+
+/// The query's items as a poster grid. Cells rise and fade in with a short
+/// positional stagger so a fresh result set reads as arriving rather than
+/// blinking into place; the `.id(receivedAt)` in the parent remounts this so
+/// the entrance replays on each new query but not on scroll or section switch.
+private struct PosterGrid: View {
+    let items: [MediaItem]
+    let server: ConnectedServer?
+    let sortKey: String?
+    let selectedID: Int?
+    let select: (Int) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appeared = false
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 130, maximum: 150), spacing: 16, alignment: .top)],
+            alignment: .leading,
+            spacing: 20
+        ) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
+                    select(item.id)
+                }
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared || reduceMotion ? 0 : 8)
+                .animation(
+                    reduceMotion
+                        ? .smooth(duration: 0.2)
+                        : .smooth(duration: 0.4).delay(Double(min(index, 10)) * 0.035),
+                    value: appeared
+                )
+            }
+        }
+        .padding(16)
+        .onAppear { appeared = true }
     }
 }
 

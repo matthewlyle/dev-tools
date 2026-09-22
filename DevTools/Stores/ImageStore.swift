@@ -26,11 +26,22 @@ final class ImageStore {
         cache.totalCostLimit = 160 * 1024 * 1024
     }
 
-    func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> PlatformImage? {
-        let key = "\(server.machineID)|\(value)|\(width)x\(height)"
-        if let cached = cache.object(forKey: key as NSString) { return cached }
+    private func cacheKey(_ value: String, _ server: ConnectedServer, _ width: Int, _ height: Int) -> NSString {
+        "\(server.machineID)|\(value)|\(width)x\(height)" as NSString
+    }
 
-        let task = inFlight[key] ?? Task<Data?, Never> { [http] in
+    /// The decoded image if it's already in memory, without touching the
+    /// network. Lets a view show a cached hit instantly and reserve the fade
+    /// for a real decode.
+    func cachedImage(for value: String, server: ConnectedServer, width: Int, height: Int) -> PlatformImage? {
+        cache.object(forKey: cacheKey(value, server, width, height))
+    }
+
+    func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> PlatformImage? {
+        let key = cacheKey(value, server, width, height)
+        if let cached = cache.object(forKey: key) { return cached }
+
+        let task = inFlight[key as String] ?? Task<Data?, Never> { [http] in
             if value.contains("://") {
                 guard let url = URL(string: value), let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
                 return data
@@ -46,12 +57,12 @@ final class ImageStore {
             guard let response = try? await http.send(request, to: server), response.status == 200 else { return nil }
             return response.body
         }
-        inFlight[key] = task
+        inFlight[key as String] = task
         let data = await task.value
-        inFlight[key] = nil
+        inFlight[key as String] = nil
 
         guard let data, let image = PlatformImage(data: data) else { return nil }
-        cache.setObject(image, forKey: key as NSString, cost: width * height * 4)
+        cache.setObject(image, forKey: key, cost: width * height * 4)
         return image
     }
 }

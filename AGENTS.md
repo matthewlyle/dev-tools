@@ -86,8 +86,8 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 **Spec**
 - The OpenAPI spec is a guide, not truth. `required` is frequently absent, so a documented-but-unsent parameter shows as a hint on a 400, not a block on sending. Documented params feed autocomplete; users can still type anything.
 
-**Animation** — motion is for continuity, never decoration.
-- Animate only when something *changes in place* and the user needs to track it: a number updating, a row appearing or leaving, a disclosure opening, a state flipping. Static layouts stay static; nothing animates on appear, and nothing loops.
+**Animation** — motion is for continuity and feedback, never ambient decoration.
+- Animate when something *changes in place* and the user tracks it (a number updating, a disclosure opening, a state flipping), when content *arrives* (a result set, a decoded image, a live event), or to give an action *felt feedback*. Entrances rise-and-fade from near their resting place — never from `scale(0)` or off-screen; stagger a group 30–80ms apart, capped so a long list doesn't cascade, and never let it block interaction. Still banned: anything ambient or looping (breathing controls, shimmer skeletons, animated gradients, parallax) and motion on the code/response body (layout cost). Static layouts stay static.
 - SwiftUI idioms: scope every animation to the value that changed with `.animation(_, value:)`, never a bare `withAnimation` around unrelated state. Numbers roll with `.contentTransition(.numericText(value:))`; swapped text crossfades with `.interpolate`. Use the system springs (`.snappy` default, `.smooth` for large layout, `.bouncy` only for something playful) rather than hand-tuned curves or durations; leave system components (lists, disclosures, sheets, menus) to their own motion.
 - Reduced motion is a first-class variant, not an afterthought: read `@Environment(\.accessibilityReduceMotion)` and collapse movement to a crossfade or an instant change. Colour and opacity may still transition.
 - Skills — run the animations.dev skills by phase, not as a sweep:

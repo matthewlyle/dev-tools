@@ -160,7 +160,7 @@ Each ends with a smoke-test proof, not a test suite.
 5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
 6. **Activity monitor.** Socket, event list, type filters, payload inspector — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
-8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay — in progress.
+8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion) — in progress.
 
 ## Tests (targeted, fixture-driven)
 

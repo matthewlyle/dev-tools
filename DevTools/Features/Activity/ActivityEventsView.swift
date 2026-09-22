@@ -5,6 +5,7 @@ import SwiftUI
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showInspector = false
 
     var body: some View {
@@ -31,6 +32,7 @@ struct ActivityEventsView: View {
                         )
                     }
                 }
+                .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
