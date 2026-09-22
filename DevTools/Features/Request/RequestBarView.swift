@@ -8,7 +8,7 @@ struct RequestBarView: View {
     @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showDocs = false
+
     @State private var showSave = false
 
     private var operation: SpecOperation? {
@@ -38,18 +38,15 @@ struct RequestBarView: View {
                     .onSubmit(send)
                     .autocorrectionDisabled()
 
-                if let operation {
+                if operation != nil {
                     Button {
-                        showDocs.toggle()
+                        requests.showingDocs = true
                     } label: {
                         Label("Documentation", systemImage: "info.circle")
                             .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.borderless)
-                    .help(operation.summary)
-                    .popover(isPresented: $showDocs, arrowEdge: .bottom) {
-                        OperationDocs(operation: operation)
-                    }
+                    .help(operation?.summary ?? "")
                 }
 
                 Button(action: send) {
@@ -194,7 +191,7 @@ struct RequestBarView: View {
     }
 }
 
-private struct OperationDocs: View {
+struct OperationDocs: View {
     let operation: SpecOperation
 
     var body: some View {
