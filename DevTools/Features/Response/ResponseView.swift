@@ -48,7 +48,7 @@ struct ResponseView<RequestBar: View>: View {
                             headerBlock
                         }
                     } else {
-                        VStack(spacing: 0) {
+                        FillingScrollView {
                             headerBlock
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,7 +60,7 @@ struct ResponseView<RequestBar: View>: View {
                     }
                 }
             } else {
-                VStack(spacing: 0) {
+                FillingScrollView {
                     headerBlock
                     Group {
                         if let error = requests.errorMessage {
@@ -134,6 +134,26 @@ struct ResponseView<RequestBar: View>: View {
             }
             if let operation = adminOnlyHint {
                 AccessHint(operation: operation)
+            }
+        }
+    }
+}
+
+/// A scroll view whose content is at least the viewport tall. Static states
+/// (empty, loading) go through it so the detail is always a scroll surface:
+/// on macOS the toolbar draws its backdrop over static content and turns
+/// transparent only over a scroll view, and every section should look the
+/// same at rest.
+struct FillingScrollView<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    content()
+                }
+                .frame(minHeight: proxy.size.height)
             }
         }
     }

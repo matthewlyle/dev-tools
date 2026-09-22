@@ -10,7 +10,7 @@ struct ActivityEventsView: View {
             if activity.events.isEmpty, !activity.status.isActive {
                 // Disconnected with nothing captured: the Connect button in the
                 // Activity panel is the only affordance, so this pane stays empty.
-                Color.clear
+                FillingScrollView { Color.clear }
             } else {
                 #if os(macOS)
                 HSplitView {

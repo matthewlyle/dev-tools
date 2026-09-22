@@ -34,13 +34,13 @@ struct MediaResultsView: View {
                 switch tab {
                 case .posters:
                     if requests.document == nil {
-                        VStack(spacing: 0) {
+                        FillingScrollView {
                             headerBlock
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     } else if items.isEmpty {
-                        VStack(spacing: 0) {
+                        FillingScrollView {
                             headerBlock
                             ContentUnavailableView(
                                 "No Items",
@@ -58,7 +58,7 @@ struct MediaResultsView: View {
                             headerBlock
                         }
                     } else {
-                        VStack(spacing: 0) {
+                        FillingScrollView {
                             headerBlock
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,7 +70,7 @@ struct MediaResultsView: View {
                     }
                 }
             } else {
-                VStack(spacing: 0) {
+                FillingScrollView {
                     headerBlock
                     Group {
                         if let error = requests.errorMessage {
