@@ -37,16 +37,24 @@ struct ActivityEventsView: View {
 
 private struct EventList: View {
     @Environment(ActivityStore.self) private var activity
+    @Environment(ServerStore.self) private var servers
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var selectedServer: ConnectedServer? {
+        servers.selected.flatMap { servers.connectedServer(for: $0) }
+    }
 
     var body: some View {
         @Bindable var activity = activity
 
         Group {
             if activity.events.isEmpty, !activity.status.isActive {
-                // Disconnected with nothing captured: the Connect button in the
-                // Activity panel is the only affordance, so this pane stays empty.
-                FillingScrollView { Color.clear }
+                // The list column's Connect can be hidden on iPad, so the
+                // pane carries its own.
+                FillingScrollView {
+                    disconnected
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
                     EventRow(event: event)
@@ -77,6 +85,35 @@ private struct EventList: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var disconnected: some View {
+        if case .failed(let message) = activity.status {
+            ContentUnavailableView {
+                Label("Couldn't Connect", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text("\(message) Check that the server is reachable, then try again.")
+            } actions: {
+                connectButton("Try Again")
+            }
+        } else {
+            ContentUnavailableView {
+                Label("Not Connected", systemImage: "dot.radiowaves.left.and.right")
+            } description: {
+                Text("Connect to watch playback, library scans, and other server activity as it happens.")
+            } actions: {
+                connectButton("Connect")
+            }
+        }
+    }
+
+    private func connectButton(_ title: String) -> some View {
+        Button(title) {
+            guard let selectedServer else { return }
+            activity.connect(to: selectedServer)
+        }
+        .disabled(selectedServer == nil)
     }
 }
 
