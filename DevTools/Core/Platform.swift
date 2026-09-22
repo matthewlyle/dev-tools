@@ -53,11 +53,16 @@ extension PlatformColor {
         .quaternaryLabel
         #endif
     }
+
+    /// On iOS the System theme draws straight over the well, whose wash
+    /// otherwise stops at the text view's edge and leaves the body screen
+    /// black against the lists around it. The well is the system background
+    /// under a faint wash, so the System hues' contrast holds.
     static var codeBackground: PlatformColor {
         #if os(macOS)
         .textBackgroundColor
         #else
-        .systemBackground
+        .clear
         #endif
     }
     static var recessedBackground: PlatformColor {
