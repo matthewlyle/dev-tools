@@ -393,6 +393,7 @@ private struct TermRow: View {
                     }
                 }
                 .labelsHidden()
+                .fixedSize()
 
                 Spacer(minLength: 0)
 
@@ -579,6 +580,9 @@ private struct SortRow: View {
                 Text("Descending").tag(true)
             }
             .labelsHidden()
+            // iOS menu pickers share an HStack's width with the Spacer and
+            // truncate early; the direction's two short words always fit.
+            .fixedSize()
 
             Spacer(minLength: 0)
 
