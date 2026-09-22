@@ -11,15 +11,15 @@ struct RemoteImage<Placeholder: View>: View {
     @ViewBuilder let placeholder: () -> Placeholder
 
     @Environment(ImageStore.self) private var images
-    @State private var image: NSImage?
+    @State private var image: PlatformImage?
 
     var body: some View {
         ZStack {
             if let image {
                 if fit {
-                    Image(nsImage: image).resizable().scaledToFit()
+                    Image(platformImage: image).resizable().scaledToFit()
                 } else {
-                    Image(nsImage: image).resizable().scaledToFill()
+                    Image(platformImage: image).resizable().scaledToFill()
                 }
             } else {
                 placeholder()

@@ -1,5 +1,11 @@
-import AppKit
 import Observation
+import SwiftUI
+
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Loads server artwork through `PlexHTTP`, so the token travels as a header
 /// and never appears in an image URL. Server-relative paths go through
@@ -10,7 +16,7 @@ import Observation
 @Observable
 final class ImageStore {
     private let http: PlexHTTP
-    private let cache = NSCache<NSString, NSImage>()
+    private let cache = NSCache<NSString, PlatformImage>()
     private var inFlight: [String: Task<Data?, Never>] = [:]
 
     init(http: PlexHTTP) {
@@ -20,7 +26,7 @@ final class ImageStore {
         cache.totalCostLimit = 160 * 1024 * 1024
     }
 
-    func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> NSImage? {
+    func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> PlatformImage? {
         let key = "\(server.machineID)|\(value)|\(width)x\(height)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
@@ -44,7 +50,7 @@ final class ImageStore {
         let data = await task.value
         inFlight[key] = nil
 
-        guard let data, let image = NSImage(data: data) else { return nil }
+        guard let data, let image = PlatformImage(data: data) else { return nil }
         cache.setObject(image, forKey: key as NSString, cost: width * height * 4)
         return image
     }

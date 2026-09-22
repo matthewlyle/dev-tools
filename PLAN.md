@@ -6,7 +6,7 @@ Native macOS developer tool for exploring the Plex Media Server API. Postman-sha
 
 | Topic | Decision |
 |---|---|
-| Platform | macOS 26+ (Liquid Glass). Xcode 27.1, Swift 6, strict concurrency. |
+| Platform | macOS 26+ and iPadOS 26+ (Liquid Glass), one universal app target (iPad-only device family). Xcode 27.1, Swift 6, strict concurrency. |
 | UI | SwiftUI + `@Observable`. `NavigationSplitView` three-pane. Liquid Glass only where the system puts it (toolbar, sidebar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
 | Deps | Minimal. None planned for v1; reassess only if the hand-rolled XML/JSON highlighter proves inadequate. |
 | Bundle ID | `mldgg.devtools` |
@@ -56,6 +56,7 @@ dev-tools/
     RootView.swift               sign-in vs main split
     Core/
       Typeface.swift             Commit Mono via Font.code(_:); the only monospace path
+      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, SystemBrowser, nav-subtitle/checkbox/searchable/toolbar helpers (macOS vs iPadOS)
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (persisted UUID) + Product/Version/Platform/Device headers
       Auth/

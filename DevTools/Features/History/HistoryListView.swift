@@ -95,9 +95,11 @@ struct HistoryListView: View {
                 }
         }
         .listStyle(.inset)
+        #if os(macOS)
         .onDeleteCommand {
             if let selection { delete(selection) }
         }
+        #endif
         .onChange(of: selection) { _, id in
             guard let entry = rows.first(where: { $0.id == id }), let connected else { return }
             requests.replay(entry, on: connected)
@@ -105,7 +107,7 @@ struct HistoryListView: View {
         .onAppear {
             if selection == nil { selection = rows.first?.id }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Filter history")
+        .searchable(text: $search, placement: .platformToolbar, prompt: "Filter history")
         .toolbar {
             ToolbarItem {
                 Menu {

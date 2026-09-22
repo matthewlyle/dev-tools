@@ -48,9 +48,11 @@ struct DevToolsApp: App {
             AppCommands(account: account, servers: servers, requests: requests, spec: spec)
         }
 
+        #if os(macOS)
         Settings {
             SettingsView()
                 .environment(requests)
         }
+        #endif
     }
 }

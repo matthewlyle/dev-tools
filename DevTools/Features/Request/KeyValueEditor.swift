@@ -21,7 +21,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
             ForEach($items) { $item in
                 HStack(spacing: 8) {
                     Toggle("Enabled", isOn: $item.enabled)
-                        .toggleStyle(.checkbox)
+                        .platformCheckboxToggleStyle()
                         .labelsHidden()
                     if let description = description(for: item.name) {
                         Text(item.name)

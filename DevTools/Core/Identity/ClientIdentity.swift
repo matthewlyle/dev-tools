@@ -34,14 +34,23 @@ struct ClientIdentity: Sendable, Hashable {
         }
 
         let os = ProcessInfo.processInfo.operatingSystemVersion
+        #if os(macOS)
+        let platform = "macOS"
+        let device = "Mac"
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #else
+        let platform = "iOS"
+        let device = "iPad"
+        let deviceName = "iPad"
+        #endif
         return ClientIdentity(
             clientIdentifier: id,
             product: "Plex Dev Tools",
             version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1",
-            platform: "macOS",
+            platform: platform,
             platformVersion: "\(os.majorVersion).\(os.minorVersion)",
-            device: "Mac",
-            deviceName: Host.current().localizedName ?? "Mac"
+            device: device,
+            deviceName: deviceName
         )
     }
 }

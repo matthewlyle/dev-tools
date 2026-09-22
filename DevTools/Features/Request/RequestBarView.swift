@@ -90,7 +90,7 @@ struct RequestBarView: View {
                     .textSelection(.enabled)
                 Spacer(minLength: 0)
                 Button {
-                    if let url = operation?.docsURL { NSWorkspace.shared.open(url) }
+                    if let url = operation?.docsURL { SystemBrowser.open(url) }
                 } label: {
                     Label("Open in Developer Docs", systemImage: "safari")
                         .labelStyle(.iconOnly)
@@ -184,14 +184,12 @@ struct RequestBarView: View {
     /// safe to paste anywhere.
     private func copyURL() {
         guard let server, let url = requests.current.url(base: server.baseURL) else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        Clipboard.copy(url.absoluteString)
     }
 
     private func copyCurl() {
         guard let server, let command = requests.curl(for: server) else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
+        Clipboard.copy(command)
     }
 }
 

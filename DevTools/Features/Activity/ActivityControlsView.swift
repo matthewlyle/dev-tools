@@ -79,7 +79,7 @@ struct ActivityControlsView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .toggleStyle(.checkbox)
+                            .platformCheckboxToggleStyle()
                         }
                     }
                 }

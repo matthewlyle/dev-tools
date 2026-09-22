@@ -48,13 +48,12 @@ struct RawResponseView: View {
                     get: { wrap || wrapForced },
                     set: { wrap = $0 }
                 ))
-                    .toggleStyle(.checkbox)
+                    .platformCheckboxToggleStyle()
                     .controlSize(.small)
                     .disabled(wrapForced)
                     .help(wrapForced ? "Bodies over \(Self.wrapForcedAbove.formatted(.byteCount(style: .file))) are always wrapped; unwrapped layout would stall." : "Wrap long lines")
                 Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(document.text.isEmpty ? response.bodyText : document.text, forType: .string)
+                    Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
                 } label: {
                     Label("Copy Body", systemImage: "doc.on.doc")
                         .labelStyle(.iconOnly)

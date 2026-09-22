@@ -12,32 +12,48 @@ struct ActivityEventsView: View {
                 // Activity panel is the only affordance, so this pane stays empty.
                 Color.clear
             } else {
+                #if os(macOS)
                 HSplitView {
-                    List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
-                        EventRow(event: event)
-                            .tag(event.id)
-                    }
-                    .listStyle(.inset)
-                    .frame(minWidth: 320, idealWidth: 460)
-                    .overlay {
-                        if activity.visibleEvents.isEmpty, activity.status.isActive {
-                            ContentUnavailableView(
-                                "Waiting for Events",
-                                systemImage: "dot.radiowaves.left.and.right",
-                                description: Text("Start playback or a library scan on any client.")
-                            )
-                        }
-                    }
-
+                    eventList
                     if !activity.visibleEvents.isEmpty {
                         EventInspector(event: activity.selectedEvent)
                             .frame(minWidth: 320)
                     }
                 }
+                #else
+                HStack(spacing: 0) {
+                    eventList
+                    if !activity.visibleEvents.isEmpty {
+                        Divider()
+                        EventInspector(event: activity.selectedEvent)
+                            .frame(minWidth: 320)
+                    }
+                }
+                #endif
             }
         }
         .navigationTitle("Activity")
-        .navigationSubtitle(subtitle)
+        .platformNavigationSubtitle(subtitle)
+    }
+
+    @ViewBuilder
+    private var eventList: some View {
+        @Bindable var activity = activity
+        List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
+            EventRow(event: event)
+                .tag(event.id)
+        }
+        .listStyle(.inset)
+        .frame(minWidth: 320, idealWidth: 460)
+        .overlay {
+            if activity.visibleEvents.isEmpty, activity.status.isActive {
+                ContentUnavailableView(
+                    "Waiting for Events",
+                    systemImage: "dot.radiowaves.left.and.right",
+                    description: Text("Start playback or a library scan on any client.")
+                )
+            }
+        }
     }
 
     private var subtitle: String {
@@ -81,8 +97,7 @@ private struct EventInspector: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(document?.text ?? event.raw, forType: .string)
+                        Clipboard.copy(document?.text ?? event.raw)
                     } label: {
                         Label("Copy Payload", systemImage: "doc.on.doc")
                             .labelStyle(.iconOnly)

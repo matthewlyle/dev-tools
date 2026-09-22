@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 
@@ -51,7 +50,7 @@ final class AccountStore {
         do {
             let pin = try await plexTV.createPIN()
             state = .awaitingApproval(pin)
-            NSWorkspace.shared.open(plexTV.approvalURL(for: pin))
+            SystemBrowser.open(plexTV.approvalURL(for: pin))
             startPolling(pin)
         } catch {
             errorMessage = error.localizedDescription
@@ -61,7 +60,7 @@ final class AccountStore {
 
     func openApprovalPage() {
         guard case .awaitingApproval(let pin) = state else { return }
-        NSWorkspace.shared.open(plexTV.approvalURL(for: pin))
+        SystemBrowser.open(plexTV.approvalURL(for: pin))
     }
 
     func cancelSignIn() {

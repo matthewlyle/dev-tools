@@ -30,6 +30,7 @@ A `///` on a type or function is fine when it meets the bar above; most don't. W
 - **WebSocket path is `/:/websockets/notifications` (plural).** Plex's own OpenAPI doc lists it singular, which the server 404s. There is no EventSource transport; don't add one.
 - **`Resources/plex-openapi.json` is generated** by `Tools/extract-spec.sh`. Never hand-edit it; fix consumers instead.
 - **Response format (`Accept`) is an app-wide setting**, not per request. History replays use the current setting.
+- **One universal target, macOS + iPadOS (iPad-only family).** Views are shared SwiftUI; every platform difference goes through `Core/Platform.swift`, never a raw `NS*`/`UI*` type in a feature file. Images/fonts/colours are `PlatformImage`/`PlatformFont`/`PlatformColor`; clipboard is `Clipboard.copy`, opening a URL is `SystemBrowser.open`, and the macOS-only modifiers have `platform…` wrappers (`platformNavigationSubtitle`, `platformCheckboxToggleStyle`, `.platformToolbar` search, `.platformSectionSwitcher`). `#if os(macOS)` in a feature view is a last resort (the split's `HSplitView`, `onExitCommand`/`onDeleteCommand`); reach for a helper in `Platform.swift` first. macOS keeps the `Settings` scene; iPadOS presents `SettingsView` from a sidebar gear. Sandbox/hardened-runtime/entitlements are scoped `[sdk=macosx*]`. `CodeTextView` is an `NSTextView` on macOS and a `UITextView` on iPadOS behind one type, sharing the attributed-string renderer.
 
 ## Design: the HIG, as applied here
 

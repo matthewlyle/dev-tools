@@ -45,11 +45,7 @@ struct ServerDetailView: View {
         }
         .navigationTitle(entry.resource.name)
         .toolbar {
-            // SwiftUI toolbars have no column alignment on macOS. .secondaryAction
-            // is the center region, which begins right after the title, so this
-            // reads "<server>  [Endpoints | History | Activity]" with filters and
-            // search trailing. Connect lives only in the Server menu.
-            ToolbarItem(placement: .secondaryAction) {
+            ToolbarItem(placement: .platformSectionSwitcher) {
                 Picker("Section", selection: $section) {
                     ForEach(ServerSection.allCases) { section in
                         Text(section.rawValue).tag(section)

@@ -2,11 +2,13 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(RequestStore.self) private var requests
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("rawWrapLines") private var wrapLines = true
     @State private var confirmingClear = false
 
     var body: some View {
+        #if os(macOS)
         TabView {
             Tab("General", systemImage: "gearshape") {
                 general
@@ -14,6 +16,17 @@ struct SettingsView: View {
         }
         .scenePadding()
         .frame(width: 480)
+        #else
+        NavigationStack {
+            general
+                .navigationTitle("Settings")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+        #endif
     }
 
     private var general: some View {

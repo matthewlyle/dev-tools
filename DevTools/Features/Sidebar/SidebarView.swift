@@ -5,6 +5,9 @@ struct SidebarView: View {
 
     @Environment(AccountStore.self) private var account
     @Environment(ServerStore.self) private var servers
+    #if !os(macOS)
+    @State private var showSettings = false
+    #endif
 
     var body: some View {
         List(selection: $selection) {
@@ -39,10 +42,25 @@ struct SidebarView: View {
                 }
                 .disabled(servers.isRefreshing)
             }
+            #if !os(macOS)
+            ToolbarItem {
+                Button {
+                    showSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            #endif
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AccountFooter()
         }
+        #if !os(macOS)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        #endif
     }
 }
 

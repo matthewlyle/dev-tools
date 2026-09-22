@@ -1,5 +1,10 @@
-import AppKit
 import SwiftUI
+
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 enum Typeface {
     static let family = "CommitMono"
@@ -8,19 +13,19 @@ enum Typeface {
         for url in Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [] {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
-        return NSFont(name: "\(family)-Regular", size: 12) != nil
+        return PlatformFont(name: "\(family)-Regular", size: 12) != nil
     }()
 
-    static func code(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
-        let face = weight.rawValue >= NSFont.Weight.semibold.rawValue ? "\(family)-Bold" : "\(family)-Regular"
-        if isAvailable, let font = NSFont(name: face, size: size) { return font }
+    static func code(size: CGFloat, weight: PlatformFont.Weight = .regular) -> PlatformFont {
+        let face = weight.rawValue >= PlatformFont.Weight.semibold.rawValue ? "\(family)-Bold" : "\(family)-Regular"
+        if isAvailable, let font = PlatformFont(name: face, size: size) { return font }
         return .monospacedSystemFont(ofSize: size, weight: weight)
     }
 }
 
 extension Font {
     static func code(_ style: Font.TextStyle = .body, weight: Font.Weight = .regular) -> Font {
-        code(size: NSFont.preferredFont(forTextStyle: style.nsTextStyle).pointSize, weight: weight)
+        code(size: PlatformFont.preferredFont(forTextStyle: style.platformTextStyle).pointSize, weight: weight)
     }
 
     static func code(size: CGFloat, weight: Font.Weight = .regular) -> Font {
@@ -30,7 +35,7 @@ extension Font {
 }
 
 private extension Font.TextStyle {
-    var nsTextStyle: NSFont.TextStyle {
+    var platformTextStyle: PlatformFont.TextStyle {
         switch self {
         case .largeTitle: .largeTitle
         case .title: .title1

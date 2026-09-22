@@ -115,14 +115,13 @@ struct AppCommands: Commands {
 
             Button("Copy as cURL") {
                 guard let server = activeServer, let command = requests.curl(for: server) else { return }
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(command, forType: .string)
+                Clipboard.copy(command)
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(activeServer == nil)
 
             Button("Open in Developer Docs") {
-                if let url = currentDocsURL { NSWorkspace.shared.open(url) }
+                if let url = currentDocsURL { SystemBrowser.open(url) }
             }
             .disabled(currentDocsURL == nil)
 

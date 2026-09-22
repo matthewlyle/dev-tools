@@ -10,7 +10,7 @@ struct LightboxOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var expanded = false
-    @State private var image: NSImage?
+    @State private var image: PlatformImage?
 
     private static let margin: CGFloat = 48
     private static let captionHeight: CGFloat = 64
@@ -31,7 +31,7 @@ struct LightboxOverlay: View {
 
                     Group {
                         if let image {
-                            Image(nsImage: image)
+                            Image(platformImage: image)
                                 .resizable()
                                 .scaledToFit()
                         } else {
@@ -54,7 +54,9 @@ struct LightboxOverlay: View {
                 .animation(.smooth, value: expanded)
                 .onAppear { expanded = true }
                 .onDisappear { expanded = false; image = nil }
+                #if os(macOS)
                 .onExitCommand { close() }
+                #endif
                 .task(id: presentation.item.id) {
                     let server = presentation.server
                     let url = presentation.item.url

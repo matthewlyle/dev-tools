@@ -98,7 +98,7 @@ struct MediaQueryBuilderView: View {
                             .disabled(type.fields.isEmpty)
                             if store.query.terms.count > 1 {
                                 Toggle("Match any filter", isOn: $store.query.matchAny)
-                                    .toggleStyle(.checkbox)
+                                    .platformCheckboxToggleStyle()
                                     .help("Join filters with OR instead of AND")
                             }
                         } header: {

@@ -1,7 +1,12 @@
-import AppKit
 import SwiftUI
 
-struct CodeTextView: NSViewRepresentable {
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
+struct CodeTextView {
     let text: String
     let tokens: [Token]
     let folds: [FoldRegion]
@@ -9,18 +14,12 @@ struct CodeTextView: NSViewRepresentable {
     let wrap: Bool
     let version: Date
 
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    final class Coordinator: NSObject {
         var appliedVersion: Date?
         var appliedCollapsed: Set<Int>?
         var appliedWrap: Bool?
         var toggle: ((Int) -> Void)?
         var renderTask: Task<Void, Never>?
-
-        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-            guard let url = link as? URL, url.scheme == "fold", let id = Int(url.host() ?? "") else { return false }
-            toggle?(id)
-            return true
-        }
     }
 
     /// Carries the built string back from the render thread. Attributed
@@ -29,6 +28,100 @@ struct CodeTextView: NSViewRepresentable {
         let string: NSAttributedString
     }
 
+    private nonisolated(unsafe) static let font = Typeface.code(size: 12)
+    private nonisolated(unsafe) static let placeholderAttributes: [NSAttributedString.Key: Any] = [
+        .font: font,
+        .foregroundColor: PlatformColor.codeSecondaryLabel,
+        .backgroundColor: PlatformColor.codeQuaternaryLabel.withAlphaComponent(0.25),
+    ]
+
+    private nonisolated static func render(text: String, tokens: [Token], folds: [FoldRegion], collapsed: Set<Int>) -> Rendered {
+        let source = text as NSString
+        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: PlatformColor.codeLabel]
+        let result = NSMutableAttributedString()
+        result.beginEditing()
+        defer { result.endEditing() }
+        let hidden = Folding.effective(folds, collapsed: collapsed)
+
+        var cursor = 0
+        var tokenIndex = 0
+
+        func appendSegment(_ start: Int, _ end: Int) {
+            guard end > start else { return }
+            let offset = result.length - start
+            result.append(NSAttributedString(string: source.substring(with: NSRange(location: start, length: end - start)), attributes: base))
+            while tokenIndex < tokens.count, tokens[tokenIndex].location < start { tokenIndex += 1 }
+            var index = tokenIndex
+            while index < tokens.count, tokens[index].location < end {
+                let token = tokens[index]
+                let clippedEnd = min(token.location + token.length, end)
+                if clippedEnd > token.location {
+                    result.addAttribute(.foregroundColor, value: color(for: token.kind), range: NSRange(location: token.location + offset, length: clippedEnd - token.location))
+                }
+                index += 1
+            }
+            tokenIndex = index
+        }
+
+        var anchorOffsets: [(region: FoldRegion, offset: Int)] = []
+        var anchorIndex = 0
+        let anchorsByStart = folds.sorted { $0.anchor.location < $1.anchor.location }
+
+        func recordAnchors(upTo end: Int, offset: Int) {
+            while anchorIndex < anchorsByStart.count, anchorsByStart[anchorIndex].anchor.location < end {
+                let region = anchorsByStart[anchorIndex]
+                if region.anchor.location >= cursor {
+                    anchorOffsets.append((region, offset))
+                }
+                anchorIndex += 1
+            }
+        }
+
+        for region in hidden {
+            let offset = result.length - cursor
+            recordAnchors(upTo: region.hiddenStart, offset: offset)
+            appendSegment(cursor, region.hiddenStart)
+            let placeholder = NSMutableAttributedString(string: " ⋯ \(region.count) ", attributes: placeholderAttributes)
+            placeholder.addAttribute(.link, value: URL(string: "fold://\(region.id)")!, range: NSRange(location: 0, length: placeholder.length))
+            result.append(placeholder)
+            cursor = region.hiddenEnd
+            while anchorIndex < anchorsByStart.count, anchorsByStart[anchorIndex].anchor.location < cursor { anchorIndex += 1 }
+        }
+        let tailOffset = result.length - cursor
+        recordAnchors(upTo: source.length, offset: tailOffset)
+        appendSegment(cursor, source.length)
+
+        for (region, offset) in anchorOffsets {
+            let range = NSRange(location: region.anchor.location + offset, length: region.anchor.length)
+            guard range.location + range.length <= result.length else { continue }
+            result.addAttribute(.link, value: URL(string: "fold://\(region.id)")!, range: range)
+        }
+        return Rendered(string: result)
+    }
+
+    private nonisolated static func color(for kind: TokenKind) -> PlatformColor {
+        switch kind {
+        case .key, .attributeName: .systemTeal
+        case .string, .attributeValue: .systemGreen
+        case .number: .systemPurple
+        case .literal: .systemOrange
+        case .punctuation: .codeSecondaryLabel
+        case .tagName: .systemBlue
+        case .comment, .processingInstruction: .codeTertiaryLabel
+        }
+    }
+}
+
+#if os(macOS)
+extension CodeTextView.Coordinator: NSTextViewDelegate {
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        guard let url = link as? URL, url.scheme == "fold", let id = Int(url.host() ?? "") else { return false }
+        toggle?(id)
+        return true
+    }
+}
+
+extension CodeTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -37,7 +130,7 @@ struct CodeTextView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = .codeBackground
 
         let textView = scrollView.documentView as! NSTextView
         textView.delegate = context.coordinator
@@ -100,89 +193,6 @@ struct CodeTextView: NSViewRepresentable {
         }
     }
 
-    private static let font = Typeface.code(size: 12)
-    private static let placeholderAttributes: [NSAttributedString.Key: Any] = [
-        .font: font,
-        .foregroundColor: NSColor.secondaryLabelColor,
-        .backgroundColor: NSColor.quaternaryLabelColor.withAlphaComponent(0.25),
-    ]
-
-    private nonisolated static func render(text: String, tokens: [Token], folds: [FoldRegion], collapsed: Set<Int>) -> Rendered {
-        let source = text as NSString
-        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
-        let result = NSMutableAttributedString()
-        result.beginEditing()
-        defer { result.endEditing() }
-        let hidden = Folding.effective(folds, collapsed: collapsed)
-
-        var cursor = 0
-        var tokenIndex = 0
-
-        func appendSegment(_ start: Int, _ end: Int) {
-            guard end > start else { return }
-            let offset = result.length - start
-            result.append(NSAttributedString(string: source.substring(with: NSRange(location: start, length: end - start)), attributes: base))
-            while tokenIndex < tokens.count, tokens[tokenIndex].location < start { tokenIndex += 1 }
-            var index = tokenIndex
-            while index < tokens.count, tokens[index].location < end {
-                let token = tokens[index]
-                let clippedEnd = min(token.location + token.length, end)
-                if clippedEnd > token.location {
-                    result.addAttribute(.foregroundColor, value: color(for: token.kind), range: NSRange(location: token.location + offset, length: clippedEnd - token.location))
-                }
-                index += 1
-            }
-            tokenIndex = index
-        }
-
-        var anchorOffsets: [(region: FoldRegion, offset: Int)] = []
-        var anchorIndex = 0
-        let anchorsByStart = folds.sorted { $0.anchor.location < $1.anchor.location }
-
-        func recordAnchors(upTo end: Int, offset: Int) {
-            while anchorIndex < anchorsByStart.count, anchorsByStart[anchorIndex].anchor.location < end {
-                let region = anchorsByStart[anchorIndex]
-                if region.anchor.location >= cursor {
-                    anchorOffsets.append((region, offset))
-                }
-                anchorIndex += 1
-            }
-        }
-
-        for region in hidden {
-            let offset = result.length - cursor
-            recordAnchors(upTo: region.hiddenStart, offset: offset)
-            appendSegment(cursor, region.hiddenStart)
-            let placeholder = NSMutableAttributedString(string: " ⋯ \(region.count) ", attributes: placeholderAttributes)
-            placeholder.addAttribute(.link, value: URL(string: "fold://\(region.id)")!, range: NSRange(location: 0, length: placeholder.length))
-            result.append(placeholder)
-            cursor = region.hiddenEnd
-            while anchorIndex < anchorsByStart.count, anchorsByStart[anchorIndex].anchor.location < cursor { anchorIndex += 1 }
-        }
-        let tailOffset = result.length - cursor
-        recordAnchors(upTo: source.length, offset: tailOffset)
-        appendSegment(cursor, source.length)
-
-        for (region, offset) in anchorOffsets {
-            let range = NSRange(location: region.anchor.location + offset, length: region.anchor.length)
-            guard range.location + range.length <= result.length else { continue }
-            result.addAttribute(.link, value: URL(string: "fold://\(region.id)")!, range: range)
-        }
-        return Rendered(string: result)
-    }
-
-    private nonisolated static func color(for kind: TokenKind) -> NSColor {
-        switch kind {
-        case .key, .attributeName: .systemTeal
-        case .string, .attributeValue: .systemGreen
-        case .number: .systemPurple
-        case .literal: .systemOrange
-        case .punctuation: .secondaryLabelColor
-        case .tagName: .systemBlue
-        case .comment, .processingInstruction: .tertiaryLabelColor
-        }
-    }
-
     private static func applyWrap(_ wrap: Bool, to textView: NSTextView, in scrollView: NSScrollView) {
         guard let container = textView.textContainer else { return }
         if wrap {
@@ -200,3 +210,82 @@ struct CodeTextView: NSViewRepresentable {
         textView.needsLayout = true
     }
 }
+#else
+extension CodeTextView.Coordinator: UITextViewDelegate {
+    func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
+        if case let .link(url) = textItem.content, url.scheme == "fold", let host = url.host(), let id = Int(host) {
+            return UIAction { [weak self] _ in self?.toggle?(id) }
+        }
+        return defaultAction
+    }
+}
+
+extension CodeTextView: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.delegate = context.coordinator
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.backgroundColor = .codeBackground
+        textView.font = Self.font
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        textView.textContainer.lineFragmentPadding = 0
+        textView.alwaysBounceVertical = true
+        textView.isFindInteractionEnabled = true
+        textView.autocorrectionType = .no
+        textView.autocapitalizationType = .none
+        textView.smartQuotesType = .no
+        textView.smartDashesType = .no
+        textView.spellCheckingType = .no
+        return textView
+    }
+
+    func updateUIView(_ textView: UITextView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.toggle = { id in
+            if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+        }
+
+        let versionChanged = coordinator.appliedVersion != version
+        if versionChanged || coordinator.appliedCollapsed != collapsed {
+            coordinator.appliedVersion = version
+            coordinator.appliedCollapsed = collapsed
+            coordinator.renderTask?.cancel()
+
+            let text = text, tokens = tokens, folds = folds, collapsed = collapsed, version = version
+            coordinator.renderTask = Task { @MainActor in
+                let rendered = await Task.detached(priority: .userInitiated) {
+                    Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed)
+                }.value
+                guard !Task.isCancelled,
+                      coordinator.appliedVersion == version,
+                      coordinator.appliedCollapsed == collapsed
+                else { return }
+                let offset = textView.contentOffset
+                textView.attributedText = rendered.string
+                textView.setContentOffset(versionChanged ? .zero : offset, animated: false)
+            }
+        }
+
+        if coordinator.appliedWrap != wrap {
+            Self.applyWrap(wrap, to: textView)
+            coordinator.appliedWrap = wrap
+        }
+    }
+
+    @MainActor private static func applyWrap(_ wrap: Bool, to textView: UITextView) {
+        let container = textView.textContainer
+        if wrap {
+            container.widthTracksTextView = true
+            container.size = CGSize(width: textView.bounds.width, height: CGFloat.greatestFiniteMagnitude)
+        } else {
+            // Unbounded width lays the code on one line; the text view scrolls
+            // horizontally to reach it.
+            container.widthTracksTextView = false
+            container.size = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        }
+    }
+}
+#endif

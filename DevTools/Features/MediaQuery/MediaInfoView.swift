@@ -232,7 +232,7 @@ private struct ImageStrip: View {
         let open: (CGRect) -> Void
 
         @Environment(ImageStore.self) private var images
-        @State private var image: NSImage?
+        @State private var image: PlatformImage?
         @State private var frame: CGRect = .zero
 
         private static let width: CGFloat = 130
@@ -255,7 +255,7 @@ private struct ImageStrip: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Group {
                         if let image {
-                            Image(nsImage: image).resizable().scaledToFit()
+                            Image(platformImage: image).resizable().scaledToFit()
                         } else {
                             Rectangle().fill(.quaternary)
                         }
