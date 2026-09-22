@@ -211,7 +211,6 @@ struct MainSplitView: View {
     #if os(macOS)
     @State private var columns: NavigationSplitViewVisibility = .all
     #else
-    @State private var showSettings = false
     @AppStorage("sectionListVisible") private var sectionListVisible = true
     #endif
 
@@ -303,17 +302,6 @@ struct MainSplitView: View {
                     .keyboardShortcut("s", modifiers: [.command, .control])
                     .disabled(servers.selected == nil)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Settings…") { showSettings = true }
-                            .keyboardShortcut(",", modifiers: .command)
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
             }
         }
     }
@@ -324,12 +312,16 @@ struct MainSplitView: View {
     /// iPad's title menu shows its chevron permanently; macOS's only on hover,
     /// so there the title is an explicit pull-down and the plain toolbar
     /// title is removed (the window keeps its title for Mission Control and
-    /// the Window menu).
+    /// the Window menu). iPadOS has no Settings scene, so Settings… presents
+    /// a sheet from here, reached from the title menu or the menu bar.
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
         @Binding var section: ServerSection
         @State private var showInfo = false
+        #if os(iOS)
+        @State private var showSettings = false
+        #endif
 
         func body(content: Content) -> some View {
             content
@@ -349,7 +341,9 @@ struct MainSplitView: View {
                     }
                 }
                 #else
-                .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }) }
+                .toolbarTitleMenu { ServerMenu(showInfo: { showInfo = true }, showSettings: { showSettings = true }) }
+                .sheet(isPresented: $showSettings) { SettingsView() }
+                .focusedSceneValue(\.showSettings, ShowSettingsAction { showSettings = true })
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .secondaryAction) {
