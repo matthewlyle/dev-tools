@@ -50,6 +50,7 @@ struct SignInView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { WellBackground() }
         .onChange(of: account.approvalURL) { _, url in
             if let url { openURL(url) }
         }

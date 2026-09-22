@@ -548,6 +548,7 @@ struct MainSplitView: View {
         }
         .id(servers.selected?.id)
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .background { WellBackground() }
         .environment(\.showSectionDetail, ShowSectionDetailAction { pushed.insert(item) })
         .modifier(Header(title: title, entry: servers.selected, section: nil))
         .navigationBarTitleDisplayMode(.inline)
