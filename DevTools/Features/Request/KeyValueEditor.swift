@@ -16,6 +16,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
     var suggestions: [SpecParameter] = []
     let makeItem: (_ name: String, _ value: String) -> Item
     @State private var showAdd = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -56,7 +57,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                         .help("Documented values")
                     }
                     Button {
-                        items.removeAll { $0.id == item.id }
+                        edit { items.removeAll { $0.id == item.id } }
                     } label: {
                         Label("Remove", systemImage: "minus.circle")
                             .labelStyle(.iconOnly)
@@ -65,11 +66,12 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                     .help("Remove")
                 }
                 .autocorrectionDisabled()
+                .transition(.opacity.combined(with: .offset(y: 6)))
             }
 
             if suggestions.isEmpty {
                 Button {
-                    items.append(makeItem("", ""))
+                    edit { items.append(makeItem("", "")) }
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
@@ -85,15 +87,22 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                 .controlSize(.small)
                 .popover(isPresented: $showAdd, arrowEdge: .bottom) {
                     ParameterAddList(parameters: unused) { parameter in
-                        items.append(makeItem(parameter.name, parameter.suggestedValue))
+                        edit { items.append(makeItem(parameter.name, parameter.suggestedValue)) }
                         showAdd = false
                     } onCustom: {
-                        items.append(makeItem("", ""))
+                        edit { items.append(makeItem("", "")) }
                         showAdd = false
                     }
                 }
             }
         }
+    }
+
+    /// Animates only the user's own adds and removes. `requests.reset()`
+    /// empties `items` on a section or server switch, which must not play
+    /// as a cascade of removals, so there's no animation keyed to the array.
+    private func edit(_ change: () -> Void) {
+        withAnimation(reduceMotion ? nil : .smooth, change)
     }
 
     /// Looked up by id on every access rather than captured by index:

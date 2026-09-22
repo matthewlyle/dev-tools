@@ -164,6 +164,7 @@ struct RequestBarView: View {
             Text(title)
             if count > 0 {
                 Text(String(count))
+                    .contentTransition(.numericText(value: Double(count)))
                     .font(.caption2.weight(.semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
@@ -172,6 +173,7 @@ struct RequestBarView: View {
             }
         }
         .font(.callout)
+        .animation(reduceMotion ? nil : .snappy, value: count)
     }
 
     private func send() {
