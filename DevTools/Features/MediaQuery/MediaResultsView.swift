@@ -236,6 +236,7 @@ private struct PosterCell: View {
     let select: (CGRect) -> Void
 
     @State private var artFrame: CGRect = .zero
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button {
@@ -245,10 +246,14 @@ private struct PosterCell: View {
                 PosterArt(item: item, server: server)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { artFrame = $0 }
                     .overlay {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(.tint, lineWidth: 3)
+                        ZStack {
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(.tint, lineWidth: 3)
+                                    .transition(.opacity.combined(with: .scale(reduceMotion ? 1 : 1.04)))
+                            }
                         }
+                        .animation(.snappy, value: isSelected)
                     }
                 Text(item.caption(sortedBy: sortKey))
                     .font(.callout)
@@ -259,10 +264,22 @@ private struct PosterCell: View {
             .frame(width: PosterArt.width, alignment: .leading)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PosterButtonStyle())
         .help(item.title)
         .accessibilityLabel(item.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct PosterButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        configuration.label
+            .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
+            .opacity(pressed && reduceMotion ? 0.7 : 1)
+            .animation(.snappy(duration: 0.15), value: pressed)
     }
 }
 
