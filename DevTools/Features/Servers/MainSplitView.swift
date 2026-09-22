@@ -111,12 +111,12 @@ struct MainSplitView: View {
                     .disabled(servers.selected == nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
+                    Menu {
+                        Button("Settings…") { showSettings = true }
+                            .keyboardShortcut(",", modifiers: .command)
                     } label: {
-                        Label("Settings", systemImage: "gearshape")
+                        Label("More", systemImage: "ellipsis.circle")
                     }
-                    .keyboardShortcut(",", modifiers: .command)
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -139,7 +139,7 @@ struct MainSplitView: View {
                 .navigationTitle(title)
                 .toolbarTitleMenu { ServerMenu() }
                 .toolbar {
-                    ToolbarItem(placement: .secondaryAction) {
+                    ToolbarItem(placement: .navigation) {
                         Button {
                             showInfo = true
                         } label: {
