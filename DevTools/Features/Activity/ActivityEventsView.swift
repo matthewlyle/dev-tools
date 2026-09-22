@@ -19,6 +19,11 @@ struct ActivityEventsView: View {
                 if let event = activity.selectedEvent {
                     EventInspector(event: event)
                         .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
+                        // Where the inspector adapts to a sheet or an overlay
+                        // (compact width, a portrait or split-screen iPad),
+                        // the list stays live behind it so another tap
+                        // re-targets it instead of first dismissing it.
+                        .presentationBackgroundInteraction(.enabled)
                 }
             }
             .focusedSceneValue(
@@ -46,6 +51,16 @@ private struct EventList: View {
                 List(activity.visibleEvents, selection: $activity.selectedEventID) { event in
                     EventRow(event: event)
                         .tag(event.id)
+                }
+                // A row tap on iPadOS runs the list's primary action — the
+                // platform's "open this item" — while macOS runs it on
+                // double-click and keeps native click and arrow-key
+                // selection. Selecting here opens the inspector from a tap on
+                // both; a tap gesture instead would swallow the macOS table's
+                // own selection.
+                .contextMenu(forSelectionType: NotificationEvent.ID.self) { _ in
+                } primaryAction: { ids in
+                    if let id = ids.first { activity.selectedEventID = id }
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
