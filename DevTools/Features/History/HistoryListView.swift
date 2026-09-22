@@ -209,12 +209,12 @@ private struct HistoryRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(entry.status.map(String.init) ?? "ERR")
-                .font(.code(.callout, weight: .semibold))
+                .font(.code(.codeListRow, weight: .semibold))
                 .foregroundStyle(entry.succeeded ? .green : .red)
                 .frame(width: 36, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary)
-                    .font(.code(.callout))
+                    .font(.code(.codeListRow))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(detail)

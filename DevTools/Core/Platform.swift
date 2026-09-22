@@ -134,3 +134,15 @@ enum Clipboard {
         #endif
     }
 }
+
+extension Font.TextStyle {
+    /// The code face sets larger on iPad than on the Mac at the same style,
+    /// so list rows step down there to sit level with their neighbours.
+    static var codeListRow: Font.TextStyle {
+        #if os(macOS)
+        .callout
+        #else
+        .subheadline
+        #endif
+    }
+}
