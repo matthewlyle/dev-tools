@@ -67,9 +67,6 @@ struct SettingsView: View {
                     ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Text("Sent as the Accept header on every request. Plex answers XML unless JSON is asked for; new integrations should use JSON.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
                 Toggle("Wrap long lines in the Response view", isOn: $wrapLines)
             } header: {
                 Text("Requests")
@@ -79,14 +76,8 @@ struct SettingsView: View {
                 Picker("Code theme", selection: $codeTheme) {
                     ForEach(CodeTheme.allCases) { Text($0.title).tag($0) }
                 }
-                Text("Colours for response bodies and event payloads, in light and dark. System follows the app's own palette.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
                 #if os(macOS)
                 Toggle("Translucent background", isOn: $translucent)
-                Text("Blurs the desktop behind the content area, like Safari's start page. Off uses a solid background.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
                 #endif
             } header: {
                 Text("Appearance")
@@ -102,9 +93,6 @@ struct SettingsView: View {
                     confirmingClear = true
                 }
                 .disabled(requests.history.isEmpty)
-                Text("Removes every recorded request across all servers. Saved requests are kept.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             } header: {
                 Text("History")
             }
