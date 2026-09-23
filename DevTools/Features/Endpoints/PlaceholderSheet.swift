@@ -44,6 +44,7 @@ struct PlaceholderSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                 }
+                OperationAccessLabel(access: operation.access)
             }
         } content: {
             Form {
@@ -53,6 +54,17 @@ struct PlaceholderSheet: View {
                     } footer: {
                         if let description = operation.pathParameters.first(where: { $0.name == name })?.description {
                             Text(description)
+                        }
+                    }
+                }
+                if !operation.queryParameters.isEmpty {
+                    Section {
+                        ForEach(operation.queryParameters) { ParameterDocRow(parameter: $0) }
+                    } header: {
+                        Text("Query Parameters")
+                    } footer: {
+                        if operation.supportsMediaQuery {
+                            Text(OperationDocs.mediaQueryNote)
                         }
                     }
                 }
