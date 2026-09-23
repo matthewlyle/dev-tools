@@ -80,11 +80,7 @@ struct MediaInfoView: View {
 
                 Divider()
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Details")
-                        .font(.title3.weight(.semibold))
-                    AttributeTable(attributes: details, masking: requests.shouldMask(attributeNamed:))
-                }
+                AttributeTable(attributes: details, masking: requests.shouldMask(attributeNamed:))
 
                 ForEach(item.elementGroups, id: \.name) { group in
                     switch group.name {
