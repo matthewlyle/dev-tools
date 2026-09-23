@@ -8,15 +8,16 @@ struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
     @Environment(\.isCompactWidth) private var compact
+    @Environment(\.connectionInTabBar) private var connectionInTabBar
 
     var body: some View {
         EventList()
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // A compact width carries the control as the tab bar's
-                // accessory (`MainSplitView`); elsewhere it floats over the
-                // events as a capsule, the one custom glass in the app: a
+                // The tab bar carries the control as its accessory on an
+                // upright phone (`MainSplitView`); elsewhere it floats over
+                // the events as a capsule, the one custom glass in the app: a
                 // control above content, which the HIG allows sparingly.
-                if !compact {
+                if !connectionInTabBar {
                     ActivityConnectionControl()
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
