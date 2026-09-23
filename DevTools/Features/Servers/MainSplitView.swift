@@ -578,6 +578,13 @@ struct MainSplitView: View {
                 }
             }
             .tabBarMinimizeBehavior(.onScrollDown)
+            // Activity's connection rides the tab bar as its accessory: the
+            // system's glass at the bar's width, inline beside it when the
+            // bar minimizes on scroll.
+            .tabViewBottomAccessory(isEnabled: section == .activity) {
+                ActivityConnectionControl()
+                    .padding(.horizontal, 16)
+            }
         }
     }
 
