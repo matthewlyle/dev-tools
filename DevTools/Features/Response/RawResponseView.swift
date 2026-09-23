@@ -25,6 +25,9 @@ struct RawResponseView<Header: View>: View {
                 version: response.receivedAt,
                 header: AnyView(header())
             )
+            // The text view insets itself by the bottom safe area, so it can
+            // run under the tab bar and fill the space the bar gives up.
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 }

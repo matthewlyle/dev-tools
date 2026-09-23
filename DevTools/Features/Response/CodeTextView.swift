@@ -317,7 +317,10 @@ extension CodeTextView.Coordinator: UITextViewDelegate {
 }
 
 /// Positions the hosted header above the text and keeps the top inset equal
-/// to its height, re-measuring when the width changes.
+/// to its height, re-measuring when the width changes. The view reaches under
+/// the bottom bars (its callers ignore the bottom safe area), so the text
+/// runs on behind a tab bar that minimizes; the bottom inset follows the live
+/// safe area so the last lines still scroll clear of it.
 final class HeaderedTextView: UITextView {
     var headerView: UIView?
     var measureHeader: ((CGFloat) -> CGFloat)?
@@ -330,6 +333,14 @@ final class HeaderedTextView: UITextView {
     }
 
     var topOffset: CGPoint { CGPoint(x: 0, y: -headerHeight) }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        let bottom = safeAreaInsets.bottom
+        guard contentInset.bottom != bottom else { return }
+        contentInset.bottom = bottom
+        verticalScrollIndicatorInsets.bottom = bottom
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
