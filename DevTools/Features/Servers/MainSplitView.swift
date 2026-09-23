@@ -306,6 +306,22 @@ extension View {
         listStyle(.inset)
             .scrollContentBackground(.hidden)
     }
+
+    /// A row of a `sectionListStyle` list. iOS gives inset rows an opaque
+    /// cell background, which covers the well; the Mac's are already clear.
+    /// A selected row keeps an accent tint, as `sectionColumnRow` draws it.
+    @ViewBuilder
+    func sectionListRow(selected: Bool = false) -> some View {
+        #if os(iOS)
+        listRowBackground(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(selected ? Color.accentColor.opacity(0.22) : .clear)
+                .padding(.horizontal, 8)
+        )
+        #else
+        self
+        #endif
+    }
 }
 
 /// The column for a long section (the endpoint catalog, a deep history).
