@@ -337,7 +337,9 @@ extension View {
 /// switch; iPadOS's list is lazy and never did. A `LazyVStack` realizes only
 /// what's on screen on both. Short columns (Activity, Media) keep `List`.
 /// A compact width is always iOS, so it takes the lazy `List`: rows swipe
-/// there, and a stack can't.
+/// there, and a stack can't. Scrolling ends the filter field's editing at
+/// once, so a field left focused with its keyboard hidden can't hold on to
+/// the drag.
 struct SectionColumnList<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -353,6 +355,7 @@ struct SectionColumnList<Content: View>: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -360,6 +363,7 @@ struct SectionColumnList<Content: View>: View {
                 }
                 .padding(.vertical, 6)
             }
+            .scrollDismissesKeyboard(.immediately)
         }
     }
 }
