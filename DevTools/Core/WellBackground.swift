@@ -28,23 +28,26 @@ struct WellBackground: View {
                 .ignoresSafeArea()
         }
         #else
-        Color(uiColor: .systemBackground)
-            .overlay {
-                if contrast != .increased {
-                    ZStack {
-                        TopWash(strength: colorScheme == .dark ? 1 : 0.5)
-                        SignalRings()
-                            .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
-                            .modifier(ListeningPulse(active: state?.showsRings == true && !reduceMotion))
-                            .mask(RadialFromTitle())
-                            .opacity(ringOpacity)
-                            // Rise with the connection, leave quickly when it
-                            // drops; the scroll fade follows the finger.
-                            .animation(state?.showsRings == true ? .smooth(duration: 0.6) : .easeOut(duration: 0.2), value: state?.showsRings)
-                    }
-                }
+        ZStack {
+            Color(uiColor: .systemBackground)
+            if contrast != .increased {
+                TopWash(strength: colorScheme == .dark ? 1 : 0.5)
+                Grain()
             }
-            .ignoresSafeArea()
+        }
+        .overlay {
+            if contrast != .increased {
+                SignalRings()
+                    .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
+                    .modifier(ListeningPulse(active: state?.showsRings == true && !reduceMotion))
+                    .mask(RadialFromTitle())
+                    .opacity(ringOpacity)
+                    // Rise with the connection, leave quickly when it drops;
+                    // the scroll fade follows the finger.
+                    .animation(state?.showsRings == true ? .smooth(duration: 0.6) : .easeOut(duration: 0.2), value: state?.showsRings)
+            }
+        }
+        .ignoresSafeArea()
         #endif
     }
 
@@ -82,6 +85,38 @@ private struct ListeningPulse: ViewModifier {
 #endif
 
 #if os(iOS)
+/// A faint gradient over a dark background spans only a few 8-bit steps,
+/// which show as bands; grain of about a step per pixel, over the washed
+/// area only, breaks their edges up. One random tile, made once and tiled.
+private struct Grain: View {
+    private static let tile: CGImage? = {
+        let side = 128
+        var alpha = [UInt8](repeating: 0, count: side * side)
+        var generator = SystemRandomNumberGenerator()
+        for index in alpha.indices { alpha[index] = UInt8.random(in: 0...255, using: &generator) }
+        guard let provider = CGDataProvider(data: Data(alpha) as CFData) else { return nil }
+        return CGImage(
+            width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: side,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        )
+    }()
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        if let tile = Self.tile {
+            Image(decorative: tile, scale: displayScale)
+                .resizable(resizingMode: .tile)
+                .opacity(0.012)
+                .mask {
+                    LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.62))
+                }
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 /// Three hues along the top edge blending down to nothing: indigo at the
 /// leading corner, the accent brightest just under the title, teal at the
 /// trailing corner. The middle row bows down under the title so the glow
@@ -104,7 +139,8 @@ private struct TopWash: View {
                 .indigo.opacity(0.05 * strength), .accentColor.opacity(0.1 * strength), .teal.opacity(0.04 * strength),
                 .clear, .clear, .clear,
                 .clear, .clear, .clear,
-            ]
+            ],
+            colorSpace: .perceptual
         )
         .accessibilityHidden(true)
     }
