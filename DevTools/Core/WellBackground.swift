@@ -4,10 +4,10 @@ import SwiftUI
 /// same desktop blur the sidebar and toolbar use, extended to the content
 /// area (as Safari's start page does), toggleable in Settings. iOS has no
 /// desktop behind the window, so it's the system background under a faint,
-/// static mesh of colour across the top — indigo, the accent strongest
-/// behind the server title, teal — gone by mid-screen, which gives the glass
-/// bars something to refract. While Activity is live, faint rings spread
-/// from the title as the server's signal. Increase Contrast drops both.
+/// static wash of the accent from the top, gone by mid-screen, which gives
+/// the glass bars something to refract. While Activity is live, faint rings
+/// spread from the title as the server's signal. Increase Contrast drops
+/// both.
 struct WellBackground: View {
     var state: WellState? = nil
 
@@ -16,7 +16,6 @@ struct WellBackground: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(WashStyle.storageKey) private var wash: WashStyle = .indigoTeal
     #endif
 
     var body: some View {
@@ -36,7 +35,11 @@ struct WellBackground: View {
         ZStack {
             Color(uiColor: .systemBackground)
             if contrast != .increased {
-                TopWash(style: wash, strength: colorScheme == .dark ? 1 : 0.5)
+                LinearGradient(
+                    colors: [.accentColor.opacity(colorScheme == .dark ? 0.16 : 0.08), .accentColor.opacity(0)],
+                    startPoint: .top,
+                    endPoint: UnitPoint(x: 0.5, y: 0.55)
+                )
                 Grain()
             }
         }
@@ -53,6 +56,11 @@ struct WellBackground: View {
                     .mask(RadialFromTitle())
                     .opacity(ringOpacity)
                     .animation(state?.showsRings == true ? .smooth(duration: 1.1) : .smooth(duration: 0.5), value: state?.showsRings)
+                // The land the rings carry over, only while there's nothing
+                // on screen to sit behind: gone as the first event arrives.
+                Ridgelines(hue: .accentColor, strength: colorScheme == .dark ? 1 : 0.6)
+                    .opacity(state?.showsRidges == true ? 1 : 0)
+                    .animation(state?.showsRidges == true ? .smooth(duration: 0.9) : .easeOut(duration: 0.25), value: state?.showsRidges)
             }
         }
         .ignoresSafeArea()
@@ -68,6 +76,59 @@ struct WellBackground: View {
     }
     #endif
 }
+
+#if os(iOS)
+/// Three layered ridgelines along the bottom, the nearest the most solid.
+/// Their wavelengths are in points, not a share of the width, so a wider
+/// screen shows more mountains rather than stretched ones, and the shapes
+/// are fixed, so they don't change between launches.
+private struct Ridgelines: View {
+    let hue: Color
+    let strength: Double
+
+    private struct Layer {
+        let height: CGFloat
+        let opacity: Double
+        let phase: CGFloat
+    }
+
+    private static let layers = [
+        Layer(height: 170, opacity: 0.05, phase: 0.8),
+        Layer(height: 125, opacity: 0.08, phase: 2.9),
+        Layer(height: 80, opacity: 0.12, phase: 5.1),
+    ]
+
+    var body: some View {
+        Canvas { context, size in
+            for layer in Self.layers {
+                context.fill(Self.ridge(layer, in: size), with: .color(hue.opacity(layer.opacity * strength)))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// Main peaks, smaller ones between, and a little jaggedness, each a
+    /// folded sine sharpened to a point, over a long swell so the range
+    /// rises and falls.
+    private static func ridge(_ layer: Layer, in size: CGSize) -> Path {
+        func height(at x: CGFloat) -> CGFloat {
+            func peak(_ wavelength: CGFloat, _ shift: CGFloat) -> CGFloat { pow(1 - abs(sin(x / wavelength + shift)), 2.2) }
+            let swell = 0.5 + 0.5 * sin(x / 230 + layer.phase * 0.6)
+            return layer.height * (0.28 + 0.5 * peak(95, layer.phase) + 0.16 * peak(41, layer.phase * 1.9) + 0.05 * peak(13, layer.phase * 3.7) + 0.18 * swell)
+        }
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: size.height))
+        var x: CGFloat = 0
+        while x <= size.width + 4 {
+            path.addLine(to: CGPoint(x: x, y: size.height - height(at: x)))
+            x += 4
+        }
+        path.addLine(to: CGPoint(x: size.width, y: size.height))
+        path.closeSubpath()
+        return path
+    }
+}
+#endif
 
 #if os(iOS)
 /// While the stream is live the rings breathe: a slow swell outward from the
@@ -123,74 +184,10 @@ private struct Grain: View {
     }
 }
 
-/// Three hues along the top edge blending down to nothing, the middle one
-/// under the title. The second row bows down there so the glow gathers
-/// under it. Each hue eases out over several rows to its own transparent
-/// self, not to `.clear` (transparent black, which greys the blend): a fade
-/// that stops at one row shows where it stops.
-private struct TopWash: View {
-    let style: WashStyle
-    let strength: Double
-
-    var body: some View {
-        let rows: [Double] = [1, 0.5, 0.2, 0.05, 0]
-        return MeshGradient(
-            width: 3,
-            height: 5,
-            points: [
-                [0, 0], [0.5, 0], [1, 0],
-                [0, 0.16], [0.5, 0.22], [1, 0.16],
-                [0, 0.34], [0.5, 0.4], [1, 0.34],
-                [0, 0.58], [0.5, 0.62], [1, 0.58],
-                [0, 1], [0.5, 1], [1, 1],
-            ],
-            colors: rows.flatMap { share in
-                style.hues.map { $0.color.opacity($0.opacity * strength * share) }
-            },
-            colorSpace: .perceptual
-        )
-        .accessibilityHidden(true)
-    }
-}
-
-/// The wash's hues, a Settings choice while they're being compared.
-enum WashStyle: String, CaseIterable, Identifiable {
-    case indigoTeal, blue, cyan, nightSky, aurora, plexAmber, amberBlue
-
-    static let storageKey = "washStyle"
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .indigoTeal: "Indigo & Teal"
-        case .blue: "Blue"
-        case .cyan: "Blue & Cyan"
-        case .nightSky: "Night Sky"
-        case .aurora: "Aurora"
-        case .plexAmber: "Plex Amber"
-        case .amberBlue: "Amber & Blue"
-        }
-    }
-
-    /// Leading corner, under the title, trailing corner, each at its top-edge
-    /// strength in dark mode. Warm hues are brighter, so they run fainter.
-    var hues: [(color: Color, opacity: Double)] {
-        switch self {
-        case .indigoTeal: [(.indigo, 0.16), (.accentColor, 0.2), (.teal, 0.14)]
-        case .blue: [(.accentColor, 0.12), (.accentColor, 0.2), (.accentColor, 0.12)]
-        case .cyan: [(.cyan, 0.12), (.blue, 0.2), (.cyan, 0.12)]
-        case .nightSky: [(.blue, 0.12), (.indigo, 0.22), (.purple, 0.12)]
-        case .aurora: [(.teal, 0.14), (.blue, 0.18), (.purple, 0.14)]
-        case .plexAmber: [(.orange, 0.08), (.yellow, 0.1), (.orange, 0.08)]
-        case .amberBlue: [(.orange, 0.1), (.indigo, 0.14), (.accentColor, 0.14)]
-        }
-    }
-}
 #endif
 
-/// What a screen's content asks of its well: the signal rings, and how far
-/// they've faded as that content scrolled from its top.
+/// What a screen's content asks of its well: the signal rings and how far
+/// they've faded as that content scrolled from its top, and the ridgelines.
 @MainActor
 @Observable
 final class WellState {
@@ -198,6 +195,7 @@ final class WellState {
 
     var showsRings = false
     var ringFade: Double = 0
+    var showsRidges = false
 
     /// Offset from the top as a fade share, in twentieths, so a scroll
     /// updates the well a handful of times, not every frame.
@@ -220,7 +218,10 @@ private struct WellBackgroundModifier: ViewModifier {
     }
 }
 
-private struct SignalRingsRequest: ViewModifier {
+/// Holds one of the well's flags while `visible`, and lets go when the
+/// content asking for it leaves.
+private struct WellRequest: ViewModifier {
+    let flag: ReferenceWritableKeyPath<WellState, Bool>
     let visible: Bool
 
     @Environment(\.well) private var well
@@ -228,9 +229,9 @@ private struct SignalRingsRequest: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onChange(of: visible, initial: true) { _, visible in
-                well?.showsRings = visible
+                well?[keyPath: flag] = visible
             }
-            .onDisappear { well?.showsRings = false }
+            .onDisappear { well?[keyPath: flag] = false }
     }
 }
 
@@ -258,7 +259,12 @@ extension View {
 
     /// Raises the screen well's signal rings while `visible`.
     func signalRings(visible: Bool) -> some View {
-        modifier(SignalRingsRequest(visible: visible))
+        modifier(WellRequest(flag: \.showsRings, visible: visible))
+    }
+
+    /// Raises the screen well's ridgelines while `visible`.
+    func ridgelines(visible: Bool) -> some View {
+        modifier(WellRequest(flag: \.showsRidges, visible: visible))
     }
 
     /// Fades the rings as this scroll view leaves its top.

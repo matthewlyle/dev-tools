@@ -189,6 +189,7 @@ private struct EventList: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .signalRings(visible: isActive && activity.status == .connected)
+        .ridgelines(visible: isActive && activity.events.isEmpty)
         .focusedSceneValue(\.clearEvents, isActive && !activity.events.isEmpty ? ClearEventsAction { activity.clear() } : nil)
     }
 
