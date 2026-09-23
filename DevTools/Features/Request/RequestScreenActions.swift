@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// On a compact width the request screen is pushed, and its own actions —
-/// its documentation, copy from it, save it — sit in its navigation bar
-/// rather than scattered through the request block. Wider layouts keep them
-/// in the block, beside what they act on, since there the screen shares one
-/// bar with the list. Declared on the screen, not the block: on the Response
-/// tab the block is hosted inside the text view, out of reach of the
-/// navigation bar.
+/// The request's own actions — its documentation, copy from it, save it —
+/// as toolbar items over the request: the pushed request screen's bar on a
+/// compact width, the trailing end of the bar over the detail elsewhere,
+/// where apps keep actions on the document being shown. The request block
+/// keeps editing and sending. Declared on the screen, not the block: on the
+/// Response tab the block is hosted inside the text view, out of reach of
+/// the toolbar. Shown only while the section is, since sections stay mounted.
 private struct RequestScreenActions: ViewModifier {
     let server: ConnectedServer?
     let showsDocs: Bool
@@ -14,43 +14,48 @@ private struct RequestScreenActions: ViewModifier {
     @Environment(RequestStore.self) private var requests
     @Environment(SavedStore.self) private var saved
     @Environment(SpecStore.self) private var spec
-    @Environment(\.isCompactWidth) private var compact
+    @Environment(\.sectionIsActive) private var isActive
 
     private var editingSaved: SavedRequest? {
         requests.editingSavedID.flatMap { id in saved.saved.first { $0.id == id } }
     }
 
     func body(content: Content) -> some View {
-        if compact {
-            content.toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if showsDocs {
-                        // Presents from the response view, as the ⓘ beside
-                        // the path does on wider layouts.
-                        Button {
-                            requests.showingDocs = true
-                        } label: {
-                            Label("Documentation", systemImage: "info.circle")
-                        }
-                        .disabled(spec.operation(matching: requests.current.path) == nil)
-                    }
-                    copyMenu
-                    // Presents through the visible bar's save sheet, the
-                    // same path as Save Request… (⌘S).
+        @Bindable var requests = requests
+        let operation = showsDocs ? spec.operation(matching: requests.current.path) : nil
+        return content.sectionListToolbar(followsList: false) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if showsDocs {
                     Button {
-                        requests.requestSave()
+                        requests.showingDocs = true
                     } label: {
-                        Label(
-                            editingSaved == nil ? "Save Request" : "Update Saved Request",
-                            systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill"
-                        )
+                        Label("Documentation", systemImage: "info.circle")
                     }
-                    .disabled(server == nil)
+                    .disabled(operation == nil)
+                    .help(operation?.summary ?? "No documentation for this path")
+                    .popover(isPresented: $requests.showingDocs, arrowEdge: .bottom) {
+                        if let operation { OperationDocs(operation: operation) }
+                    }
                 }
+                copyMenu
+                // Presents through the visible bar's save sheet, the same
+                // path as Save Request… (⌘S).
+                Button {
+                    requests.requestSave()
+                } label: {
+                    Label(
+                        editingSaved == nil ? "Save Request" : "Update Saved Request",
+                        systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill"
+                    )
+                }
+                .disabled(server == nil)
+                .help(editingSaved.map { "Editing “\($0.name)” — update it or save as new (⌘S)" } ?? "Save this request (⌘S)")
             }
-        } else {
-            content
         }
+        .focusedSceneValue(
+            \.showDocumentation,
+            isActive && operation != nil ? ShowDocumentationAction(path: requests.current.path) { requests.showingDocs = true } : nil
+        )
     }
 
     private var copyMenu: some View {
@@ -70,6 +75,7 @@ private struct RequestScreenActions: ViewModifier {
             Label("Copy", systemImage: "doc.on.doc")
         }
         .disabled(server == nil)
+        .help("Copy the response body, URL, or cURL command")
     }
 }
 

@@ -26,7 +26,7 @@ struct WorkspaceView: View {
 
 /// The request as a read-only URL: History replays past requests without
 /// exposing the path or parameter editors, and selecting an entry runs it,
-/// so there is nothing to send here. It can still be saved.
+/// so there is nothing to send here. It saves from the toolbar.
 struct RequestSummaryBar: View {
     let server: ConnectedServer?
 
@@ -51,19 +51,6 @@ struct RequestSummaryBar: View {
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-
-            // A compact width saves from the screen's navigation bar.
-            if !compact {
-                Button {
-                    showSave = true
-                } label: {
-                    Label("Save Request", systemImage: "bookmark")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.borderless)
-                .disabled(server == nil)
-                .help("Save this request (⌘S)")
-            }
         }
         .padding(12)
         .savesCurrentRequest(isPresented: $showSave, server: server)

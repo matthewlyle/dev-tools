@@ -47,6 +47,14 @@ struct ShowServerInfoAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
+/// Published by Endpoints' request screen while its path is documented.
+struct ShowDocumentationAction: Equatable {
+    let path: String
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.path == rhs.path }
+}
+
 #if os(iOS)
 /// Published by the iPad window header. iPadOS has no Settings scene, so the
 /// App menu's Settings… presents the header's sheet in the focused window.
@@ -64,6 +72,7 @@ extension FocusedValues {
     @Entry var runMediaQuery: RunMediaQueryAction?
     @Entry var showMediaInfo: ShowMediaInfoAction?
     @Entry var showServerInfo: ShowServerInfoAction?
+    @Entry var showDocumentation: ShowDocumentationAction?
     #if os(iOS)
     @Entry var showSettings: ShowSettingsAction?
     #endif
@@ -82,6 +91,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.runMediaQuery) private var runMediaQuery
     @FocusedValue(\.showMediaInfo) private var showMediaInfo
     @FocusedValue(\.showServerInfo) private var showServerInfo
+    @FocusedValue(\.showDocumentation) private var showDocumentation
     #if os(iOS)
     @FocusedValue(\.showSettings) private var showSettings
     #endif
@@ -176,6 +186,9 @@ struct AppCommands: Commands {
                 BodyControls.copy(document: document, response: response)
             }
             .disabled(requests.document == nil)
+
+            Button("Show Documentation") { showDocumentation?.run() }
+                .disabled(showDocumentation == nil)
 
             Button("Open in Developer Docs") {
                 if let url = currentDocsURL { openURL(url) }
