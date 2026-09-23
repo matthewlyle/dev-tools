@@ -17,7 +17,10 @@ struct CodeTextView {
     @Binding var collapsed: Set<Int>
     let wrap: Bool
     let version: Date
-    let header: AnyView
+    /// None means no hosted view and no inset: an empty SwiftUI view measured
+    /// by `NSHostingController` takes the whole height offered, which is
+    /// unbounded here.
+    var header: AnyView? = nil
 
     @AppStorage(CodeTheme.storageKey) private var theme: CodeTheme = .system
 
@@ -44,7 +47,7 @@ struct CodeTextView {
 
     /// The header as hosted: environment handed over (the hosted tree is
     /// outside SwiftUI's hierarchy) and its height watched.
-    private func hostedHeader(_ coordinator: Coordinator, environment: EnvironmentValues) -> AnyView {
+    private func hostedHeader(_ header: AnyView, _ coordinator: Coordinator, environment: EnvironmentValues) -> AnyView {
         AnyView(
             header
                 .environment(\.self, environment)
@@ -181,11 +184,13 @@ extension CodeTextView: NSViewRepresentable {
         clipView.drawsBackground = false
         scrollView.contentView = clipView
         scrollView.documentView = textView
-        let host = NSHostingController(rootView: AnyView(EmptyView()))
-        host.sizingOptions = []
-        clipView.addSubview(host.view)
-        clipView.header = host.view
-        context.coordinator.headerHost = host
+        if header != nil {
+            let host = NSHostingController(rootView: AnyView(EmptyView()))
+            host.sizingOptions = []
+            clipView.addSubview(host.view)
+            clipView.header = host.view
+            context.coordinator.headerHost = host
+        }
         scrollView.contentView.postsFrameChangedNotifications = true
         context.coordinator.frameObserver = NotificationCenter.default.addObserver(
             forName: NSView.frameDidChangeNotification, object: scrollView.contentView, queue: .main
@@ -229,7 +234,9 @@ extension CodeTextView: NSViewRepresentable {
         }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
-        coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
+        if let header {
+            coordinator.headerHost?.rootView = hostedHeader(header, coordinator, environment: context.environment)
+        }
         coordinator.relayoutHeader = { [weak scrollView] in
             guard let scrollView else { return }
             Self.layoutHeader(in: scrollView, coordinator: coordinator, force: true)
@@ -377,14 +384,16 @@ extension CodeTextView: UIViewRepresentable {
         textView.spellCheckingType = .no
         textView.contentInsetAdjustmentBehavior = .never
 
-        let host = UIHostingController(rootView: AnyView(EmptyView()))
-        host.view.backgroundColor = .clear
-        textView.addSubview(host.view)
-        textView.headerView = host.view
-        textView.measureHeader = { [host] width in
-            host.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        if header != nil {
+            let host = UIHostingController(rootView: AnyView(EmptyView()))
+            host.view.backgroundColor = .clear
+            textView.addSubview(host.view)
+            textView.headerView = host.view
+            textView.measureHeader = { [host] width in
+                host.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+            }
+            context.coordinator.headerHost = host
         }
-        context.coordinator.headerHost = host
         return textView
     }
 
@@ -395,7 +404,9 @@ extension CodeTextView: UIViewRepresentable {
         }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.
-        coordinator.headerHost?.rootView = hostedHeader(coordinator, environment: context.environment)
+        if let header {
+            coordinator.headerHost?.rootView = hostedHeader(header, coordinator, environment: context.environment)
+        }
         coordinator.relayoutHeader = { [weak textView] in textView?.invalidateHeader() }
         textView.invalidateHeader()
 
