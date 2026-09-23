@@ -167,14 +167,18 @@ private struct PosterGrid: View {
     let select: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCompactWidth) private var compact
     @State private var appeared = false
 
+    /// Columns stretch to fill the row: a capped column width leaves the
+    /// remainder empty at the trailing edge. A phone takes three across in
+    /// portrait.
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: compact ? 100 : 130), spacing: compact ? 12 : 16, alignment: .top)]
+    }
+
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 130, maximum: 150), spacing: 16, alignment: .top)],
-            alignment: .leading,
-            spacing: 20
-        ) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 20) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 PosterCell(item: item, server: server, sortKey: sortKey, isSelected: item.id == selectedID) {
                     select(item.id)
@@ -225,7 +229,7 @@ private struct PosterCell: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
-            .frame(width: PosterArt.width, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
         }
         .buttonStyle(PosterButtonStyle())
@@ -264,19 +268,26 @@ private extension View {
     }
 }
 
-/// An item's artwork as the grid shows it.
+/// An item's artwork as the grid shows it: its column's width at the item's
+/// aspect, fetched a little wider than a column gets so a tile never
+/// upscales. A compact width's columns are narrower, so it fetches less.
 struct PosterArt: View {
     let item: MediaItem
     let server: ConnectedServer?
 
-    static let width: CGFloat = 130
+    @Environment(\.isCompactWidth) private var compact
 
-    static func size(for shape: MediaItem.Shape) -> CGSize {
+    static func aspect(for shape: MediaItem.Shape) -> CGFloat {
         switch shape {
-        case .poster: CGSize(width: width, height: width * 1.5)
-        case .square: CGSize(width: width, height: width)
-        case .wide: CGSize(width: width, height: width * 9 / 16)
+        case .poster: 2 / 3
+        case .square: 1
+        case .wide: 16 / 9
         }
+    }
+
+    private var fetchSize: CGSize {
+        let width: CGFloat = compact ? 130 : 200
+        return CGSize(width: width, height: width / Self.aspect(for: item.shape))
     }
 
     private var symbol: String {
@@ -292,7 +303,7 @@ struct PosterArt: View {
     }
 
     var body: some View {
-        RemoteImage(value: item.thumb, server: server, size: Self.size(for: item.shape)) {
+        RemoteImage(value: item.thumb, server: server, size: fetchSize) {
             Rectangle()
                 .fill(.quaternary)
                 .overlay {
@@ -302,6 +313,7 @@ struct PosterArt: View {
                         .accessibilityHidden(true)
                 }
         }
+        .aspectRatio(Self.aspect(for: item.shape), contentMode: .fit)
         .clipShape(.rect(cornerRadius: 8))
     }
 }
