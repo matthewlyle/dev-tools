@@ -145,16 +145,16 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         .help("Remove")
     }
 
-    /// Animates only the user's own adds and removes. `requests.reset()`
-    /// empties `items` on a section or server switch, which must not play
-    /// as a cascade of removals — so no animation keyed to the array, and
-    /// none attached to the row transition, which would run on reset too.
+    /// Animates only the user's own adds and removes. A section or server
+    /// switch replaces `items` wholesale (`switchWorkspace`, `reset`), which
+    /// must not play as a cascade of removals — so no animation keyed to the
+    /// array, and none attached to the row transition, which would run then.
     private func edit(_ change: () -> Void) {
         withAnimation(reduceMotion ? nil : .snappy, change)
     }
 
     /// Looked up by id on every access rather than captured by index:
-    /// `requests.reset()` empties the array while UIKit-backed controls
+    /// a workspace swap empties the array while UIKit-backed controls
     /// (the switch, the text fields) can still read their bindings during
     /// the layout pass that removes them, and an index binding traps then.
     private func binding(for item: Item) -> Binding<Item> {

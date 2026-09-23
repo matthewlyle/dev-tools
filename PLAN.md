@@ -101,7 +101,7 @@ dev-tools/
     Stores/
       AccountStore.swift         sign-in state, user, sign-out
       ServerStore.swift          resources + probe results, selected server, persisted servers snapshot
-      RequestStore.swift         current request, send/replay, in-flight, last response + document, history (clear / delete one), back/forward, per-server placeholder options cache (sections, playlists, collections, tuner devices)
+      RequestStore.swift         current request, send/replay, in-flight, last response + document, history (clear / delete one), back/forward, one workspace per section (parked and restored on a switch, discarded on a server switch), per-server placeholder options cache (sections, playlists, collections, tuner devices)
       MediaQueryStore.swift      the query being built (survives section switches) + per-library details cache from includeDetails=1
       ImageStore.swift           artwork via PlexHTTP (token as header, never in a URL): /photo/:/transcode at pixel size, in-memory cache per server/path/size
       SavedStore.swift           saved requests per server

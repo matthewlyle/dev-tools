@@ -130,10 +130,13 @@ struct HistoryListView: View {
         SectionColumnList {
             ForEach(rows) { entry in
                 Button {
-                    // Selecting replays; the already-selected row replays
-                    // again, since a section switch may have reset the workspace.
-                    if selection == entry.id, let connected {
-                        requests.replay(entry, on: connected)
+                    // Selecting replays. The selected row replays again only
+                    // if its response never landed: a section switch cancels
+                    // a replay in flight.
+                    if selection == entry.id {
+                        if requests.response == nil, !requests.isSending, let connected {
+                            requests.replay(entry, on: connected)
+                        }
                     } else {
                         selection = entry.id
                     }

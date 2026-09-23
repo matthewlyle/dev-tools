@@ -431,21 +431,18 @@ struct MainSplitView: View {
 
     private var title: String { servers.selected?.resource.name ?? "Servers" }
 
-    /// Section changes reset the workspace *before* the new section's view is
-    /// built — not reactively after. Otherwise the incoming Endpoints/History
-    /// detail builds `ResponseView`/`CodeTextView` for the previous response
-    /// (an `NSTextView` on macOS) only to tear it down when the reset lands,
-    /// stalling the switch. On a compact width the details that showed the
-    /// reset workspace are popped with it.
+    /// A section change swaps in that section's own workspace *before* its
+    /// view is built — not reactively after. Otherwise the incoming
+    /// Endpoints/History detail builds `ResponseView`/`CodeTextView` for the
+    /// outgoing section's response (an `NSTextView` on macOS) only to tear it
+    /// down when the swap lands, stalling the switch. Each section keeps its
+    /// request and response, so a compact width's pushed details stay pushed.
     private var sectionBinding: Binding<ServerSection> {
         Binding(
             get: { section },
             set: { newValue in
                 guard newValue != section else { return }
-                requests.reset()
-                #if os(iOS)
-                pushed.subtract([.endpoints, .history, .mediaQuery])
-                #endif
+                requests.switchWorkspace(from: section.rawValue, to: newValue.rawValue)
                 section = newValue
             }
         )
@@ -457,7 +454,7 @@ struct MainSplitView: View {
                 if let connected { await requests.preloadOptions(on: connected) }
             }
             .onChange(of: servers.selectedID) { _, id in
-                requests.reset()
+                requests.resetAllWorkspaces()
                 if let listening = activity.server, listening.machineID != id {
                     activity.disconnect()
                     activity.clear()
