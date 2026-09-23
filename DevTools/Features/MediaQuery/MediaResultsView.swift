@@ -54,12 +54,8 @@ struct MediaResultsView: View {
                             } else if items.isEmpty {
                                 FillingScrollView {
                                     headerBlock
-                                    ContentUnavailableView(
-                                        "No Items",
-                                        systemImage: "square.grid.3x3",
-                                        description: Text("The query matched nothing. Loosen a filter and run it again.")
-                                    )
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    ZeroState(text: "The query matched nothing. Loosen a filter and run it again.")
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
                                 .restingStateTransition()
                                 .zIndex(1)

@@ -30,6 +30,7 @@ struct RequestSummaryBar: View {
     let server: ConnectedServer?
 
     @Environment(RequestStore.self) private var requests
+    @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
         HStack(spacing: 8) {
@@ -44,7 +45,7 @@ struct RequestSummaryBar: View {
 
             Text(requests.previewURL(for: server))
                 .font(.code(.body))
-                .lineLimit(1)
+                .lineLimit(compact ? 3 : 1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

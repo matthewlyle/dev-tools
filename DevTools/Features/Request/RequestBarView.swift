@@ -8,6 +8,7 @@ struct RequestBarView: View {
     @Environment(SavedStore.self) private var saved
     @FocusState private var pathFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCompactWidth) private var compact
     @Environment(\.openURL) private var openURL
 
     @State private var showSave = false
@@ -25,46 +26,21 @@ struct RequestBarView: View {
         @Bindable var requests = requests
 
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text("GET")
-                    .font(.code(.caption, weight: .semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.quaternary, in: .rect(cornerRadius: 5))
-
-                TextField("/library/sections", text: $requests.current.path)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.code(.body))
-                    .focused($pathFocused)
-                    .onSubmit(send)
-                    .autocorrectionDisabled()
-
-                if operation != nil {
-                    Button {
-                        requests.showingDocs = true
-                    } label: {
-                        Label("Documentation", systemImage: "info.circle")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help(operation?.summary ?? "")
+            // The bar scrolls away with the response, so a compact width
+            // spends height rather than squeezing the path: it takes the
+            // whole first line, the URL wraps, and Send closes the bar.
+            if compact {
+                HStack(spacing: 8) {
+                    methodBadge
+                    pathField
                 }
-
-                Button(action: send) {
-                    Label {
-                        Text("Send")
-                    } icon: {
-                        if requests.isSending {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                        }
-                    }
+            } else {
+                HStack(spacing: 8) {
+                    methodBadge
+                    pathField
+                    docsButton
+                    sendButton
                 }
-                .buttonStyle(.glassProminent)
-                .animation(reduceMotion ? nil : .smooth(duration: 0.15), value: requests.isSending)
-                .disabled(server == nil || requests.isSending)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -79,46 +55,22 @@ struct RequestBarView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                HistoryNavButtons(server: server)
-                Text(requests.previewURL(for: server))
-                    .font(.code(.caption))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-                Spacer(minLength: 0)
-                Button {
-                    if let url = operation?.docsURL { openURL(url) }
-                } label: {
-                    Label("Open in Developer Docs", systemImage: "safari")
-                        .labelStyle(.iconOnly)
+            if compact {
+                urlPreview
+                HStack(spacing: 8) {
+                    HistoryNavButtons(server: server)
+                    Spacer(minLength: 0)
+                    docsButton
+                    urlActions
+                    sendButton
                 }
-                .buttonStyle(.borderless)
-                .disabled(operation?.docsURL == nil)
-                .help(operation.map { "Open “\($0.summary)” on developer.plex.tv" } ?? "No documentation for this path")
-                Button {
-                    showSave = true
-                } label: {
-                    Label(editingSaved == nil ? "Save Request" : "Update Saved Request", systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill")
-                        .labelStyle(.iconOnly)
+            } else {
+                HStack(spacing: 8) {
+                    HistoryNavButtons(server: server)
+                    urlPreview
+                    Spacer(minLength: 0)
+                    urlActions
                 }
-                .buttonStyle(.borderless)
-                .disabled(server == nil)
-                .help(editingSaved.map { "Editing “\($0.name)” — update it or save as new (⌘S)" } ?? "Save this request (⌘S)")
-                Menu {
-                    Button("Copy as cURL") { copyCurl() }
-                } label: {
-                    Label("Copy URL", systemImage: "doc.on.doc")
-                        .labelStyle(.iconOnly)
-                } primaryAction: {
-                    copyURL()
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .disabled(server == nil)
-                .help("Copy URL. Long-press for cURL.")
             }
         }
         .padding(12)
@@ -159,6 +111,100 @@ struct RequestBarView: View {
                 }
             }
         }
+    }
+
+    private var methodBadge: some View {
+        Text("GET")
+            .font(.code(.caption, weight: .semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.quaternary, in: .rect(cornerRadius: 5))
+    }
+
+    private var pathField: some View {
+        @Bindable var requests = requests
+        return TextField("/library/sections", text: $requests.current.path)
+            .textFieldStyle(.roundedBorder)
+            .font(.code(.body))
+            .focused($pathFocused)
+            .onSubmit(send)
+            .autocorrectionDisabled()
+    }
+
+    @ViewBuilder
+    private var docsButton: some View {
+        if operation != nil {
+            Button {
+                requests.showingDocs = true
+            } label: {
+                Label("Documentation", systemImage: "info.circle")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help(operation?.summary ?? "")
+        }
+    }
+
+    private var sendButton: some View {
+        Button(action: send) {
+            Label {
+                Text("Send")
+            } icon: {
+                if requests.isSending {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "paperplane.fill")
+                }
+            }
+        }
+        .buttonStyle(.glassProminent)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.15), value: requests.isSending)
+        .disabled(server == nil || requests.isSending)
+    }
+
+    private var urlPreview: some View {
+        Text(requests.previewURL(for: server))
+            .font(.code(.caption))
+            .foregroundStyle(.secondary)
+            .lineLimit(compact ? 3 : 1)
+            .truncationMode(.middle)
+            .textSelection(.enabled)
+    }
+
+    @ViewBuilder
+    private var urlActions: some View {
+        Button {
+            if let url = operation?.docsURL { openURL(url) }
+        } label: {
+            Label("Open in Developer Docs", systemImage: "safari")
+                .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.borderless)
+        .disabled(operation?.docsURL == nil)
+        .help(operation.map { "Open “\($0.summary)” on developer.plex.tv" } ?? "No documentation for this path")
+        Button {
+            showSave = true
+        } label: {
+            Label(editingSaved == nil ? "Save Request" : "Update Saved Request", systemImage: editingSaved == nil ? "bookmark" : "bookmark.fill")
+                .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.borderless)
+        .disabled(server == nil)
+        .help(editingSaved.map { "Editing “\($0.name)” — update it or save as new (⌘S)" } ?? "Save this request (⌘S)")
+        Menu {
+            Button("Copy as cURL") { copyCurl() }
+        } label: {
+            Label("Copy URL", systemImage: "doc.on.doc")
+                .labelStyle(.iconOnly)
+        } primaryAction: {
+            copyURL()
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(server == nil)
+        .help("Copy URL. Long-press for cURL.")
     }
 
     private func sectionLabel(_ title: String, count: Int) -> some View {
