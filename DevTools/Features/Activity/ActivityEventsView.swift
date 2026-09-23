@@ -271,7 +271,7 @@ private struct EventRow: View {
     }
 
     private var time: some View {
-        Text(event.receivedAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3))))
+        Text(event.receivedAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second()))
             .font(.code(.caption))
             .foregroundStyle(.secondary)
     }
@@ -308,7 +308,7 @@ struct EventInspector: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 EventTypeBadge(type: event.type)
-                Text(event.receivedAt.formatted(.dateTime.hour().minute().second().secondFraction(.fractional(3))))
+                Text(event.receivedAt.formatted(.dateTime.hour().minute().second()))
                     .font(.code(.caption))
                     .foregroundStyle(.secondary)
                 Spacer()
