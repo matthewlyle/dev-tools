@@ -172,6 +172,7 @@ struct FillingScrollView<Content: View>: View {
                 }
                 .frame(minHeight: proxy.size.height, alignment: .top)
             }
+            .reportsWellScroll()
         }
     }
 }

@@ -42,6 +42,9 @@ struct CodeTextView {
         var frameObserver: NSObjectProtocol?
         #else
         var headerHost: UIHostingController<AnyView>?
+        let wellReporter = UUID()
+        var wellScroll: WellScroll?
+        var reportsWell = true
         #endif
     }
 
@@ -321,6 +324,13 @@ extension CodeTextView.Coordinator: UITextViewDelegate {
         }
         return defaultAction
     }
+
+    /// The body is the screen's scroll view here, so it reports to the well
+    /// as a SwiftUI one would (`reportsWellScroll`).
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let share = reportsWell ? WellScroll.share(scrolled: scrollView.contentOffset.y + scrollView.contentInset.top) : 0
+        wellScroll?.set(share, for: wellReporter)
+    }
 }
 
 /// Positions the hosted header above the text and keeps the top inset equal
@@ -396,11 +406,19 @@ extension CodeTextView: UIViewRepresentable {
         }
         return textView
     }
+    static func dismantleUIView(_ textView: HeaderedTextView, coordinator: Coordinator) {
+        coordinator.wellScroll?.remove(coordinator.wellReporter)
+    }
 
     func updateUIView(_ textView: HeaderedTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+        }
+        coordinator.wellScroll = context.environment.wellScroll
+        if coordinator.reportsWell != context.environment.sectionIsActive {
+            coordinator.reportsWell = context.environment.sectionIsActive
+            coordinator.scrollViewDidScroll(textView)
         }
         // The hosted header is outside SwiftUI's tree, so it gets the
         // environment (stores, styles) handed over explicitly.

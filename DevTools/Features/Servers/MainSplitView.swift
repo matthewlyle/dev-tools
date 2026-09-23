@@ -289,7 +289,7 @@ private struct SectionInspector: ViewModifier {
             #if os(iOS)
             // UIKit hosts an inspector's main content in its own opaque
             // container, which covers a well drawn behind the modifier.
-            .background { WellBackground() }
+            .wellBackground()
             .environment(\.posterZoom, posterZoom)
             #endif
             .inspector(isPresented: Binding(get: { inspected != nil }, set: { if !$0, isActive, sheetItem == nil { dismiss() } })) {
@@ -410,6 +410,7 @@ struct SectionColumnList<Content: View>: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
+            .reportsWellScroll()
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -418,6 +419,7 @@ struct SectionColumnList<Content: View>: View {
                 .padding(.vertical, 6)
             }
             .scrollDismissesKeyboard(.immediately)
+            .reportsWellScroll()
         }
     }
 }
@@ -606,7 +608,7 @@ struct MainSplitView: View {
     private var loadingShell: some View {
         connectionStatus
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background { WellBackground() }
+            .wellBackground()
             .modifier(Header(title: title, entry: servers.selected, section: nil))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -660,7 +662,7 @@ struct MainSplitView: View {
             NavigationStack {
                 noServer
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background { WellBackground() }
+                    .wellBackground()
                     .modifier(Header(title: title, entry: servers.selected, section: nil))
                     .navigationBarTitleDisplayMode(.inline)
             }
@@ -714,7 +716,7 @@ struct MainSplitView: View {
         }
         .id(servers.selected?.id)
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
         .environment(\.showSectionDetail, ShowSectionDetailAction { pushed.insert(item) })
         .modifier(Header(title: title, entry: servers.selected, section: nil))
         .navigationBarTitleDisplayMode(.inline)
@@ -745,7 +747,7 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: item, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
         .navigationTitle(detailTitle(item))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -883,7 +885,7 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: section, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
     }
 
     /// The shell's content before the first connection: a spinner while
@@ -953,7 +955,7 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
                 }
                 detail
             }
-            .background { WellBackground() }
+            .wellBackground()
             .animation(.smooth, value: showsList)
             .animation(reduceMotion ? nil : .smooth, value: storedWidth)
         }

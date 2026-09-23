@@ -9,6 +9,8 @@ import SwiftUI
 /// is scoped to. Both are gone by mid-screen; they give the glass bars
 /// something to refract. Increase Contrast drops both.
 struct WellBackground: View {
+    var scroll: WellScroll? = nil
+
     @AppStorage("translucentBackground") private var translucent = true
     #if os(iOS)
     @Environment(\.colorScheme) private var colorScheme
@@ -34,14 +36,101 @@ struct WellBackground: View {
                             startPoint: .top,
                             endPoint: UnitPoint(x: 0.5, y: 0.55)
                         )
+                        // The rings belong to the top of the screen; once its
+                        // content scrolls under the bar they give way to it.
                         SignalRings()
                             .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
                             .mask(RadialFromTitle())
+                            .opacity(1 - (scroll?.fade ?? 0))
                     }
                 }
             }
             .ignoresSafeArea()
         #endif
+    }
+}
+
+/// How far a screen's content has scrolled from its top, as the share of the
+/// fade distance its rings have faded, from every scroll view on the screen
+/// that reports. The furthest-scrolled one wins, so an iPad's list or detail
+/// scrolling under the bar fades them either way.
+@MainActor
+@Observable
+final class WellScroll {
+    nonisolated static let fadeDistance: CGFloat = 120
+
+    private var progress: [UUID: Double] = [:]
+
+    var fade: Double { progress.values.max() ?? 0 }
+
+    func set(_ value: Double, for reporter: UUID) {
+        guard progress[reporter] != value else { return }
+        progress[reporter] = value
+    }
+
+    func remove(_ reporter: UUID) {
+        progress[reporter] = nil
+    }
+
+    /// Offset from the top as a fade share, in twentieths, so a scroll
+    /// updates the well a handful of times, not every frame.
+    nonisolated static func share(scrolled offset: CGFloat) -> Double {
+        (Double(min(max(offset / fadeDistance, 0), 1)) * 20).rounded() / 20
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var wellScroll: WellScroll? = nil
+}
+
+private struct WellBackgroundModifier: ViewModifier {
+    @State private var scroll = WellScroll()
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.wellScroll, scroll)
+            .background { WellBackground(scroll: scroll) }
+    }
+}
+
+private struct WellScrollReporter: ViewModifier {
+    @Environment(\.wellScroll) private var scroll
+    @Environment(\.sectionIsActive) private var isActive
+    @State private var id = UUID()
+    @State private var share: Double = 0
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .onScrollGeometryChange(for: Double.self) { geometry in
+                WellScroll.share(scrolled: geometry.contentOffset.y + geometry.contentInsets.top)
+            } action: { _, value in
+                share = value
+                report()
+            }
+            // A hidden resident section keeps its scroll position; it mustn't
+            // hold the rings faded on the one that's showing.
+            .onChange(of: isActive) { _, _ in report() }
+            .onDisappear { scroll?.remove(id) }
+        #else
+        content
+        #endif
+    }
+
+    private func report() {
+        scroll?.set(isActive ? share : 0, for: id)
+    }
+}
+
+extension View {
+    /// The screen's well, whose rings fade as scroll views inside it that
+    /// `reportsWellScroll()` move off their top.
+    func wellBackground() -> some View {
+        modifier(WellBackgroundModifier())
+    }
+
+    func reportsWellScroll() -> some View {
+        modifier(WellScrollReporter())
     }
 }
 

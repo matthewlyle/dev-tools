@@ -172,6 +172,7 @@ struct MediaQueryBuilderView: View {
                     }
                 }
                 .formStyle(.grouped)
+                .reportsWellScroll()
                 .scrollContentBackground(.hidden)
             }
         }

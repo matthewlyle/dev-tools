@@ -160,6 +160,7 @@ struct MediaResultsView: View {
             }
             .id(requests.response?.receivedAt)
         }
+        .reportsWellScroll()
     }
 }
 

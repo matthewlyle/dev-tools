@@ -84,6 +84,7 @@ struct ActivityFiltersView: View {
             }
         }
         .sectionListStyle()
+        .reportsWellScroll()
     }
 
     /// One row of the focus choice: All Events (`nil`) or a session, which

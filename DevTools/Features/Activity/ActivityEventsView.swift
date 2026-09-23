@@ -174,6 +174,7 @@ private struct EventList: View {
             } else {
                 events(visible)
                     .sectionListStyle()
+                    .reportsWellScroll()
                     .overlay {
                         ZStack {
                             if visible.isEmpty, activity.status.isActive {
