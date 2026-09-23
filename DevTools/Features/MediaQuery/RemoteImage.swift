@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Server artwork at a fixed point size, loaded through `ImageStore` (token as
-/// a header). Fills and crops by default; `fit` letterboxes the whole image.
-/// Shows `placeholder` until it arrives or if it can't.
+/// Server artwork fetched at `size` points for the screen's scale, loaded
+/// through `ImageStore` (token as a header). The caller frames it; it fills
+/// and crops by default, and `fit` letterboxes the whole image. Shows
+/// `placeholder` until it arrives or if it can't.
 struct RemoteImage<Placeholder: View>: View {
     let value: String?
     let server: ConnectedServer?
@@ -12,6 +13,7 @@ struct RemoteImage<Placeholder: View>: View {
 
     @Environment(ImageStore.self) private var images
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.displayScale) private var displayScale
     @State private var image: PlatformImage?
 
     var body: some View {
@@ -26,11 +28,11 @@ struct RemoteImage<Placeholder: View>: View {
                 placeholder()
             }
         }
-        .frame(width: size.width, height: size.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .task(id: "\(server?.machineID ?? "")|\(value ?? "")|\(Int(size.width))x\(Int(size.height))") {
+        .task(id: "\(server?.machineID ?? "")|\(value ?? "")|\(Int(size.width))x\(Int(size.height))@\(displayScale)") {
             guard let value, let server else { image = nil; return }
-            let pw = Int(size.width * 2), ph = Int(size.height * 2)
+            let pw = Int((size.width * displayScale).rounded()), ph = Int((size.height * displayScale).rounded())
             if let cached = images.cachedImage(for: value, server: server, width: pw, height: ph) {
                 image = cached
                 return
