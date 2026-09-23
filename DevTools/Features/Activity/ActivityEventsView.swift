@@ -341,8 +341,7 @@ struct EventInspector: View {
                     folds: document.folds,
                     collapsed: $collapsed,
                     wrap: true,
-                    version: event.receivedAt,
-                    header: AnyView(EmptyView())
+                    version: event.receivedAt
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea(.container, edges: .bottom)
