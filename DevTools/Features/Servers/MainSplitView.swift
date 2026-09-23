@@ -468,10 +468,10 @@ struct MainSplitView: View {
         servers.isRefreshing || servers.entries.contains { $0.isProbing || $0.probes.isEmpty }
     }
 
-    /// Before the first connection this session the shell is up but has no
-    /// content yet, so it shows an inline loading/empty state in the detail —
-    /// the HIG alternative to a splash. Once connected, per-server states take
-    /// over and a later switch never falls back here.
+    /// Before the first connection this session there's nothing to list,
+    /// switch, or name, so the window is only the status — no sidebar, no
+    /// switcher — the HIG alternative to a splash. Once connected, per-server
+    /// states take over and a later switch never falls back here.
     private var isInitialLoad: Bool { !hasConnected && connected == nil }
 
     /// Empty while the first discovery runs: the selection is remembered
@@ -532,25 +532,45 @@ struct MainSplitView: View {
     }
 
     #if os(macOS)
+    @ViewBuilder
     private var split: some View {
-        NavigationSplitView(columnVisibility: $columns) {
-            sectionList
-                .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 800)
-                .environment(\.sectionListVisible, columns != .detailOnly)
-        } detail: {
-            detailPane
-                .modifier(Header(title: title, entry: servers.selected, section: sectionBinding))
+        if isInitialLoad {
+            loadingShell
+        } else {
+            NavigationSplitView(columnVisibility: $columns) {
+                sectionList
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 800)
+                    .environment(\.sectionListVisible, columns != .detailOnly)
+            } detail: {
+                detailPane
+                    .modifier(Header(title: title, entry: servers.selected, section: sectionBinding))
+            }
         }
     }
     #else
     @ViewBuilder
     private var split: some View {
-        if compact {
+        if isInitialLoad {
+            NavigationStack { loadingShell }
+        } else if compact {
             compactSplit
         } else {
             regularSplit
         }
     }
+    #endif
+
+    private var loadingShell: some View {
+        connectionStatus
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { WellBackground() }
+            .modifier(Header(title: title, entry: servers.selected, section: nil))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+    }
+
+    #if os(iOS)
 
     /// iPad has no window-wide toolbar over split columns, so the list and
     /// detail are two panes under one navigation bar. The `.editor` role is
@@ -593,19 +613,13 @@ struct MainSplitView: View {
     /// every tab.
     @ViewBuilder
     private var compactSplit: some View {
-        if isInitialLoad || servers.selected == nil {
+        if servers.selected == nil {
             NavigationStack {
-                Group {
-                    if isInitialLoad {
-                        connectionStatus
-                    } else {
-                        noServer
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background { WellBackground() }
-                .modifier(Header(title: title, entry: servers.selected, section: nil))
-                .navigationBarTitleDisplayMode(.inline)
+                noServer
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background { WellBackground() }
+                    .modifier(Header(title: title, entry: servers.selected, section: nil))
+                    .navigationBarTitleDisplayMode(.inline)
             }
         } else {
             TabView(selection: sectionBinding) {
@@ -734,15 +748,17 @@ struct MainSplitView: View {
                 #if os(macOS)
                 .toolbar(removing: .title)
                 .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Menu {
-                            ServerMenu(showInfo: { showInfo = true })
-                        } label: {
-                            Text(title)
-                                .font(.headline)
+                    if !title.isEmpty {
+                        ToolbarItem(placement: .navigation) {
+                            Menu {
+                                ServerMenu(showInfo: { showInfo = true })
+                            } label: {
+                                Text(title)
+                                    .font(.headline)
+                            }
+                            .menuIndicator(.visible)
+                            .help("Switch server")
                         }
-                        .menuIndicator(.visible)
-                        .help("Switch server")
                     }
                 }
                 #else
@@ -781,9 +797,7 @@ struct MainSplitView: View {
 
     @ViewBuilder
     private var sectionList: some View {
-        if isInitialLoad {
-            Color.clear
-        } else if let entry = servers.selected {
+        if let entry = servers.selected {
             ZStack {
                 EndpointListView(server: connected, serverID: entry.id)
                     .sectionResident(active: section == .endpoints)
@@ -813,23 +827,16 @@ struct MainSplitView: View {
     /// which fills the toolbar while the pointer is over the scroll view even
     /// with nothing scrolled beneath it. Soft only blurs what actually passes
     /// under the bar.
-    @ViewBuilder
     private var detailPane: some View {
-        Group {
-            if isInitialLoad {
-                connectionStatus
-            } else {
-                ZStack {
-                    WorkspaceView(editable: section == .endpoints)
-                        .sectionResident(active: section == .endpoints || section == .history)
-                    ActivityEventsView()
-                        .sectionResident(active: section == .activity)
-                    MediaResultsView(server: connected)
-                        .sectionResident(active: section == .mediaQuery)
-                }
-                .modifier(SectionInspector(section: section, server: connected))
-            }
+        ZStack {
+            WorkspaceView(editable: section == .endpoints)
+                .sectionResident(active: section == .endpoints || section == .history)
+            ActivityEventsView()
+                .sectionResident(active: section == .activity)
+            MediaResultsView(server: connected)
+                .sectionResident(active: section == .mediaQuery)
         }
+        .modifier(SectionInspector(section: section, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background { WellBackground() }
     }
