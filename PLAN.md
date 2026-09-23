@@ -6,7 +6,7 @@ Native macOS, iPadOS, and iOS developer tool for exploring the Plex Media Server
 
 | Topic | Decision |
 |---|---|
-| Platform | macOS 26+, iPadOS 26+, and iOS 26+ (Liquid Glass), one universal app target (iPhone and iPad device families). Xcode 27.1, Swift 6, strict concurrency. |
+| Platform | macOS 26+, iPadOS 26.1+, and iOS 26.1+ (Liquid Glass; 26.1 for the per-tab `tabViewBottomAccessory(isEnabled:)`), one universal app target (iPhone and iPad device families). Xcode 27.1, Swift 6, strict concurrency. |
 | UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. On a compact width (iPhone, narrow iPad split) each section is a tab: its list at the root, its detail pushed. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
 | Deps | Minimal. None planned for v1; reassess only if the hand-rolled XML/JSON highlighter proves inadequate. |
 | Bundle ID | `mldgg.devtools` |
@@ -116,7 +116,7 @@ dev-tools/
       Browser/                   HistoryNavButtons — back/forward at the head of the URL line (Endpoints and History; Media records no navigation, since Back would show a query its form no longer holds)
       Response/                  ResponseView (request bar, then ResponseInfoRow — status · pagination · tabs · body controls, two lines on a compact width — and 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
       History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, swipe on a compact width, ⌫, ⌘⌫) or clear; sort/status menu and Clear over the list (toolbar on macOS, beside the filter field on iPad); the detail rests on "Select a request…" (Endpoints' says "Send a request…")
-      Activity/                  ActivityFiltersView (the list pane: event-type toggles; ActivityTypeMenu, the same as a toolbar menu on a compact width, where the events are the tab's root), ActivityEventsView (events over ActivityStatusBar — status, received count, last error, Clear, Connect/Disconnect — or a Not Connected / Couldn't Connect state when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
+      Activity/                  ActivityFiltersView (the list pane: event-type toggles; ActivityTypeMenu, the same as a toolbar menu on a compact width, where the events are the tab's root), ActivityEventsView (events under ActivityConnectionControl — status, received count, last error, Clear, Connect/Disconnect: the tab bar accessory on a compact width, a floating glass capsule elsewhere — or a Not Connected / Couldn't Connect state when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
       MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts in precedence order, reordered from a row's context menu or by drag where the form allows, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
       Saved/                     SavedRequestRow (context menu, or swipe on a compact width: Rename…, Delete…)
       Settings/                  SettingsView — app-wide response format, wrap lines, code theme (System, Xcode, GitHub, Atom One; light and dark), clear all history (confirmed); macOS Settings scene, iOS sheet from the title menu or the App menu (⌘,)
@@ -151,7 +151,7 @@ Each row reads `state · subject · progress · position`, e.g. `Paused · The O
 ## Liquid Glass usage
 
 - Only where the system puts it: the toolbar via `NavigationSplitView`/`NavigationStack`, the segmented section switcher and search field as toolbar items, and the Send button (`.glassProminent`).
-- No custom `glassEffect` anywhere. The HIG reserves glass for the controls/navigation layer floating above content; the response status readout, pagination, badges, and cards are content, so they use standard fills (`.fill.tertiary`, `.quaternary`).
+- One custom `glassEffect`: Activity's connection capsule on iPad and the Mac, a control floating over the events (on iPhone the same control is the system's tab bar accessory). Otherwise the HIG reserves glass for the controls/navigation layer floating above content; the response status readout, pagination, badges, and cards are content, so they use standard fills (`.fill.tertiary`, `.quaternary`).
 - Content areas (raw text, cards) stay opaque for readability.
 
 ## Milestones

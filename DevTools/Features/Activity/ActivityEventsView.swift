@@ -1,17 +1,30 @@
 import SwiftUI
 
-/// The event list over its connection footer. The selected event's payload
-/// opens in the detail pane's inspector (`SectionInspector`); the list and
-/// the footer are views of their own so only they redraw per incoming
-/// frame, and this body reads nothing but the selection.
+/// The event list under its connection control. The selected event's
+/// payload opens in the detail pane's inspector (`SectionInspector`); the
+/// list and the control are views of their own so only they redraw per
+/// incoming frame, and this body reads nothing but the selection.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
         EventList()
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                ActivityStatusBar()
+                // A compact width carries the control as the tab bar's
+                // accessory (`MainSplitView`); elsewhere it floats over the
+                // events as a capsule, the one custom glass in the app: a
+                // control above content, which the HIG allows sparingly.
+                if !compact {
+                    ActivityConnectionControl()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular, in: .capsule)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                }
             }
             .focusedSceneValue(
                 \.showMediaInfo,
@@ -22,17 +35,21 @@ struct ActivityEventsView: View {
     }
 }
 
-/// The connection, pinned under the events it produces: status, count,
-/// last error, Clear, and Connect or Disconnect.
-private struct ActivityStatusBar: View {
+/// The connection: status, count, Clear, and Connect or Disconnect. As the
+/// tab bar's accessory it's one line, and inline beside a minimized tab bar
+/// it keeps only the status and the button.
+struct ActivityConnectionControl: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
     @State private var connections = 0
 
     private var selectedServer: ConnectedServer? {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
+
+    private var inline: Bool { accessoryPlacement == .inline }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -47,7 +64,7 @@ private struct ActivityStatusBar: View {
                     .font(.code(.callout))
                     .lineLimit(1)
                     .contentTransition(.interpolate)
-                if activity.status.isActive {
+                if activity.status.isActive, !inline {
                     Text("\(activity.receivedCount.formatted()) received")
                         .font(.code(.caption))
                         .foregroundStyle(.secondary)
@@ -55,7 +72,7 @@ private struct ActivityStatusBar: View {
                         .help("Messages received on the wire since connecting")
                 }
                 Spacer(minLength: 8)
-                if !activity.events.isEmpty {
+                if !activity.events.isEmpty, !inline {
                     Button {
                         activity.clear()
                     } label: {
@@ -67,6 +84,7 @@ private struct ActivityStatusBar: View {
                 }
                 if activity.status.isActive {
                     Button("Disconnect", role: .destructive) { activity.disconnect() }
+                        .buttonStyle(.borderless)
                 } else {
                     Button("Connect") {
                         guard let selectedServer else { return }
@@ -77,7 +95,9 @@ private struct ActivityStatusBar: View {
                 }
             }
             .animation(reduceMotion ? nil : .smooth, value: activity.status)
-            if let error = activity.lastError, activity.status != .failed(error) {
+            // The accessory is one line tall; the error stays where there's
+            // room for it.
+            if accessoryPlacement == nil, let error = activity.lastError, activity.status != .failed(error) {
                 Text("Last error: \(error)")
                     .font(.code(.caption))
                     .foregroundStyle(.red)
@@ -85,10 +105,6 @@ private struct ActivityStatusBar: View {
             }
         }
         .controlSize(.small)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
         .onChange(of: activity.status) { _, status in
             if status == .connected, !reduceMotion { connections += 1 }
         }
