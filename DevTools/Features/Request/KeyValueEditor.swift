@@ -110,10 +110,10 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
 
     @ViewBuilder
     private func valuesMenu(_ item: Item, _ bound: Binding<Item>) -> some View {
-        if let values = enumValues(for: item.name) {
+        if let options = valueOptions(for: item.name) {
             Menu {
-                ForEach(values, id: \.self) { value in
-                    Button(value) { bound.wrappedValue.value = value }
+                ForEach(options, id: \.value) { option in
+                    Button(option.label) { bound.wrappedValue.value = option.value }
                 }
             } label: {
                 Label("Documented Values", systemImage: "list.bullet")
@@ -169,9 +169,9 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         return parameter.description ?? "Documented \(parameter.location.rawValue) parameter"
     }
 
-    private func enumValues(for name: String) -> [String]? {
-        let values = suggestions.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.enumValues ?? []
-        return values.isEmpty ? nil : values
+    private func valueOptions(for name: String) -> [(value: String, label: String)]? {
+        let options = suggestions.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.valueOptions ?? []
+        return options.isEmpty ? nil : options
     }
 
 }

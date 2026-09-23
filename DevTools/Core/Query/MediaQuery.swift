@@ -125,14 +125,6 @@ struct MediaType: Hashable, Sendable, Identifiable {
     func filter(for fieldKey: String) -> MediaFilter? {
         filters.first { $0.filter == fieldKey }
     }
-
-    /// The spec's "List of Metadata Types", used when a `Type` element's key
-    /// doesn't carry `type=N`.
-    static let numbers: [String: Int] = [
-        "movie": 1, "show": 2, "season": 3, "episode": 4, "trailer": 5, "person": 7,
-        "artist": 8, "album": 9, "track": 10, "clip": 12, "photo": 13, "photoalbum": 14,
-        "playlist": 15, "playlistfolder": 16, "collection": 18,
-    ]
 }
 
 /// The types, fields, sorts, and filters a library section supports, from
@@ -148,7 +140,7 @@ struct SectionDetails: Hashable, Sendable {
             let fromKey = node["key"]
                 .flatMap { PlexRequest.splitPath($0).query.first { $0.name == "type" }?.value }
                 .flatMap(Int.init)
-            guard let number = fromKey ?? MediaType.numbers[name] else { return nil }
+            guard let number = fromKey ?? MetadataType.numbers[name] else { return nil }
             let fields = node.children.filter { $0.name == "Field" }.compactMap { field -> MediaField? in
                 guard let key = field["key"] else { return nil }
                 return MediaField(key: key, title: field["title"] ?? key, type: MediaFieldType(raw: field["type"] ?? "string"))
