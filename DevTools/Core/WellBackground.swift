@@ -40,11 +40,13 @@ struct WellBackground: View {
                 SignalRings()
                     .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
                     .modifier(ListeningPulse(active: state?.showsRings == true && !reduceMotion))
+                    // They swell out from the title as the connection comes
+                    // up and draw back into it as it drops, under the fixed
+                    // fade; the scroll fade follows the finger.
+                    .scaleEffect(state?.showsRings == true || reduceMotion ? 1 : 0.9, anchor: .top)
                     .mask(RadialFromTitle())
                     .opacity(ringOpacity)
-                    // Rise with the connection, leave quickly when it drops;
-                    // the scroll fade follows the finger.
-                    .animation(state?.showsRings == true ? .smooth(duration: 0.6) : .easeOut(duration: 0.2), value: state?.showsRings)
+                    .animation(state?.showsRings == true ? .smooth(duration: 1.1) : .smooth(duration: 0.5), value: state?.showsRings)
             }
         }
         .ignoresSafeArea()
@@ -69,16 +71,14 @@ private struct ListeningPulse: ViewModifier {
     let active: Bool
 
     func body(content: Content) -> some View {
-        if active {
-            content.phaseAnimator([false, true]) { view, swelled in
-                view
-                    .opacity(swelled ? 0.55 : 1)
-                    .scaleEffect(swelled ? 1.03 : 1, anchor: .top)
-            } animation: { _ in
-                .easeInOut(duration: 2.4)
-            }
-        } else {
-            content
+        // One phase rests rather than dropping the modifier, which would
+        // rebuild the rings mid-fade.
+        content.phaseAnimator(active ? [false, true] : [false]) { view, swelled in
+            view
+                .opacity(swelled ? 0.55 : 1)
+                .scaleEffect(swelled ? 1.03 : 1, anchor: .top)
+        } animation: { _ in
+            .easeInOut(duration: 2.4)
         }
     }
 }
@@ -108,7 +108,7 @@ private struct Grain: View {
         if let tile = Self.tile {
             Image(decorative: tile, scale: displayScale)
                 .resizable(resizingMode: .tile)
-                .opacity(0.012)
+                .opacity(0.02)
                 .mask {
                     LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.62))
                 }
@@ -119,27 +119,29 @@ private struct Grain: View {
 
 /// Three hues along the top edge blending down to nothing: indigo at the
 /// leading corner, the accent brightest just under the title, teal at the
-/// trailing corner. The middle row bows down under the title so the glow
-/// gathers there rather than lying in a flat band.
+/// trailing corner. The second row bows down under the title so the glow
+/// gathers there. Each hue eases out over several rows to its own
+/// transparent self, not to `.clear` (transparent black, which greys the
+/// blend): a fade that stops at one row shows where it stops.
 private struct TopWash: View {
     let strength: Double
 
     var body: some View {
-        MeshGradient(
+        let indigo = Color.indigo, accent = Color.accentColor, teal = Color.teal
+        let rows: [Double] = [1, 0.5, 0.2, 0.05, 0]
+        return MeshGradient(
             width: 3,
-            height: 4,
+            height: 5,
             points: [
                 [0, 0], [0.5, 0], [1, 0],
-                [0, 0.22], [0.5, 0.3], [1, 0.22],
-                [0, 0.55], [0.5, 0.58], [1, 0.55],
+                [0, 0.16], [0.5, 0.22], [1, 0.16],
+                [0, 0.34], [0.5, 0.4], [1, 0.34],
+                [0, 0.58], [0.5, 0.62], [1, 0.58],
                 [0, 1], [0.5, 1], [1, 1],
             ],
-            colors: [
-                .indigo.opacity(0.16 * strength), .accentColor.opacity(0.2 * strength), .teal.opacity(0.14 * strength),
-                .indigo.opacity(0.05 * strength), .accentColor.opacity(0.1 * strength), .teal.opacity(0.04 * strength),
-                .clear, .clear, .clear,
-                .clear, .clear, .clear,
-            ],
+            colors: rows.flatMap { share in
+                [indigo.opacity(0.16 * strength * share), accent.opacity(0.2 * strength * share), teal.opacity(0.14 * strength * share)]
+            },
             colorSpace: .perceptual
         )
         .accessibilityHidden(true)
