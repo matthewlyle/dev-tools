@@ -290,30 +290,37 @@ struct PosterArt: View {
         return CGSize(width: width, height: width / Self.aspect(for: item.shape))
     }
 
-    private var symbol: String {
-        switch item.type {
-        case "show", "season", "episode": "tv"
-        case "artist": "music.mic"
-        case "album", "track": "music.note"
-        case "photo", "photoalbum": "photo"
-        case "collection": "rectangle.stack"
-        case "playlist": "music.note.list"
-        default: "film"
-        }
-    }
-
     var body: some View {
-        RemoteImage(value: item.thumb, server: server, size: fetchSize) {
-            Rectangle()
-                .fill(.quaternary)
-                .overlay {
-                    Image(systemName: symbol)
-                        .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                }
+        RemoteImage(value: item.thumb, server: server, size: fetchSize) { loading in
+            PosterSkeleton(loading: loading)
         }
         .aspectRatio(Self.aspect(for: item.shape), contentMode: .fit)
         .clipShape(.rect(cornerRadius: 8))
+    }
+}
+
+/// The tile that stands in for artwork. It breathes while the artwork is
+/// still coming, so a grid of them reads as loading rather than as posters
+/// with nothing on them, and holds still once there's nothing to wait for
+/// or under Reduce Motion.
+private struct PosterSkeleton: View {
+    let loading: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if loading, !reduceMotion {
+            tile.phaseAnimator([1.0, 0.55]) { view, opacity in
+                view.opacity(opacity)
+            } animation: { _ in
+                .easeInOut(duration: 0.9)
+            }
+        } else {
+            tile
+        }
+    }
+
+    private var tile: some View {
+        Rectangle().fill(.quaternary)
     }
 }
