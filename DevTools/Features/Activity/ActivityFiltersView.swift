@@ -23,6 +23,7 @@ struct ActivityFiltersView: View {
                     }
                 }
                 .listRowSeparator(.hidden)
+                .sectionListRow()
                 .listSectionSeparator(.hidden)
             }
         }

@@ -158,6 +158,7 @@ private struct EventList: View {
                     EventRow(event: event, title: activity.title(for: event))
                         .tag(event.id)
                         .listRowSeparator(.hidden)
+                        .sectionListRow(selected: event.id == activity.selectedEventID)
                 }
                 // A row tap on iPadOS runs the list's primary action — the
                 // platform's "open this item" — while macOS runs it on
@@ -169,8 +170,7 @@ private struct EventList: View {
                 } primaryAction: { ids in
                     if let id = ids.first { activity.selectedEventID = id }
                 }
-                .listStyle(.inset)
-                .scrollContentBackground(.hidden)
+                .sectionListStyle()
                 .overlay {
                     ZStack {
                         if visible.isEmpty, activity.status.isActive {
