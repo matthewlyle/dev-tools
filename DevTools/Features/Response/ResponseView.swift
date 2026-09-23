@@ -66,6 +66,13 @@ struct ResponseView<RequestBar: View>: View {
                     }
                 }
                 .transition(.identity)
+            } else if !editable && requests.lastSent == nil {
+                // Nothing picked from History: the bar would show the
+                // workspace's placeholder request, and the list says what
+                // belongs there.
+                FillingScrollView { EmptyView() }
+                    .restingStateTransition()
+                    .zIndex(1)
             } else {
                 FillingScrollView {
                     headerBlock
