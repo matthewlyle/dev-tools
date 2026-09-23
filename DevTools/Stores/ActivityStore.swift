@@ -33,6 +33,11 @@ final class ActivityStore {
     /// The session the list is narrowed to, picked in the sidebar. It lets
     /// go when the session ends, since its row goes with it.
     var focusedSession: NotificationEvent.Session?
+    /// Whether `/status/sessions` has answered, or failed, since connecting.
+    /// The stream reports a playback only every few seconds, so the sidebar
+    /// holds back until then and arrives whole.
+    private(set) var sessionsLoaded = false
+    private var sessionsLoad: Task<Void, Never>?
 
     /// Resolved item titles for rows whose payload names the item by key
     /// alone. `requestedTitles` holds every key ever asked for, in flight,
@@ -70,7 +75,11 @@ final class ActivityStore {
 
     /// The looked-up title of the item an event names by key, once resolved.
     func title(for event: NotificationEvent) -> String? {
-        guard let server, let ratingKey = event.titleKey else { return nil }
+        event.titleKey.flatMap(title(ratingKey:))
+    }
+
+    func title(ratingKey: String) -> String? {
+        guard let server else { return nil }
         return titles[TitleKey(server: server.machineID, ratingKey: ratingKey)]
     }
 
@@ -81,6 +90,7 @@ final class ActivityStore {
         receivedCount = 0
         lastError = nil
         endSessions()
+        loadSessions(on: server)
         let identity = http.identity
 
         connection = Task { [weak self] in
@@ -146,8 +156,35 @@ final class ActivityStore {
     /// Sessions are only as current as the stream: without it, none can be
     /// shown as running.
     private func endSessions() {
+        sessionsLoad?.cancel()
+        sessionsLoaded = false
         live = LiveSessions()
         focusedSession = nil
+    }
+
+    /// Seeds the running sessions, and their items' titles, which the
+    /// response names outright.
+    private func loadSessions(on server: ConnectedServer) {
+        sessionsLoad = Task { [http, weak self] in
+            var request = PlexRequest(path: "/status/sessions")
+            request.accept = .json
+            var root: Node?
+            if let response = try? await http.send(request, to: server), response.status == 200 {
+                let body = response.body
+                root = await Task.detached(priority: .userInitiated) { JSONNodeParser.parse(body) }.value
+            }
+            guard let self, !Task.isCancelled else { return }
+            if let root {
+                live.seed(statusSessions: root)
+                for item in root.children {
+                    guard let ratingKey = item["ratingKey"], let title = NotificationEvent.itemTitle(item: item) else { continue }
+                    let key = TitleKey(server: server.machineID, ratingKey: ratingKey)
+                    titles[key] = title
+                    requestedTitles.insert(key)
+                }
+            }
+            sessionsLoaded = true
+        }
     }
 
     func toggle(type: String) {

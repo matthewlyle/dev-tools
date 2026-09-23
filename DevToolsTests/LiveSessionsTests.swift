@@ -14,15 +14,14 @@ struct LiveSessionsTests {
     private func transcode(_ type: String, id: String, progress: Double = 0) -> NotificationEvent {
         NotificationEvent.make(raw: """
         {"NotificationContainer":{"type":"transcodeSession.\(type)","TranscodeSession":[
-          {"key":"/transcode/sessions/\(id)","progress":\(progress)}
+          {"key":"/transcode/sessions/\(id)","progress":\(progress),"speed":1.25,"throttled":true,"sourceVideoCodec":"hevc","videoCodec":"h264"}
         ]}}
         """)
     }
 
     @Test func eventsNameTheSessionTheyReportOn() {
         #expect(playing("12", state: "playing").session == .playback("12"))
-        #expect(transcode("update", id: "abc", progress: 12.6).session == .transcode("/transcode/sessions/abc"))
-        #expect(transcode("update", id: "abc", progress: 12.6).progress == 12.6)
+        #expect(transcode("update", id: "abc").session == .transcode("abc"))
         let timeline = NotificationEvent.make(raw: #"{"NotificationContainer":{"type":"timeline","TimelineEntry":[{"itemID":"1","state":5}]}}"#)
         #expect(timeline.session == nil)
     }
@@ -45,7 +44,11 @@ struct LiveSessionsTests {
         var live = LiveSessions()
         live.apply(transcode("start", id: "abc"))
         live.apply(transcode("update", id: "abc", progress: 40))
-        #expect(live.transcodes.first?.progress == 40)
+        let row = live.transcodes.first
+        #expect(row?.progress == 40)
+        #expect(row?.speed == 1.25)
+        #expect(row?.throttled == true)
+        #expect(row?.subject == "hevc → h264")
         live.apply(transcode("end", id: "abc"))
         #expect(live.transcodes.isEmpty)
     }
@@ -54,6 +57,31 @@ struct LiveSessionsTests {
         var live = LiveSessions()
         live.apply(playing("12", state: "stopped"))
         live.apply(transcode("end", id: "abc"))
-        #expect(live.playback.isEmpty && live.transcodes.isEmpty)
+        #expect(live.isEmpty)
+    }
+
+    @Test func statusSessionsSeedWhatTheStreamHasNotReported() throws {
+        let root = try #require(JSONNodeParser.parse(Data(#"""
+        {"MediaContainer":{"size":2,"Metadata":[
+          {"sessionKey":"12","ratingKey":"28282","type":"movie","title":"Heat","year":1995,"viewOffset":90000,
+           "Player":{"state":"paused"},
+           "TranscodeSession":{"key":"/transcode/sessions/abc","progress":7,"context":"streaming"}},
+          {"sessionKey":"13","ratingKey":"4","type":"movie","title":"Ronin","viewOffset":1000,"Player":{"state":"playing"}}
+        ]}}
+        """#.utf8)))
+        var live = LiveSessions()
+        live.apply(playing("13", state: "playing", offset: 60_000))
+        live.seed(statusSessions: root)
+
+        #expect(live.playback.map(\.session) == [.playback("13"), .playback("12")])
+        #expect(live.playback.first?.viewOffset == 60_000)
+        #expect(live.playback.last?.state == "paused")
+        #expect(live.playback.last?.viewOffset == 90_000)
+        #expect(live.transcodes.map(\.session) == [.transcode("abc")])
+        #expect(live.transcodes.first?.subject == "Streaming")
+
+        live.apply(transcode("update", id: "abc", progress: 9))
+        #expect(live.transcodes.count == 1)
+        #expect(live.transcodes.first?.progress == 9)
     }
 }

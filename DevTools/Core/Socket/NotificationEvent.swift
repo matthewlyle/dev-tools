@@ -14,25 +14,29 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     let viewOffset: Int?
     /// The running session the event reports on, if any.
     let session: Session?
-    /// Percent complete, as a transcode reports it.
-    let progress: Double?
     /// The row's line from the payload alone: its own title when it has one,
     /// otherwise an identifying key.
     let summary: String
     private let line: Line
     private let titled: Bool
-    private let payload: Node?
+    /// The payload itself: the container's first child.
+    let payload: Node?
 
     enum Session: Hashable, Sendable {
         /// A `playing` event's `sessionKey`.
         case playback(String)
-        /// A transcode event's `/transcode/sessions/…` key.
+        /// A transcode's id, the last component of its
+        /// `/transcode/sessions/…` key.
         case transcode(String)
-    }
 
-    /// An attribute of the payload itself (the container's first child).
-    func value(_ name: String) -> String? {
-        payload?[name].flatMap { $0.isEmpty ? nil : $0 }
+        /// Matched on the id alone, whichever form of the key a source sends.
+        static func transcode(key: String) -> Session {
+            .transcode(key.split(separator: "/").last.map(String.init) ?? key)
+        }
+
+        var isPlayback: Bool {
+            if case .playback = self { true } else { false }
+        }
     }
 
     /// `2:53`, or `1:02:07` from an hour on.
@@ -70,7 +74,6 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
             state: facts.state,
             viewOffset: facts.viewOffset,
             session: facts.session,
-            progress: facts.progress,
             summary: facts.line.text,
             line: facts.line,
             titled: facts.titled,
@@ -83,8 +86,12 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     /// `Show — S2 E3 · Title`, a movie as `Title (1995)`, a track as
     /// `Artist — Title`, anything else by its title.
     static func itemTitle(metadata root: Node) -> String? {
-        guard let item = root.children.first(where: { $0.name == "Metadata" }) ?? root.children.first,
-              let title = nonEmpty(item["title"])
+        (root.children.first(where: { $0.name == "Metadata" }) ?? root.children.first).flatMap(itemTitle(item:))
+    }
+
+    /// The same, from the item's own node (a `/status/sessions` entry).
+    static func itemTitle(item: Node) -> String? {
+        guard let title = nonEmpty(item["title"])
         else { return nil }
         switch item["type"] {
         case "episode":
@@ -128,7 +135,6 @@ private struct Facts {
     var viewOffset: Int?
     var ratingKey: String?
     var session: NotificationEvent.Session?
-    var progress: Double?
     var titled = false
     var line = Line()
 
@@ -164,9 +170,9 @@ private struct Facts {
         if type == "playing", let key = value("sessionKey") {
             session = .playback(key)
         } else if type.hasPrefix("transcodeSession."), let key = value("key") {
-            session = .transcode(key)
+            session = .transcode(key: key)
         }
-        progress = value("progress").flatMap(Double.init)
+        let progress = value("progress").flatMap(Double.init)
 
         let human = [value("title"), value("subtitle")].compactMap { $0 }
         let named = human.isEmpty ? (value("message") ?? value("description")) : human.joined(separator: " · ")
