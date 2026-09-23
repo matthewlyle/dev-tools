@@ -470,7 +470,12 @@ struct MainSplitView: View {
     /// over and a later switch never falls back here.
     private var isInitialLoad: Bool { !hasConnected && connected == nil }
 
-    private var title: String { servers.selected?.resource.name ?? "Servers" }
+    /// Empty while the first discovery runs: the selection is remembered
+    /// from last time, and its name would claim a server before one's found.
+    private var title: String {
+        if isInitialLoad, servers.isRefreshing { return "" }
+        return servers.selected?.resource.name ?? "Servers"
+    }
 
     /// A section change swaps in that section's own workspace *before* its
     /// view is built — not reactively after. Otherwise the incoming
