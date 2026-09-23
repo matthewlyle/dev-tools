@@ -153,6 +153,9 @@ extension View {
 private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     @Environment(\.sectionListVisible) private var visible
     @Environment(\.sectionIsActive) private var active
+    /// Items over the list leave with it when the sidebar collapses; items
+    /// over the detail (Activity's Clear Events) act on what's still showing.
+    let followsList: Bool
     let items: Items
 
     /// The toolbar stays attached whatever the section, with the items coming
@@ -161,7 +164,7 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     /// macOS a hidden item still holds its slot while the sidebar is
     /// collapsed, pushing the sidebar button away from the window controls.
     func body(content: Content) -> some View {
-        let shown = visible && active
+        let shown = active && (visible || !followsList)
         content.toolbar {
             if shown { items }
         }
@@ -210,8 +213,9 @@ extension View {
 }
 
 extension View {
-    func sectionListToolbar<Items: ToolbarContent>(@ToolbarContentBuilder items: () -> Items) -> some View {
-        modifier(SectionListToolbar(items: items()))
+    /// `followsList: false` for items over the detail rather than the list.
+    func sectionListToolbar<Items: ToolbarContent>(followsList: Bool = true, @ToolbarContentBuilder items: () -> Items) -> some View {
+        modifier(SectionListToolbar(followsList: followsList, items: items()))
     }
 }
 
