@@ -35,6 +35,9 @@ extension EnvironmentValues {
     /// Where Media's posters register as zoom sources, so the item sheet
     /// grows out of the one tapped. Set by `SectionInspector` on iOS.
     @Entry var posterZoom: Namespace.ID? = nil
+    /// Whether Activity's connection control rides the tab bar as its
+    /// accessory, so the events don't also float their capsule.
+    @Entry var connectionInTabBar = false
 }
 
 struct ShowSectionDetailAction {
@@ -494,6 +497,7 @@ struct MainSplitView: View {
     #else
     @AppStorage("sectionListVisible") private var sectionListVisible = true
     @Environment(\.isCompactWidth) private var compact
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     /// The sections whose detail is pushed over their list on a compact width.
     @State private var pushed: Set<ServerSection> = []
     #endif
@@ -671,18 +675,25 @@ struct MainSplitView: View {
                                 }
                         }
                         .environment(\.sectionIsActive, section == item)
+                        .environment(\.connectionInTabBar, connectionInTabBar)
                     }
                 }
             }
             .tabBarMinimizeBehavior(.onScrollDown)
             // Activity's connection rides the tab bar as its accessory: the
             // system's glass at the bar's width, inline beside it when the
-            // bar minimizes on scroll.
-            .tabViewBottomAccessory(isEnabled: section == .activity) {
+            // bar minimizes on scroll. Not in landscape, where the accessory
+            // spans the whole screen above a short, centred tab bar; there the
+            // events float the capsule they use on iPad instead.
+            .tabViewBottomAccessory(isEnabled: section == .activity && connectionInTabBar) {
                 ActivityConnectionControl()
                     .padding(.horizontal, 16)
             }
         }
+    }
+
+    private var connectionInTabBar: Bool {
+        verticalSizeClass != .compact
     }
 
     private func compactList(_ item: ServerSection) -> some View {
