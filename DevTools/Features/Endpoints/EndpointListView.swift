@@ -26,7 +26,6 @@ struct EndpointListView: View {
         return all.filter {
             $0.name.localizedCaseInsensitiveContains(needle)
                 || $0.request.summary.localizedCaseInsensitiveContains(needle)
-                || $0.notes.localizedCaseInsensitiveContains(needle)
         }
     }
 

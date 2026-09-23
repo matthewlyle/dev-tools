@@ -89,24 +89,22 @@ struct RequestBarView: View {
                     SaveRequestSheet(
                         title: "Update Request",
                         name: editing.name,
-                        notes: editing.notes,
                         summary: summary,
                         action: "Update",
-                        secondary: ("Save as New", { name, notes in
-                            saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+                        secondary: ("Save as New", { name in
+                            saved.add(name: name, request: requests.current, serverID: server.machineID)
                         })
-                    ) { name, notes in
-                        saved.update(id: editing.id, name: name, notes: notes, request: requests.current)
+                    ) { name in
+                        saved.update(id: editing.id, name: name, request: requests.current)
                     }
                 } else {
                     SaveRequestSheet(
                         title: "Save Request",
                         name: operation?.summary ?? requests.current.path,
-                        notes: "",
                         summary: summary,
                         action: "Save"
-                    ) { name, notes in
-                        saved.add(name: name, notes: notes, request: requests.current, serverID: server.machineID)
+                    ) { name in
+                        saved.add(name: name, request: requests.current, serverID: server.machineID)
                     }
                 }
             }
