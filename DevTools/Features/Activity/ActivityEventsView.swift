@@ -155,9 +155,9 @@ private struct EventList: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
-        @Bindable var activity = activity
         let visible = activity.visibleEvents
 
         ZStack {
@@ -169,37 +169,56 @@ private struct EventList: View {
                 .restingStateTransition(rising: true)
                 .zIndex(1)
             } else {
-                List(visible, selection: $activity.selectedEventID) { event in
-                    EventRow(event: event, title: activity.title(for: event))
-                        .tag(event.id)
-                        .listRowSeparator(.hidden)
-                        .sectionListRow(selected: event.id == activity.selectedEventID)
-                }
-                // A row tap on iPadOS runs the list's primary action — the
-                // platform's "open this item" — while macOS runs it on
-                // double-click and keeps native click and arrow-key
-                // selection. Selecting here opens the inspector from a tap on
-                // both; a tap gesture instead would swallow the macOS table's
-                // own selection.
-                .contextMenu(forSelectionType: NotificationEvent.ID.self) { _ in
-                } primaryAction: { ids in
-                    if let id = ids.first { activity.selectedEventID = id }
-                }
-                .sectionListStyle()
-                .overlay {
-                    ZStack {
-                        if visible.isEmpty, activity.status.isActive {
-                            ZeroState(text: "Waiting for events. Start playback or a library scan on any client.")
-                                .restingStateTransition(rising: true)
+                events(visible)
+                    .sectionListStyle()
+                    .overlay {
+                        ZStack {
+                            if visible.isEmpty, activity.status.isActive {
+                                ZeroState(text: "Waiting for events. Start playback or a library scan on any client.")
+                                    .restingStateTransition(rising: true)
+                            }
                         }
                     }
-                }
-                .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
-                .transition(.identity)
+                    .animation(reduceMotion ? nil : .smooth, value: activity.events.first?.id)
+                    .transition(.identity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .focusedSceneValue(\.clearEvents, isActive && !activity.events.isEmpty ? ClearEventsAction { activity.clear() } : nil)
+    }
+
+    /// A row tap on iPadOS runs the list's primary action — the platform's
+    /// "open this item" — while macOS runs it on double-click and keeps
+    /// native click and arrow-key selection; a tap gesture there would
+    /// swallow the table's own selection. On iPhone a tap neither selects
+    /// nor runs the primary action, so the rows are buttons that select.
+    @ViewBuilder
+    private func events(_ visible: [NotificationEvent]) -> some View {
+        @Bindable var activity = activity
+        if compact {
+            List(visible) { event in
+                Button {
+                    activity.selectedEventID = event.id
+                } label: {
+                    EventRow(event: event, title: activity.title(for: event))
+                        .contentShape(.rect)
+                }
+                .foregroundStyle(.primary)
+                .listRowSeparator(.hidden)
+                .sectionListRow(selected: event.id == activity.selectedEventID)
+            }
+        } else {
+            List(visible, selection: $activity.selectedEventID) { event in
+                EventRow(event: event, title: activity.title(for: event))
+                    .tag(event.id)
+                    .listRowSeparator(.hidden)
+                    .sectionListRow(selected: event.id == activity.selectedEventID)
+            }
+            .contextMenu(forSelectionType: NotificationEvent.ID.self) { _ in
+            } primaryAction: { ids in
+                if let id = ids.first { activity.selectedEventID = id }
+            }
+        }
     }
 
     @ViewBuilder
@@ -216,26 +235,53 @@ private struct EventList: View {
     }
 }
 
+/// One event: time, type, and what it's about on one line; on a compact
+/// width the type and time head a second line that holds the subject, so
+/// neither the badge nor the subject has to squeeze.
 private struct EventRow: View {
     let event: NotificationEvent
     let title: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(event.receivedAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3))))
-                .font(.code(.caption))
-                .foregroundStyle(.secondary)
-            EventTypeBadge(type: event.type)
-            Text(title.map(event.summary(title:)) ?? event.summary)
-                .font(.callout)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .contentTransition(.interpolate)
-                .animation(reduceMotion ? nil : .snappy, value: title)
+        Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        EventTypeBadge(type: event.type)
+                            .fixedSize()
+                        Spacer(minLength: 8)
+                        time
+                    }
+                    subject
+                        .lineLimit(2)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    time
+                    EventTypeBadge(type: event.type)
+                    subject
+                        .lineLimit(1)
+                }
+            }
         }
         .padding(.vertical, 2)
+    }
+
+    private var time: some View {
+        Text(event.receivedAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3))))
+            .font(.code(.caption))
+            .foregroundStyle(.secondary)
+    }
+
+    private var subject: some View {
+        Text(title.map(event.summary(title:)) ?? event.summary)
+            .font(.callout)
+            .truncationMode(.tail)
+            .contentTransition(.interpolate)
+            .animation(reduceMotion ? nil : .snappy, value: title)
     }
 }
 
