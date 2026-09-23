@@ -637,7 +637,7 @@ struct MainSplitView: View {
         NavigationStack {
             Group {
                 if servers.selected != nil {
-                    ListDetailPanes(showsList: sectionListVisible) {
+                    ListDetailPanes(showsList: sectionListVisible && !listPaneEmpty) {
                         sectionList
                     } detail: {
                         detailPane
@@ -657,10 +657,18 @@ struct MainSplitView: View {
                         Label(sectionListVisible ? "Hide Section List" : "Show Section List", systemImage: "sidebar.leading")
                     }
                     .keyboardShortcut("s", modifiers: [.command, .control])
-                    .disabled(servers.selected == nil)
+                    .disabled(servers.selected == nil || listPaneEmpty)
                 }
             }
         }
+    }
+
+    /// Activity's list pane only lists what arrived. Empty, it would be blank
+    /// space with no divider to mark it (the panes share one well), leaving
+    /// the events' zero state and connection control off centre; it slides
+    /// in with the first event.
+    private var listPaneEmpty: Bool {
+        section == .activity && activity.typeCounts.isEmpty && activity.live.isEmpty
     }
 
     /// A compact width (an iPhone, a narrow iPad split) can't hold the list
