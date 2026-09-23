@@ -12,11 +12,33 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     let state: String?
     /// Playback position in milliseconds.
     let viewOffset: Int?
+    /// The running session the event reports on, if any.
+    let session: Session?
+    /// Percent complete, as a transcode reports it.
+    let progress: Double?
     /// The row's line from the payload alone: its own title when it has one,
     /// otherwise an identifying key.
     let summary: String
     private let line: Line
     private let titled: Bool
+    private let payload: Node?
+
+    enum Session: Hashable, Sendable {
+        /// A `playing` event's `sessionKey`.
+        case playback(String)
+        /// A transcode event's `/transcode/sessions/…` key.
+        case transcode(String)
+    }
+
+    /// An attribute of the payload itself (the container's first child).
+    func value(_ name: String) -> String? {
+        payload?[name].flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// `2:53`, or `1:02:07` from an hour on.
+    static func position(milliseconds ms: Int) -> String {
+        Duration.milliseconds(ms).formatted(.time(pattern: ms >= 3_600_000 ? .hourMinuteSecond : .minuteSecond))
+    }
 
     /// The item to look a title up for: set only when the payload names it
     /// by key alone, as a playing session or an untitled timeline entry does.
@@ -37,7 +59,7 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
             root.name == "NotificationContainer" ? root : root.children.first { $0.name == "NotificationContainer" } ?? root
         }
         let type = container?["type"].flatMap { $0.isEmpty ? nil : $0 } ?? "message"
-        let facts = Facts(container)
+        let facts = Facts(container, type: type)
         return NotificationEvent(
             id: UUID(),
             receivedAt: receivedAt,
@@ -47,9 +69,12 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
             ratingKey: facts.ratingKey,
             state: facts.state,
             viewOffset: facts.viewOffset,
+            session: facts.session,
+            progress: facts.progress,
             summary: facts.line.text,
             line: facts.line,
-            titled: facts.titled
+            titled: facts.titled,
+            payload: container?.children.first
         )
     }
 
@@ -102,6 +127,8 @@ private struct Facts {
     var state: String?
     var viewOffset: Int?
     var ratingKey: String?
+    var session: NotificationEvent.Session?
+    var progress: Double?
     var titled = false
     var line = Line()
 
@@ -110,7 +137,7 @@ private struct Facts {
     private static let identifiers = ["key", "ratingKey", "itemID", "queueID", "reachability", "identifier", "clientIdentifier"]
     private static let namedIdentifiers: Set<String> = ["ratingKey", "itemID", "queueID"]
 
-    init(_ container: Node?) {
+    init(_ container: Node?, type: String) {
         guard let container else { return }
         // The payload is the first child (e.g. PlaySessionStateNotification);
         // activities nest one level deeper (ActivityNotification > Activity).
@@ -134,6 +161,13 @@ private struct Facts {
             .compactMap { $0 }
             .first { !$0.isEmpty && $0.allSatisfy { $0.isASCII && $0.isNumber } }
 
+        if type == "playing", let key = value("sessionKey") {
+            session = .playback(key)
+        } else if type.hasPrefix("transcodeSession."), let key = value("key") {
+            session = .transcode(key)
+        }
+        progress = value("progress").flatMap(Double.init)
+
         let human = [value("title"), value("subtitle")].compactMap { $0 }
         let named = human.isEmpty ? (value("message") ?? value("description")) : human.joined(separator: " · ")
         titled = named != nil
@@ -147,10 +181,8 @@ private struct Facts {
                 break
             }
         }
-        line.progress = value("progress").map { raw in Double(raw).map { "\(Int($0.rounded()))%" } ?? raw }
-        line.offset = viewOffset.map { ms in
-            Duration.milliseconds(ms).formatted(.time(pattern: ms >= 3_600_000 ? .hourMinuteSecond : .minuteSecond))
-        }
+        line.progress = value("progress").map { raw in progress.map { "\(Int($0.rounded()))%" } ?? raw }
+        line.offset = viewOffset.map(NotificationEvent.position(milliseconds:))
     }
 
     /// `/library/metadata/28282/children` → `28282`.

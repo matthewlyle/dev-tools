@@ -341,6 +341,18 @@ extension View {
         self
         #endif
     }
+
+    /// A row that's a button rather than the list's selection (Activity's
+    /// sessions), so it tints itself when chosen on the Mac too, where no
+    /// list selection draws it.
+    func sectionListButtonRow(selected: Bool) -> some View {
+        listRowBackground(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(selected ? Color.accentColor.opacity(0.22) : .clear)
+                .padding(.horizontal, 8)
+        )
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
 }
 
 /// The column for a long section (the endpoint catalog, a deep history).

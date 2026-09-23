@@ -29,6 +29,10 @@ final class ActivityStore {
     private(set) var typeCounts: [String: Int] = [:]
     var hiddenTypes: Set<String> = []
     private(set) var selectedEvent: NotificationEvent?
+    private(set) var live = LiveSessions()
+    /// The session the list is narrowed to, picked in the sidebar. It lets
+    /// go when the session ends, since its row goes with it.
+    var focusedSession: NotificationEvent.Session?
 
     /// Resolved item titles for rows whose payload names the item by key
     /// alone. `requestedTitles` holds every key ever asked for, in flight,
@@ -76,6 +80,7 @@ final class ActivityStore {
         status = .connecting
         receivedCount = 0
         lastError = nil
+        endSessions()
         let identity = http.identity
 
         connection = Task { [weak self] in
@@ -119,6 +124,7 @@ final class ActivityStore {
         connection?.cancel()
         connection = nil
         status = .disconnected
+        endSessions()
     }
 
     /// A suspended app's socket is torn down under it, and the failure may
@@ -137,6 +143,13 @@ final class ActivityStore {
         requestedTitles.removeAll()
     }
 
+    /// Sessions are only as current as the stream: without it, none can be
+    /// shown as running.
+    private func endSessions() {
+        live = LiveSessions()
+        focusedSession = nil
+    }
+
     func toggle(type: String) {
         if hiddenTypes.contains(type) { hiddenTypes.remove(type) } else { hiddenTypes.insert(type) }
     }
@@ -148,6 +161,10 @@ final class ActivityStore {
             events.removeLast(events.count - Self.capacity)
         }
         if let ratingKey = event.titleKey { resolveTitle(ratingKey) }
+        if event.session != nil {
+            live.apply(event)
+            if let focusedSession, !live.contains(focusedSession) { self.focusedSession = nil }
+        }
     }
 
     /// Internal lookups pin JSON like the app's other background fetches;
