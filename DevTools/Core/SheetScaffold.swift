@@ -8,7 +8,7 @@ import SwiftUI
 /// roles draw the system's ✕ and prominent ✓; the confirming action keeps
 /// its title for VoiceOver. It rests at half height with a grabber, as the
 /// HIG asks of an iPhone sheet whose content fits there.
-struct SheetScaffold<Subtitle: View, Content: View>: View {
+struct SheetScaffold<Subtitle: View, Content: View, Footer: View>: View {
     let title: String
     let width: CGFloat
     let confirm: SheetAction
@@ -16,6 +16,10 @@ struct SheetScaffold<Subtitle: View, Content: View>: View {
     var busy = false
     @ViewBuilder let subtitle: () -> Subtitle
     @ViewBuilder let content: () -> Content
+    /// Prose about the whole task, pinned under the content: at the sheet's
+    /// bottom edge on iOS however tall it's dragged, and above the buttons on
+    /// the Mac.
+    @ViewBuilder let footer: () -> Footer
 
     @Environment(\.dismiss) private var dismiss
 
@@ -28,6 +32,10 @@ struct SheetScaffold<Subtitle: View, Content: View>: View {
                 subtitle()
             }
             content()
+            footer()
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             HStack {
                 if busy {
                     ProgressView().controlSize(.small)
@@ -58,6 +66,13 @@ struct SheetScaffold<Subtitle: View, Content: View>: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
                 content()
+                footer()
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .navigationTitle(title)
@@ -93,6 +108,22 @@ struct SheetScaffold<Subtitle: View, Content: View>: View {
             dismiss()
         }
         .disabled(action.disabled)
+    }
+}
+
+extension SheetScaffold where Footer == EmptyView {
+    init(
+        title: String,
+        width: CGFloat,
+        confirm: SheetAction,
+        secondary: SheetAction? = nil,
+        busy: Bool = false,
+        @ViewBuilder subtitle: @escaping () -> Subtitle,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(title: title, width: width, confirm: confirm, secondary: secondary, busy: busy, subtitle: subtitle, content: content) {
+            EmptyView()
+        }
     }
 }
 

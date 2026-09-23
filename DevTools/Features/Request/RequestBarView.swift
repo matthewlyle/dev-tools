@@ -242,10 +242,26 @@ struct RequestBarView: View {
     }
 }
 
+/// The request's documentation: a size-capped popover beside the ⓘ, or on a
+/// compact width the sheet that popover becomes, which it fills.
 struct OperationDocs: View {
     let operation: SpecOperation
 
+    @Environment(\.isCompactWidth) private var compact
+
     var body: some View {
+        if compact {
+            docs
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        } else {
+            docs
+                .frame(maxWidth: 440)
+                .frame(maxHeight: 480)
+        }
+    }
+
+    private var docs: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(operation.summary)
@@ -270,23 +286,7 @@ struct OperationDocs: View {
                         .font(.callout)
                 }
                 if !operation.parameters.isEmpty {
-                    Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 6) {
-                        ForEach(operation.parameters) { parameter in
-                            GridRow {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(parameter.name)
-                                        .font(.code(.callout))
-                                    Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
-                                        .font(.code(.caption2))
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Text(parameter.description ?? "")
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
+                    parameters
                 }
                 if operation.supportsMediaQuery {
                     Text("Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping.")
@@ -294,9 +294,54 @@ struct OperationDocs: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(compact ? 20 : 16)
         }
-        .frame(maxWidth: 440)
-        .frame(maxHeight: 480)
+    }
+
+    /// Name beside description where there's width for both; on a compact
+    /// width the name column would break names mid-word, so each parameter
+    /// stacks its name over its description.
+    @ViewBuilder
+    private var parameters: some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(operation.parameters) { parameter in
+                    VStack(alignment: .leading, spacing: 3) {
+                        name(parameter)
+                        description(parameter)
+                    }
+                }
+            }
+        } else {
+            Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 6) {
+                ForEach(operation.parameters) { parameter in
+                    GridRow {
+                        name(parameter)
+                        description(parameter)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    private func name(_ parameter: SpecParameter) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(parameter.name)
+                .font(.code(.callout))
+            Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
+                .font(.code(.caption2))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private func description(_ parameter: SpecParameter) -> some View {
+        if let text = parameter.description, !text.isEmpty {
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
     }
 }

@@ -102,6 +102,10 @@ struct EpochDateButton: View {
                 .frame(maxWidth: .infinity)
             }
             .controlSize(.small)
+            // A graphical picker has no width of its own, and a popover that
+            // stays a popover on iPhone sizes to its content, so without one
+            // it collapses to a column of single digits.
+            .frame(width: 320)
             .padding()
             .presentationCompactAdaptation(.popover)
         }
