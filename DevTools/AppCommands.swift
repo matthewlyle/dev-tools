@@ -158,12 +158,24 @@ struct AppCommands: Commands {
                 .keyboardShortcut("s", modifiers: .command)
                 .disabled(activeServer == nil)
 
+            Button("Copy URL") {
+                guard let server = activeServer, let url = requests.shareableURL(for: server) else { return }
+                Clipboard.copy(url)
+            }
+            .disabled(activeServer == nil)
+
             Button("Copy as cURL") {
                 guard let server = activeServer, let command = requests.curl(for: server) else { return }
                 Clipboard.copy(command)
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(activeServer == nil)
+
+            Button("Copy Response Body") {
+                guard let document = requests.document, let response = requests.response else { return }
+                BodyControls.copy(document: document, response: response)
+            }
+            .disabled(requests.document == nil)
 
             Button("Open in Developer Docs") {
                 if let url = currentDocsURL { openURL(url) }

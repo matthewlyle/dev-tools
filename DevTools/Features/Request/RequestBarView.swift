@@ -61,7 +61,7 @@ struct RequestBarView: View {
                     HistoryNavButtons(server: server)
                     Spacer(minLength: 0)
                     docsButton
-                    urlActions
+                    docsLink
                     sendButton
                 }
             } else {
@@ -141,8 +141,7 @@ struct RequestBarView: View {
             .textSelection(.enabled)
     }
 
-    @ViewBuilder
-    private var urlActions: some View {
+    private var docsLink: some View {
         Button {
             if let url = operation?.docsURL { openURL(url) }
         } label: {
@@ -152,6 +151,14 @@ struct RequestBarView: View {
         .buttonStyle(.borderless)
         .disabled(operation?.docsURL == nil)
         .help(operation.map { "Open “\($0.summary)” on developer.plex.tv" } ?? "No documentation for this path")
+    }
+
+    /// Docs, save, and copy, beside the URL they act on. A compact width
+    /// moves save and copy into the screen's navigation bar
+    /// (`requestScreenActions`).
+    @ViewBuilder
+    private var urlActions: some View {
+        docsLink
         Button {
             showSave = true
         } label: {
@@ -201,8 +208,8 @@ struct RequestBarView: View {
     /// The URL never contains the token (it's sent as a header), so this is
     /// safe to paste anywhere.
     private func copyURL() {
-        guard let server, let url = requests.current.url(base: server.baseURL) else { return }
-        Clipboard.copy(url.absoluteString)
+        guard let server, let url = requests.shareableURL(for: server) else { return }
+        Clipboard.copy(url)
     }
 
     private func copyCurl() {

@@ -276,8 +276,9 @@ private struct AccessHint: View {
 
 /// The status row under the request: status, paging, any notice, the body's
 /// controls, and the view tabs. A compact width can't hold all of them on
-/// one line, so the tabs share the first with the status and the rest drop
-/// to a second, shown only when it has something in it.
+/// one line, so the tabs share the first with the status and paging and any
+/// notice drop to a second, shown only when it has something in it; copying
+/// the body is in the screen's navigation bar there (`requestScreenActions`).
 struct ResponseInfoRow<Tabs: View>: View {
     let response: PlexResponse
     let pagination: PaginationInfo?
@@ -297,7 +298,7 @@ struct ResponseInfoRow<Tabs: View>: View {
                         Spacer(minLength: 0)
                         tabs()
                     }
-                    if pagination != nil || notice != nil || controls != nil {
+                    if pagination != nil || notice != nil {
                         HStack(spacing: 10) {
                             secondary
                         }
@@ -333,7 +334,7 @@ struct ResponseInfoRow<Tabs: View>: View {
             .help(notice)
         }
         Spacer()
-        controls
+        if !compact { controls }
     }
 }
 
