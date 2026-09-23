@@ -17,10 +17,6 @@ struct PlaceholderSheet: View {
     @State private var values: [String: String] = [:]
     @State private var options: [String: [RequestStore.PlaceholderOption]] = [:]
     @State private var loading: Set<String> = []
-    @State private var datePickerFor: String?
-
-    /// Placeholders the spec describes as epoch seconds.
-    private static let epochPlaceholders: Set<String> = ["updatedAt", "timestamp"]
 
     private var listable: [String] {
         operation.placeholders.filter { RequestStore.listablePlaceholders.contains($0) }
@@ -131,41 +127,19 @@ struct PlaceholderSheet: View {
                     }
                 }
             }
-        } else if Self.epochPlaceholders.contains(name) {
-            LabeledContent(name) {
+        } else if EpochDate.isEpochName(name) {
+            LabeledContent {
                 HStack(spacing: 6) {
                     TextField(name, text: binding(name), prompt: Text("epoch seconds"))
                         .labelsHidden()
                         .font(.code(.body))
                         .autocorrectionDisabled()
-                    Button {
-                        values[name] = String(Int(Date.now.timeIntervalSince1970))
-                    } label: {
-                        Label("Use Current Time", systemImage: "clock")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Now, as epoch seconds")
-                    Button {
-                        datePickerFor = name
-                    } label: {
-                        Label("Pick Date", systemImage: "calendar")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Choose a date and time")
-                    .popover(isPresented: Binding(
-                        get: { datePickerFor == name },
-                        set: { if !$0 { datePickerFor = nil } }
-                    )) {
-                        DatePicker("Date", selection: dateBinding(name), displayedComponents: [.date, .hourAndMinute])
-                            .datePickerStyle(.graphical)
-                            .labelsHidden()
-                            .padding()
-                            .presentationCompactAdaptation(.popover)
-                    }
+                    EpochDateButton(value: binding(name))
                     recentMenu(for: name)
                 }
+            } label: {
+                Text(name)
+                EpochReadout(value: values[name] ?? "")
             }
         } else {
             LabeledContent(name) {
@@ -212,14 +186,6 @@ struct PlaceholderSheet: View {
         Binding(
             get: { values[name] ?? "" },
             set: { values[name] = $0 }
-        )
-    }
-
-    /// Epoch seconds ⇄ Date; an empty or unparseable field reads as now.
-    private func dateBinding(_ name: String) -> Binding<Date> {
-        Binding(
-            get: { Date(timeIntervalSince1970: Double(values[name] ?? "") ?? Date.now.timeIntervalSince1970) },
-            set: { values[name] = String(Int($0.timeIntervalSince1970)) }
         )
     }
 

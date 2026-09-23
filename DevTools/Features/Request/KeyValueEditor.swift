@@ -23,7 +23,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(items) { item in
                 let bound = binding(for: item)
-                Group {
+                VStack(alignment: .leading, spacing: 4) {
                     // A compact width can't fit a name and a value beside the
                     // switch, so the value takes a line of its own.
                     if compact {
@@ -34,16 +34,19 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
                                 valuesMenu(item, bound)
                                 removeButton(item)
                             }
-                            valueField(bound)
+                            valueField(item, bound)
                         }
                     } else {
                         HStack(spacing: 8) {
                             enabledToggle(bound)
                             nameField(item, bound)
-                            valueField(bound)
+                            valueField(item, bound)
                             valuesMenu(item, bound)
                             removeButton(item)
                         }
+                    }
+                    if EpochDate.isEpochName(item.name) {
+                        EpochReadout(value: item.value)
                     }
                 }
                 .autocorrectionDisabled()
@@ -102,10 +105,15 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         }
     }
 
-    private func valueField(_ bound: Binding<Item>) -> some View {
-        TextField(valuePlaceholder, text: bound.value)
-            .textFieldStyle(.roundedBorder)
-            .font(.code(.body))
+    private func valueField(_ item: Item, _ bound: Binding<Item>) -> some View {
+        HStack(spacing: 6) {
+            TextField(valuePlaceholder, text: bound.value)
+                .textFieldStyle(.roundedBorder)
+                .font(.code(.body))
+            if EpochDate.isEpochName(item.name) {
+                EpochDateButton(value: bound.value, relative: EpochDate.acceptsRelative(item.name))
+            }
+        }
     }
 
     @ViewBuilder

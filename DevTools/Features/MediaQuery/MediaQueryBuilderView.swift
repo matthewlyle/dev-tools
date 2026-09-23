@@ -418,6 +418,15 @@ private struct TermRow: View {
                 .labelsHidden()
             } else if let filter = type.filter(for: term.field) {
                 FilterValueField(term: $term, filter: filter, server: server)
+            } else if term.fieldType == .date {
+                HStack(spacing: 6) {
+                    TextField("Value", text: $term.value, prompt: Text(term.fieldType.valuePrompt))
+                        .labelsHidden()
+                        .font(.code(.body))
+                        .autocorrectionDisabled()
+                    EpochDateButton(value: $term.value, relative: true)
+                }
+                EpochReadout(value: term.value)
             } else {
                 TextField("Value", text: $term.value, prompt: Text(term.fieldType.valuePrompt))
                     .labelsHidden()
