@@ -46,7 +46,7 @@ struct SavedRequestRow: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .help(item.notes.isEmpty ? item.request.summary : item.notes)
+        .help(requests.redactedSummary(of: item.request, token: token))
         .contextMenu {
             Button("Rename…") { renaming = true }
             Divider()
@@ -60,8 +60,8 @@ struct SavedRequestRow: View {
             Button("Rename…") { renaming = true }
         }
         .sheet(isPresented: $renaming) {
-            SaveRequestSheet(title: "Rename Request", name: item.name, notes: item.notes, action: "Save") { name, notes in
-                saved.update(id: item.id, name: name, notes: notes)
+            SaveRequestSheet(title: "Rename Request", name: item.name, action: "Save") { name in
+                saved.update(id: item.id, name: name)
             }
         }
         .confirmationDialog("Delete “\(item.name)”?", isPresented: $deleting, titleVisibility: .visible) {
@@ -72,31 +72,29 @@ struct SavedRequestRow: View {
     }
 }
 
-/// Name and notes for a saved request — new, renamed, or updated. Shows the
+/// The name for a saved request — new, renamed, or updated. Shows the
 /// request being kept so you can see what you're saving, not just its title.
 struct SaveRequestSheet: View {
     let title: String
     @State var name: String
-    @State var notes: String
     /// Path + params being saved; nil when only renaming.
     var summary: String? = nil
     let action: String
     /// An alternative commit, e.g. "Save as New" beside "Update".
-    var secondary: (title: String, commit: (_ name: String, _ notes: String) -> Void)? = nil
-    let commit: (_ name: String, _ notes: String) -> Void
+    var secondary: (title: String, commit: (_ name: String) -> Void)? = nil
+    let commit: (_ name: String) -> Void
 
     @FocusState private var nameFocused: Bool
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
-    private var trimmedNotes: String { notes.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         SheetScaffold(
             title: title,
             width: 460,
-            confirm: SheetAction(title: action, disabled: trimmedName.isEmpty) { commit(trimmedName, trimmedNotes) },
+            confirm: SheetAction(title: action, disabled: trimmedName.isEmpty) { commit(trimmedName) },
             secondary: secondary.map { secondary in
-                SheetAction(title: secondary.title, disabled: trimmedName.isEmpty) { secondary.commit(trimmedName, trimmedNotes) }
+                SheetAction(title: secondary.title, disabled: trimmedName.isEmpty) { secondary.commit(trimmedName) }
             }
         ) {
             if let summary {
@@ -111,8 +109,6 @@ struct SaveRequestSheet: View {
             Form {
                 TextField("Name", text: $name)
                     .focused($nameFocused)
-                TextField("Notes", text: $notes, axis: .vertical)
-                    .lineLimit(2...5)
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)

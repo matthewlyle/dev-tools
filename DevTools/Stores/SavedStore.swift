@@ -18,17 +18,16 @@ final class SavedStore {
     }
 
     @discardableResult
-    func add(name: String, notes: String, request: PlexRequest, serverID: String) -> SavedRequest {
-        let item = SavedRequest(id: UUID(), name: name, notes: notes, request: request, serverID: serverID, createdAt: .now)
+    func add(name: String, request: PlexRequest, serverID: String) -> SavedRequest {
+        let item = SavedRequest(id: UUID(), name: name, request: request, serverID: serverID, createdAt: .now)
         saved.insert(item, at: 0)
         persist()
         return item
     }
 
-    func update(id: UUID, name: String, notes: String, request: PlexRequest? = nil) {
+    func update(id: UUID, name: String, request: PlexRequest? = nil) {
         guard let index = saved.firstIndex(where: { $0.id == id }) else { return }
         saved[index].name = name
-        saved[index].notes = notes
         if let request { saved[index].request = request }
         persist()
     }

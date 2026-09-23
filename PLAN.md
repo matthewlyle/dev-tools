@@ -96,7 +96,7 @@ dev-tools/
         NotificationEvent.swift  type, timestamp, raw payload; ratingKey/state/viewOffset and the row line (payload titles first, else a key); itemTitle(metadata:) names a library item
       Persistence/
         AppSupportStore.swift    JSON read/write in ~/Library/Application Support/dev-tools/
-        SavedRequest.swift       id, name, notes, PlexRequest, server
+        SavedRequest.swift       id, name, PlexRequest, server (older files' `notes` ignored)
         HistoryEntry.swift       PlexRequest + status + duration + error + date
     Stores/
       AccountStore.swift         sign-in state, user, sign-out
@@ -182,4 +182,5 @@ Each ends with a smoke-test proof, not a test suite.
 - `MediaItemTests`: aspect by type; movie/episode subtitle composition; thumb fallback through parent art; tag groups vs element groups; unit decoding by attribute name (size, bitrate, epoch `*At`, runtime).
 - `NotificationEventTests`: ratingKey (digits only, from `ratingKey`, `itemID` or a metadata key), state and viewOffset from playing/timeline/activity payloads; payload titles skip the lookup; item titles from metadata for episode/movie/track/other.
 - `EpochDateTests`: `…At`/`timestamp` names (also behind an operator) are dates and `originallyAvailableAt` isn't; only operator keys take relative values; relative values read in the spec's units; small numbers aren't dates; picked dates round-trip as whole seconds.
+- `SavedRequestTests`: saved files from before notes were dropped still load.
 - `MetadataTypeTests`: the table matches the bundled spec's List of Metadata Types; `type`/`metadataType` numbers decode to `name (n)`, names and unknown numbers and other `*Type` attributes don't; a query `type` parameter offers every type.
