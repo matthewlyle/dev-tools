@@ -1,6 +1,6 @@
 # Agent rules for dev-tools
 
-Native SwiftUI app for macOS 26, iPadOS 26, and iOS 26: a Plex Media Server API playground. Read `PLAN.md` for scope and architecture. These are the rules that aren't obvious from the code.
+Native SwiftUI app for macOS 26, iPadOS 26, and iOS 26: a Plex Media Server API playground. These are the rules that aren't obvious from the code.
 
 ## Comments: almost never
 
@@ -118,7 +118,7 @@ A feature is complete when every line below is true, in the same commit. This is
 9. **Persistence** through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
 10. **Tests** for any new contract — parsing, URL/string building, matching, redaction — none for plumbing.
 11. **Verified by building**: `xcodebuild` is green for macOS and iPad, and behavioural changes are covered by a test where testable. NEVER take screenshots or drive the running app to verify — the user does visual checks; call out exactly what to look at.
-12. **Docs**: `PLAN.md` scope updated; a new load-bearing decision goes in this file.
+12. **Docs**: a new load-bearing decision goes in this file.
 13. **One commit**, message explains why.
 
 ## Working here
