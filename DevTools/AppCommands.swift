@@ -24,6 +24,13 @@ struct DeleteHistoryEntryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
+/// Published by the Activity event list while it has events.
+struct ClearEventsAction: Equatable {
+    let run: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+}
+
 /// Published by the Media results grid while a poster is selected, and by the
 /// Activity event list while an event is (its inspector only ever hides).
 struct ShowMediaInfoAction: Equatable {
@@ -52,6 +59,7 @@ struct ShowSettingsAction: Equatable {
 
 extension FocusedValues {
     @Entry var clearHistory: ClearHistoryAction?
+    @Entry var clearEvents: ClearEventsAction?
     @Entry var deleteHistoryEntry: DeleteHistoryEntryAction?
     @Entry var runMediaQuery: RunMediaQueryAction?
     @Entry var showMediaInfo: ShowMediaInfoAction?
@@ -69,6 +77,7 @@ struct AppCommands: Commands {
 
     @AppStorage("rawWrapLines") private var wrapLines = true
     @FocusedValue(\.clearHistory) private var clearHistory
+    @FocusedValue(\.clearEvents) private var clearEvents
     @FocusedValue(\.deleteHistoryEntry) private var deleteHistoryEntry
     @FocusedValue(\.runMediaQuery) private var runMediaQuery
     @FocusedValue(\.showMediaInfo) private var showMediaInfo
@@ -139,6 +148,9 @@ struct AppCommands: Commands {
 
             Button("Clear History…") { clearHistory?.run() }
                 .disabled(clearHistory == nil)
+
+            Button("Clear Events") { clearEvents?.run() }
+                .disabled(clearEvents == nil)
         }
 
         CommandMenu("Request") {

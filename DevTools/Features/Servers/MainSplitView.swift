@@ -52,6 +52,8 @@ struct ListFilterField<Actions: View>: View {
     let prompt: String
     private let actions: Actions?
 
+    @Environment(\.isCompactWidth) private var compact
+
     init(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) {
         _text = text
         self.prompt = prompt
@@ -65,29 +67,34 @@ struct ListFilterField<Actions: View>: View {
             .padding(.bottom, 4)
     }
 
-    /// The list's own actions (sort, clear) sit over the list on both
-    /// platforms: toolbar items over its column on macOS; on iPad, whose one
-    /// bar spans both panes and would push them to its far end, beside the
-    /// field.
+    /// The list's own actions (sort, clear) sit in the bar over the list:
+    /// over its column on macOS, and in the tab's own bar on a compact
+    /// width. A regular-width iPad has one bar spanning both panes, which
+    /// would push them to its far end over the detail, so there they sit
+    /// beside the field.
     @ViewBuilder
     private var placed: some View {
-        #if os(macOS)
-        if let actions {
+        if let actions, besideField {
+            HStack(spacing: 12) {
+                field
+                actions
+                    .labelStyle(.iconOnly)
+                    .imageScale(.large)
+            }
+        } else if let actions {
             field.sectionListToolbar {
                 ToolbarItemGroup(placement: .primaryAction) { actions }
             }
         } else {
             field
         }
+    }
+
+    private var besideField: Bool {
+        #if os(iOS)
+        !compact
         #else
-        HStack(spacing: 12) {
-            field
-            if let actions {
-                actions
-                    .labelStyle(.iconOnly)
-                    .imageScale(.large)
-            }
-        }
+        false
         #endif
     }
 
@@ -637,11 +644,6 @@ struct MainSplitView: View {
                         Label("Edit Request", systemImage: "square.and.pencil")
                     }
                     .disabled(connected == nil)
-                }
-            }
-            if item == .activity {
-                ToolbarItem(placement: .primaryAction) {
-                    ActivityTypeMenu()
                 }
             }
         }

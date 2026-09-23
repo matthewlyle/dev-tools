@@ -26,6 +26,14 @@ struct ActivityEventsView: View {
                         .padding(.bottom, 12)
                 }
             }
+            // The section's own actions, in the bar like History's: the type
+            // filter (which a compact width has no list pane for) and Clear.
+            .sectionListToolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if compact { ActivityTypeMenu() }
+                    ClearEventsButton()
+                }
+            }
             .focusedSceneValue(
                 \.showMediaInfo,
                 isActive && activity.selectedEvent != nil
@@ -35,9 +43,24 @@ struct ActivityEventsView: View {
     }
 }
 
-/// The connection: status, count, Clear, and Connect or Disconnect. As the
-/// tab bar's accessory it's one line, and inline beside a minimized tab bar
-/// it keeps only the status and the button.
+/// Its own view so reading the events redraws only the button per frame.
+private struct ClearEventsButton: View {
+    @Environment(ActivityStore.self) private var activity
+
+    var body: some View {
+        Button {
+            activity.clear()
+        } label: {
+            Label("Clear Events", systemImage: "trash")
+        }
+        .disabled(activity.events.isEmpty)
+        .help("Clear events")
+    }
+}
+
+/// The connection: status, count, and Connect or Disconnect. As the tab
+/// bar's accessory it's one line, and inline beside a minimized tab bar it
+/// keeps only the status and the button.
 struct ActivityConnectionControl: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
@@ -72,16 +95,6 @@ struct ActivityConnectionControl: View {
                         .help("Messages received on the wire since connecting")
                 }
                 Spacer(minLength: 8)
-                if !activity.events.isEmpty, !inline {
-                    Button {
-                        activity.clear()
-                    } label: {
-                        Label("Clear Events", systemImage: "trash")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Clear events")
-                }
                 if activity.status.isActive {
                     Button("Disconnect", role: .destructive) { activity.disconnect() }
                         .buttonStyle(.borderless)
@@ -140,6 +153,7 @@ struct ActivityConnectionControl: View {
 private struct EventList: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sectionIsActive) private var isActive
 
     var body: some View {
         @Bindable var activity = activity
@@ -184,6 +198,7 @@ private struct EventList: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .focusedSceneValue(\.clearEvents, isActive && !activity.events.isEmpty ? ClearEventsAction { activity.clear() } : nil)
     }
 
     @ViewBuilder
