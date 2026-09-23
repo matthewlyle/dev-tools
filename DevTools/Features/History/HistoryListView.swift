@@ -174,6 +174,10 @@ struct HistoryListView: View {
             Button(isFiltered ? "Clear Shown" : "Clear History", role: .destructive) {
                 let shown = Set(filtered.map(\.id))
                 requests.clearHistory { shown.contains($0.id) }
+                if let selection, shown.contains(selection) {
+                    self.selection = nil
+                    requests.reset()
+                }
             }
         } message: {
             Text("This can't be undone.")
@@ -191,7 +195,8 @@ struct HistoryListView: View {
     }
 
     /// Removes one entry. If it was the one being shown, the workspace is
-    /// cleared rather than left displaying a response that no longer has a row.
+    /// cleared rather than left displaying a response that no longer has a
+    /// row; Clear History does the same.
     private func delete(_ id: HistoryEntry.ID) {
         let wasShowing = selection == id
         requests.deleteHistoryEntry(id)
