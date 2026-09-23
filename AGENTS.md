@@ -77,6 +77,7 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 - Spinners are unlabelled; the sentence above them says what's happening. Never "Loading…". Don't block the panel while sending — the spinner replaces Send's icon and the last response stays readable.
 - Empty states are `ContentUnavailableView` with a next step in the description — except a section's *resting* zero state (nothing sent, nothing queried yet, not connected, no events yet), which is `ZeroState`: one muted `subheadline`/`tertiary` sentence, no icon or heading, because the switcher already says where you are. A zero state never carries a button: a section's controls are always on screen (Activity's Connect is in the events' footer). Failures stay `ContentUnavailableView` (Request Failed, Couldn't Connect).
 - Numbers that change in place roll with `.contentTransition(.numericText(value:))`.
+- A field that takes epoch seconds is never bare: it gets `EpochDateButton` (calendar and Now; the relative ago choices only where the media-query grammar applies — Media filters, operator keys) and an `EpochReadout` under it. Which names are dates is `EpochDate.isEpochName`, shared with the decoded Details, so a field and its read-out never disagree.
 
 **Colour, type, icons**
 - System semantic colours only, with one exception: the code surface's named themes. Anything hashed to a colour maps into the 12-colour system palette, never raw HSL.

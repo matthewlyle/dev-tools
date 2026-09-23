@@ -117,8 +117,8 @@ enum MediaValue {
         if name == "type" || name == "metadataType", let label = MetadataType.label(value) {
             return label
         }
-        if name.hasSuffix("At"), name != "originallyAvailableAt", let epoch = TimeInterval(value), epoch > 1_000_000_000 {
-            return Date(timeIntervalSince1970: epoch).formatted(date: .abbreviated, time: .shortened)
+        if EpochDate.isEpochName(name), EpochDate.date(value) != nil {
+            return EpochDate.describe(value)
         }
         if name == "duration" || name.hasSuffix("Offset") { return runtime(value) }
         if name == "size", let bytes = Int64(value), bytes > 100_000 {
