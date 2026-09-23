@@ -7,6 +7,9 @@ import SwiftUI
 struct MediaInfoView: View {
     let item: MediaItem
     let server: ConnectedServer?
+    /// Where the view zooms out of the tapped poster (a sheet), it leads with
+    /// that artwork so the poster lands somewhere instead of vanishing.
+    var showsPoster = false
     let dismiss: () -> Void
 
     @Environment(RequestStore.self) private var requests
@@ -22,26 +25,33 @@ struct MediaInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.title)
-                        .font(.title.weight(.semibold))
-                        .textSelection(.enabled)
-                    Spacer(minLength: 12)
-                    Button {
-                        if let itemJSON { Clipboard.copy(itemJSON) }
-                    } label: {
-                        Label("Copy JSON", systemImage: "curlybraces")
-                            .labelStyle(.iconOnly)
+                HStack(alignment: .top, spacing: 16) {
+                    if showsPoster {
+                        PosterArt(item: item, server: server)
+                            .frame(width: 110)
+                            .accessibilityHidden(true)
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(itemJSON == nil)
-                    .help("Copy this item's JSON from the response")
-                    Button(action: dismiss) {
-                        Label("Hide Info", systemImage: "xmark")
-                            .labelStyle(.iconOnly)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(item.title)
+                            .font(.title.weight(.semibold))
+                            .textSelection(.enabled)
+                        Spacer(minLength: 12)
+                        Button {
+                            if let itemJSON { Clipboard.copy(itemJSON) }
+                        } label: {
+                            Label("Copy JSON", systemImage: "curlybraces")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(itemJSON == nil)
+                        .help("Copy this item's JSON from the response")
+                        Button(action: dismiss) {
+                            Label("Hide Info", systemImage: "xmark")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Hide Info (⌘I)")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Hide Info (⌘I)")
                 }
 
                 if item.tagline != nil || item.summary != nil {
