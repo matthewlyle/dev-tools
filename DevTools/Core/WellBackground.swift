@@ -4,10 +4,11 @@ import SwiftUI
 /// same desktop blur the sidebar and toolbar use, extended to the content
 /// area (as Safari's start page does), toggleable in Settings. iOS has no
 /// desktop behind the window, so it's the system background under a faint,
-/// static wash of the accent from the top, with faint rings spreading out
-/// from behind the server title, as a signal from the server every screen
-/// is scoped to. Both are gone by mid-screen; they give the glass bars
-/// something to refract. Increase Contrast drops both.
+/// static mesh of colour across the top — indigo, the accent strongest
+/// behind the server title, teal — with faint rings spreading out from the
+/// title, as a signal from the server every screen is scoped to. Both are
+/// gone by mid-screen; they give the glass bars something to refract.
+/// Increase Contrast drops both.
 struct WellBackground: View {
     var scroll: WellScroll? = nil
 
@@ -31,11 +32,7 @@ struct WellBackground: View {
             .overlay {
                 if contrast != .increased {
                     ZStack {
-                        LinearGradient(
-                            colors: [.accentColor.opacity(colorScheme == .dark ? 0.16 : 0.08), .clear],
-                            startPoint: .top,
-                            endPoint: UnitPoint(x: 0.5, y: 0.55)
-                        )
+                        TopWash(strength: colorScheme == .dark ? 1 : 0.5)
                         // The rings belong to the top of the screen; once its
                         // content scrolls under the bar they give way to it.
                         SignalRings()
@@ -49,6 +46,36 @@ struct WellBackground: View {
         #endif
     }
 }
+
+#if os(iOS)
+/// Three hues along the top edge blending down to nothing: indigo at the
+/// leading corner, the accent brightest just under the title, teal at the
+/// trailing corner. The middle row bows down under the title so the glow
+/// gathers there rather than lying in a flat band.
+private struct TopWash: View {
+    let strength: Double
+
+    var body: some View {
+        MeshGradient(
+            width: 3,
+            height: 4,
+            points: [
+                [0, 0], [0.5, 0], [1, 0],
+                [0, 0.22], [0.5, 0.3], [1, 0.22],
+                [0, 0.55], [0.5, 0.58], [1, 0.55],
+                [0, 1], [0.5, 1], [1, 1],
+            ],
+            colors: [
+                .indigo.opacity(0.16 * strength), .accentColor.opacity(0.2 * strength), .teal.opacity(0.14 * strength),
+                .indigo.opacity(0.05 * strength), .accentColor.opacity(0.1 * strength), .teal.opacity(0.04 * strength),
+                .clear, .clear, .clear,
+                .clear, .clear, .clear,
+            ]
+        )
+        .accessibilityHidden(true)
+    }
+}
+#endif
 
 /// How far a screen's content has scrolled from its top, as the share of the
 /// fade distance its rings have faded, from every scroll view on the screen
