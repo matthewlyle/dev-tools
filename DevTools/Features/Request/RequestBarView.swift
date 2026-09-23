@@ -79,36 +79,7 @@ struct RequestBarView: View {
             requests.pathFocusPending = false
             pathFocused = true
         }
-        .onChange(of: requests.saveRequestToken) { _, _ in
-            if server != nil { showSave = true }
-        }
-        .sheet(isPresented: $showSave) {
-            if let server {
-                let summary = requests.redactedSummary(of: requests.current, token: server.accessToken)
-                if let editing = editingSaved {
-                    SaveRequestSheet(
-                        title: "Update Request",
-                        name: editing.name,
-                        summary: summary,
-                        action: "Update",
-                        secondary: ("Save as New", { name in
-                            saved.add(name: name, request: requests.current, serverID: server.machineID)
-                        })
-                    ) { name in
-                        saved.update(id: editing.id, name: name, request: requests.current)
-                    }
-                } else {
-                    SaveRequestSheet(
-                        title: "Save Request",
-                        name: operation?.summary ?? requests.current.path,
-                        summary: summary,
-                        action: "Save"
-                    ) { name in
-                        saved.add(name: name, request: requests.current, serverID: server.machineID)
-                    }
-                }
-            }
-        }
+        .savesCurrentRequest(isPresented: $showSave, server: server)
     }
 
     private var methodBadge: some View {

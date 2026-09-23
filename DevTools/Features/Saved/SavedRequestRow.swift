@@ -116,3 +116,66 @@ struct SaveRequestSheet: View {
         .onAppear { nameFocused = true }
     }
 }
+
+/// Saves the request in the workspace: a new saved request, or, while it
+/// was loaded from one, an update with Save as New beside it.
+private struct SaveCurrentRequestSheet: View {
+    let server: ConnectedServer
+
+    @Environment(RequestStore.self) private var requests
+    @Environment(SavedStore.self) private var saved
+    @Environment(SpecStore.self) private var spec
+
+    var body: some View {
+        let summary = requests.redactedSummary(of: requests.current, token: server.accessToken)
+        if let editing = requests.editingSavedID.flatMap({ id in saved.saved.first { $0.id == id } }) {
+            SaveRequestSheet(
+                title: "Update Request",
+                name: editing.name,
+                summary: summary,
+                action: "Update",
+                secondary: ("Save as New", { name in
+                    saved.add(name: name, request: requests.current, serverID: server.machineID)
+                })
+            ) { name in
+                saved.update(id: editing.id, name: name, request: requests.current)
+            }
+        } else {
+            SaveRequestSheet(
+                title: "Save Request",
+                name: spec.operation(matching: requests.current.path)?.summary ?? requests.current.path,
+                summary: summary,
+                action: "Save"
+            ) { name in
+                saved.add(name: name, request: requests.current, serverID: server.machineID)
+            }
+        }
+    }
+}
+
+/// Presents `SaveCurrentRequestSheet` from a request bar, and on Save
+/// Request… (⌘S). Only the visible section's bar answers the command: on a
+/// compact width every tab keeps its pushed bar alive.
+private struct SavesCurrentRequest: ViewModifier {
+    @Binding var isPresented: Bool
+    let server: ConnectedServer?
+
+    @Environment(RequestStore.self) private var requests
+    @Environment(\.sectionIsActive) private var isActive
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: requests.saveRequestToken) { _, _ in
+                if isActive, server != nil { isPresented = true }
+            }
+            .sheet(isPresented: $isPresented) {
+                if let server { SaveCurrentRequestSheet(server: server) }
+            }
+    }
+}
+
+extension View {
+    func savesCurrentRequest(isPresented: Binding<Bool>, server: ConnectedServer?) -> some View {
+        modifier(SavesCurrentRequest(isPresented: isPresented, server: server))
+    }
+}
