@@ -1,15 +1,69 @@
 import SwiftUI
 
-/// The Activity list pane: which event types the events show. Like every
-/// section's list it only filters what's on the right; the connection and
-/// its controls are the events' footer (`ActivityStatusBar`). Until events
-/// arrive it's blank: the events pane's own zero state says what to do, and
-/// a second one here would compete with it.
+/// The Activity list pane: what's running on the server and which event
+/// types the events show. Like every section's list it only narrows what's
+/// on the right — to a session's own events, types on and off; the
+/// connection and its controls are the events' footer. While connected it
+/// waits for the running sessions and then arrives whole, rather than types
+/// first and sessions seconds later. Until events arrive it's blank: the
+/// events pane's own zero state says what to do, and a second one here would
+/// compete with it.
 struct ActivityFiltersView: View {
     @Environment(ActivityStore.self) private var activity
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var loading: Bool { activity.status.isActive && !activity.sessionsLoaded }
 
     var body: some View {
+        ZStack {
+            if loading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.animation(.easeOut(duration: 0.1)))
+            } else {
+                list
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
+            }
+        }
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : .smooth(duration: 0.3), value: loading)
+    }
+
+    private var list: some View {
         List {
+            if !activity.live.isEmpty {
+                Section {
+                    focusRow(nil) {
+                        HStack {
+                            Text("All Events")
+                                .font(.callout)
+                            Spacer()
+                            Text(activity.events.count.formatted())
+                                .font(.code(.caption))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .listSectionSeparator(.hidden)
+            }
+            if !activity.live.playback.isEmpty {
+                Section("Now Playing") {
+                    ForEach(activity.live.playback, id: \.session) { playback in
+                        focusRow(playback.session) {
+                            PlaybackRow(playback: playback, title: playback.ratingKey.flatMap(activity.title(ratingKey:)))
+                        }
+                    }
+                }
+                .listSectionSeparator(.hidden)
+            }
+            if !activity.live.transcodes.isEmpty {
+                Section("Transcodes") {
+                    ForEach(activity.live.transcodes, id: \.session) { transcode in
+                        focusRow(transcode.session) { TranscodeRow(transcode: transcode) }
+                    }
+                }
+                .listSectionSeparator(.hidden)
+            }
             if !activity.typeCounts.isEmpty {
                 Section("Event Types") {
                     ForEach(activity.typeCounts.sorted { $0.key < $1.key }, id: \.key) { type, count in
@@ -30,6 +84,92 @@ struct ActivityFiltersView: View {
             }
         }
         .sectionListStyle()
+    }
+
+    /// One row of the focus choice: All Events (`nil`) or a session, which
+    /// narrows the events to its own. Exactly one is always chosen.
+    private func focusRow(_ session: NotificationEvent.Session?, @ViewBuilder label: () -> some View) -> some View {
+        let chosen = activity.focusedSession == session
+        return Button {
+            activity.focusedSession = session
+        } label: {
+            label()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .listRowSeparator(.hidden)
+        .sectionListButtonRow(selected: chosen)
+        .help(session == nil ? "Show all events" : "Show only this session's events")
+    }
+}
+
+/// A playback: the item's name, then its state and position, which move in
+/// place as the session reports.
+private struct PlaybackRow: View {
+    let playback: LiveSessions.Playback
+    let title: String?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var detail: String {
+        [playback.state.map { $0.prefix(1).uppercased() + $0.dropFirst() }, playback.viewOffset.map(NotificationEvent.position(milliseconds:))]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title ?? playback.ratingKey.map { "ratingKey \($0)" } ?? "Unknown item")
+                .font(.callout)
+                .lineLimit(1)
+                .contentTransition(.interpolate)
+                .animation(reduceMotion ? nil : .snappy, value: title)
+            Text(detail)
+                .font(.code(.caption))
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : .snappy, value: detail)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+/// A transcode: what it converts, then its progress and speed.
+private struct TranscodeRow: View {
+    let transcode: LiveSessions.Transcode
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var subject: String {
+        if let subject = transcode.subject { return subject }
+        if case .transcode(let id) = transcode.session { return id }
+        return "Transcode"
+    }
+
+    private var detail: String {
+        [
+            transcode.progress.map { "\(Int($0.rounded()))%" },
+            transcode.speed.map { "\($0.formatted(.number.precision(.fractionLength(1))))×" },
+            transcode.throttled ? "throttled" : nil,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(subject)
+                .font(.code(.callout))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Text(detail)
+                .font(.code(.caption))
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : .snappy, value: detail)
+        }
+        .padding(.vertical, 2)
     }
 }
 

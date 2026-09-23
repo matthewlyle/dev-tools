@@ -158,7 +158,9 @@ private struct EventList: View {
     @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
-        let visible = activity.visibleEvents
+        // A compact width has no sidebar to pick or release a session in.
+        let focused = compact ? nil : activity.focusedSession
+        let visible = focused.map { session in activity.visibleEvents.filter { $0.session == session } } ?? activity.visibleEvents
 
         ZStack {
             if activity.events.isEmpty, !activity.status.isActive {

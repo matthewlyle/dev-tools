@@ -12,11 +12,37 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     let state: String?
     /// Playback position in milliseconds.
     let viewOffset: Int?
+    /// The running session the event reports on, if any.
+    let session: Session?
     /// The row's line from the payload alone: its own title when it has one,
     /// otherwise an identifying key.
     let summary: String
     private let line: Line
     private let titled: Bool
+    /// The payload itself: the container's first child.
+    let payload: Node?
+
+    enum Session: Hashable, Sendable {
+        /// A `playing` event's `sessionKey`.
+        case playback(String)
+        /// A transcode's id, the last component of its
+        /// `/transcode/sessions/…` key.
+        case transcode(String)
+
+        /// Matched on the id alone, whichever form of the key a source sends.
+        static func transcode(key: String) -> Session {
+            .transcode(key.split(separator: "/").last.map(String.init) ?? key)
+        }
+
+        var isPlayback: Bool {
+            if case .playback = self { true } else { false }
+        }
+    }
+
+    /// `2:53`, or `1:02:07` from an hour on.
+    static func position(milliseconds ms: Int) -> String {
+        Duration.milliseconds(ms).formatted(.time(pattern: ms >= 3_600_000 ? .hourMinuteSecond : .minuteSecond))
+    }
 
     /// The item to look a title up for: set only when the payload names it
     /// by key alone, as a playing session or an untitled timeline entry does.
@@ -37,7 +63,7 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
             root.name == "NotificationContainer" ? root : root.children.first { $0.name == "NotificationContainer" } ?? root
         }
         let type = container?["type"].flatMap { $0.isEmpty ? nil : $0 } ?? "message"
-        let facts = Facts(container)
+        let facts = Facts(container, type: type)
         return NotificationEvent(
             id: UUID(),
             receivedAt: receivedAt,
@@ -47,9 +73,11 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
             ratingKey: facts.ratingKey,
             state: facts.state,
             viewOffset: facts.viewOffset,
+            session: facts.session,
             summary: facts.line.text,
             line: facts.line,
-            titled: facts.titled
+            titled: facts.titled,
+            payload: container?.children.first
         )
     }
 
@@ -58,8 +86,12 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     /// `Show — S2 E3 · Title`, a movie as `Title (1995)`, a track as
     /// `Artist — Title`, anything else by its title.
     static func itemTitle(metadata root: Node) -> String? {
-        guard let item = root.children.first(where: { $0.name == "Metadata" }) ?? root.children.first,
-              let title = nonEmpty(item["title"])
+        (root.children.first(where: { $0.name == "Metadata" }) ?? root.children.first).flatMap(itemTitle(item:))
+    }
+
+    /// The same, from the item's own node (a `/status/sessions` entry).
+    static func itemTitle(item: Node) -> String? {
+        guard let title = nonEmpty(item["title"])
         else { return nil }
         switch item["type"] {
         case "episode":
@@ -102,6 +134,7 @@ private struct Facts {
     var state: String?
     var viewOffset: Int?
     var ratingKey: String?
+    var session: NotificationEvent.Session?
     var titled = false
     var line = Line()
 
@@ -110,7 +143,7 @@ private struct Facts {
     private static let identifiers = ["key", "ratingKey", "itemID", "queueID", "reachability", "identifier", "clientIdentifier"]
     private static let namedIdentifiers: Set<String> = ["ratingKey", "itemID", "queueID"]
 
-    init(_ container: Node?) {
+    init(_ container: Node?, type: String) {
         guard let container else { return }
         // The payload is the first child (e.g. PlaySessionStateNotification);
         // activities nest one level deeper (ActivityNotification > Activity).
@@ -134,6 +167,13 @@ private struct Facts {
             .compactMap { $0 }
             .first { !$0.isEmpty && $0.allSatisfy { $0.isASCII && $0.isNumber } }
 
+        if type == "playing", let key = value("sessionKey") {
+            session = .playback(key)
+        } else if type.hasPrefix("transcodeSession."), let key = value("key") {
+            session = .transcode(key: key)
+        }
+        let progress = value("progress").flatMap(Double.init)
+
         let human = [value("title"), value("subtitle")].compactMap { $0 }
         let named = human.isEmpty ? (value("message") ?? value("description")) : human.joined(separator: " · ")
         titled = named != nil
@@ -147,10 +187,8 @@ private struct Facts {
                 break
             }
         }
-        line.progress = value("progress").map { raw in Double(raw).map { "\(Int($0.rounded()))%" } ?? raw }
-        line.offset = viewOffset.map { ms in
-            Duration.milliseconds(ms).formatted(.time(pattern: ms >= 3_600_000 ? .hourMinuteSecond : .minuteSecond))
-        }
+        line.progress = value("progress").map { raw in progress.map { "\(Int($0.rounded()))%" } ?? raw }
+        line.offset = viewOffset.map(NotificationEvent.position(milliseconds:))
     }
 
     /// `/library/metadata/28282/children` → `28282`.
