@@ -9,18 +9,20 @@ struct HighlighterTests {
     }
 
     @Test func jsonDistinguishesKeysFromStringValues() {
-        let text = #"{"title": "Movie: The \"Sequel\"", "n": -12.5e3, "ok": true, "x": null}"#
+        let text = #"{"title": "Movie: The \"Sequel\"", "n": -12.5e3, "ok": true, "x": null, "y": nullish}"#
         let tokens = Highlighter.json(text)
 
         let keys = tokens.filter { $0.kind == .key }.map { slice(text, $0) }
         let strings = tokens.filter { $0.kind == .string }.map { slice(text, $0) }
         let numbers = tokens.filter { $0.kind == .number }.map { slice(text, $0) }
         let literals = tokens.filter { $0.kind == .literal }.map { slice(text, $0) }
+        let nulls = tokens.filter { $0.kind == .null }.map { slice(text, $0) }
 
-        #expect(keys == [#""title""#, #""n""#, #""ok""#, #""x""#])
+        #expect(keys == [#""title""#, #""n""#, #""ok""#, #""x""#, #""y""#])
         #expect(strings == [#""Movie: The \"Sequel\"""#])
         #expect(numbers == ["-12.5e3"])
-        #expect(literals == ["true", "null"])
+        #expect(literals == ["true", "nullish"])
+        #expect(nulls == ["null"])
     }
 
     @Test func jsonStringContainingColonIsNotAKey() {

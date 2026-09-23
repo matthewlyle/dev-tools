@@ -17,16 +17,11 @@ struct MediaResultsView: View {
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
     @AppStorage("mediaResultsTab") private var tab: MediaResultsTab = .posters
-    @State private var selectedID: Int?
-    @State private var showInfo = false
+    @Environment(MediaQueryStore.self) private var mediaQuery
     @State private var collapsed: Set<Int> = []
 
     private var items: [MediaItem] {
         requests.document?.tree?.children.map(MediaItem.init) ?? []
-    }
-
-    private var selected: MediaItem? {
-        items.first { $0.id == selectedID }
     }
 
     /// The field the shown results are ordered by, from the request that
@@ -40,79 +35,91 @@ struct MediaResultsView: View {
     }
 
     var body: some View {
-        Group {
+        // Resting, error, and no-items states transition; results arrive
+        // without one — the grid runs its own entrance, and the body can't
+        // take one.
+        ZStack {
             if let response = requests.response {
-                switch tab {
-                case .posters:
-                    if requests.document == nil {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group {
+                    switch tab {
+                    case .posters:
+                        ZStack {
+                            if requests.document == nil {
+                                FillingScrollView {
+                                    headerBlock
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                                .transition(.identity)
+                            } else if items.isEmpty {
+                                FillingScrollView {
+                                    headerBlock
+                                    ContentUnavailableView(
+                                        "No Items",
+                                        systemImage: "square.grid.3x3",
+                                        description: Text("The query matched nothing. Loosen a filter and run it again.")
+                                    )
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                                .restingStateTransition()
+                                .zIndex(1)
+                            } else {
+                                grid
+                                    .transition(.identity)
+                            }
                         }
-                    } else if items.isEmpty {
-                        FillingScrollView {
-                            headerBlock
-                            ContentUnavailableView(
-                                "No Items",
-                                systemImage: "square.grid.3x3",
-                                description: Text("The query matched nothing. Loosen a filter and run it again.")
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    case .response:
+                        if let document = requests.document {
+                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                                headerBlock
+                            }
+                        } else {
+                            FillingScrollView {
+                                headerBlock
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                         }
-                    } else {
-                        grid
-                    }
-                case .response:
-                    if let document = requests.document {
-                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                    case .headers:
+                        HeadersView(response: response, server: server, editable: false) {
                             headerBlock
                         }
-                    } else {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                case .headers:
-                    HeadersView(response: response, server: server, editable: false) {
-                        headerBlock
                     }
                 }
+                .transition(.identity)
             } else {
                 FillingScrollView {
                     headerBlock
-                    Group {
+                    ZStack {
                         if let error = requests.errorMessage {
                             ContentUnavailableView(
                                 "Request Failed",
                                 systemImage: "exclamationmark.triangle",
                                 description: Text(error)
                             )
+                            .restingStateTransition(rising: true)
                         } else {
                             ZeroState(text: "Run a query to see its items as posters.")
+                                .restingStateTransition(rising: true)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .restingStateTransition()
+                .zIndex(1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .inspector(isPresented: $showInfo) {
-            if let selected {
-                MediaInfoView(item: selected, server: server) { showInfo = false }
-                    .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
-            }
-        }
         .onChange(of: requests.response?.receivedAt) { _, _ in
-            selectedID = nil
-            showInfo = false
+            mediaQuery.selectedItemID = nil
+            mediaQuery.showsItemInfo = false
             collapsed = []
         }
         .focusedSceneValue(
             \.showMediaInfo,
-            isActive && selectedID != nil ? ShowMediaInfoAction(visible: showInfo) { showInfo.toggle() } : nil
+            isActive && mediaQuery.selectedItemID != nil
+                ? ShowMediaInfoAction(visible: mediaQuery.showsItemInfo) { mediaQuery.showsItemInfo.toggle() }
+                : nil
         )
     }
 
@@ -121,15 +128,12 @@ struct MediaResultsView: View {
             RequestSummaryBar(server: server)
             if let response = requests.response {
                 Divider()
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
-                    }
-                    Spacer()
-                    if tab == .response, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
+                ResponseInfoRow(
+                    response: response,
+                    pagination: requests.pagination,
+                    server: server,
+                    controls: tab == .response ? requests.document.map { BodyControls(document: $0, response: response) } : nil
+                ) {
                     Picker("View", selection: $tab) {
                         ForEach(MediaResultsTab.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -137,8 +141,6 @@ struct MediaResultsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
         }
         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
@@ -148,9 +150,9 @@ struct MediaResultsView: View {
     private var grid: some View {
         ScrollView {
             headerBlock
-            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: selectedID) { id in
-                selectedID = id
-                showInfo = true
+            PosterGrid(items: items, server: server, sortKey: sortKey, selectedID: mediaQuery.selectedItemID) { id in
+                mediaQuery.selectedItemID = id
+                mediaQuery.showsItemInfo = true
             }
             .id(requests.response?.receivedAt)
         }
@@ -203,13 +205,62 @@ private struct PosterCell: View {
     let isSelected: Bool
     let select: () -> Void
 
-    private static let width: CGFloat = 130
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var artSize: CGSize {
-        switch item.shape {
-        case .poster: CGSize(width: Self.width, height: Self.width * 1.5)
-        case .square: CGSize(width: Self.width, height: Self.width)
-        case .wide: CGSize(width: Self.width, height: Self.width * 9 / 16)
+    var body: some View {
+        Button(action: select) {
+            VStack(alignment: .leading, spacing: 6) {
+                PosterArt(item: item, server: server)
+                    .overlay {
+                        ZStack {
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(.tint, lineWidth: 3)
+                                    .transition(.opacity.combined(with: .scale(reduceMotion ? 1 : 1.04)))
+                            }
+                        }
+                        .animation(.bouncy, value: isSelected)
+                    }
+                Text(item.caption(sortedBy: sortKey))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(width: PosterArt.width, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(PosterButtonStyle())
+        .help(item.title)
+        .accessibilityLabel(item.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct PosterButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        configuration.label
+            .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
+            .opacity(pressed && reduceMotion ? 0.7 : 1)
+            .animation(.snappy(duration: 0.15), value: pressed)
+    }
+}
+
+/// An item's artwork as the grid shows it.
+struct PosterArt: View {
+    let item: MediaItem
+    let server: ConnectedServer?
+
+    static let width: CGFloat = 130
+
+    static func size(for shape: MediaItem.Shape) -> CGSize {
+        switch shape {
+        case .poster: CGSize(width: width, height: width * 1.5)
+        case .square: CGSize(width: width, height: width)
+        case .wide: CGSize(width: width, height: width * 9 / 16)
         }
     }
 
@@ -226,37 +277,16 @@ private struct PosterCell: View {
     }
 
     var body: some View {
-        Button(action: select) {
-            VStack(alignment: .leading, spacing: 6) {
-                RemoteImage(value: item.thumb, server: server, size: artSize) {
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            Image(systemName: symbol)
-                                .font(.system(size: 28))
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                        }
-                }
-                .clipShape(.rect(cornerRadius: 8))
+        RemoteImage(value: item.thumb, server: server, size: Self.size(for: item.shape)) {
+            Rectangle()
+                .fill(.quaternary)
                 .overlay {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(.tint, lineWidth: 3)
-                    }
+                    Image(systemName: symbol)
+                        .font(.system(size: 28))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
-                Text(item.caption(sortedBy: sortKey))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(width: Self.width, alignment: .leading)
-            .contentShape(.rect)
         }
-        .buttonStyle(.plain)
-        .help(item.title)
-        .accessibilityLabel(item.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .clipShape(.rect(cornerRadius: 8))
     }
 }

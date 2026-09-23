@@ -13,6 +13,8 @@ struct MediaQueryBuilderView: View {
     @Environment(MediaQueryStore.self) private var store
     @Environment(RequestStore.self) private var requests
     @Environment(\.sectionIsActive) private var isActive
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.showSectionDetail) private var showDetail
 
     @State private var sectionsChecked = false
 
@@ -94,6 +96,21 @@ struct MediaQueryBuilderView: View {
                                 SortRow(sort: sortBinding(sort), options: type.sorts) {
                                     store.query.sorts.removeAll { $0.id == sort.id }
                                 }
+                                .contextMenu {
+                                    Button("Move Up") { moveSort(sort.id, by: -1) }
+                                        .disabled(store.query.sorts.first?.id == sort.id)
+                                    Button("Move Down") { moveSort(sort.id, by: 1) }
+                                        .disabled(store.query.sorts.last?.id == sort.id)
+                                    Divider()
+                                    Button("Remove Sort", role: .destructive) {
+                                        store.query.sorts.removeAll { $0.id == sort.id }
+                                    }
+                                }
+                            }
+                            .onMove { from, to in
+                                withAnimation(reduceMotion ? nil : .snappy) {
+                                    store.query.sorts.move(fromOffsets: from, toOffset: to)
+                                }
                             }
                             Button {
                                 if let option = type.sorts.first {
@@ -105,6 +122,10 @@ struct MediaQueryBuilderView: View {
                             .disabled(type.sorts.isEmpty)
                         } header: {
                             Text("Sort")
+                        } footer: {
+                            if store.query.sorts.count > 1 {
+                                Text("Sorted by the first; each one after breaks ties in the ones above. Reorder from a sort's context menu.")
+                            }
                         }
 
                         Section {
@@ -176,6 +197,16 @@ struct MediaQueryBuilderView: View {
         guard let server, store.currentType != nil else { return }
         requests.load(store.query.request())
         requests.send(to: server)
+        showDetail?()
+    }
+
+    private func moveSort(_ id: MediaQuery.Sort.ID, by offset: Int) {
+        guard let index = store.query.sorts.firstIndex(where: { $0.id == id }),
+              store.query.sorts.indices.contains(index + offset)
+        else { return }
+        withAnimation(reduceMotion ? nil : .snappy) {
+            store.query.sorts.swapAt(index, index + offset)
+        }
     }
 
     private func sortBinding(_ sort: MediaQuery.Sort) -> Binding<MediaQuery.Sort> {
@@ -364,6 +395,7 @@ private struct TermRow: View {
                     }
                 }
                 .labelsHidden()
+                .fixedSize()
 
                 Spacer(minLength: 0)
 
@@ -550,6 +582,9 @@ private struct SortRow: View {
                 Text("Descending").tag(true)
             }
             .labelsHidden()
+            // iOS menu pickers share an HStack's width with the Spacer and
+            // truncate early; the direction's two short words always fit.
+            .fixedSize()
 
             Spacer(minLength: 0)
 

@@ -121,6 +121,14 @@ final class ActivityStore {
         status = .disconnected
     }
 
+    /// A suspended app's socket is torn down under it, and the failure may
+    /// never surface, so a connection the user left open starts over on
+    /// return from the background instead of waiting on a dead one.
+    func resumeAfterBackground() {
+        guard status.isActive, let server else { return }
+        connect(to: server)
+    }
+
     func clear() {
         events.removeAll()
         typeCounts.removeAll()

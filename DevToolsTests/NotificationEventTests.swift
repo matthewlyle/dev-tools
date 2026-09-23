@@ -18,8 +18,15 @@ struct NotificationEventTests {
         #expect(event.titleKey == "28282")
         #expect(event.state == "playing")
         #expect(event.viewOffset == 754_000)
-        #expect(event.summary.hasPrefix("Playing · /library/metadata/28282 · "))
-        #expect(event.summary(title: "The Office — S2 E2 · Diversity Day").hasPrefix("Playing · The Office — S2 E2 · Diversity Day · "))
+        #expect(event.summary.hasPrefix("/library/metadata/28282 · "))
+        #expect(event.summary(title: "The Office — S2 E2 · Diversity Day").hasPrefix("The Office — S2 E2 · Diversity Day · "))
+
+        let paused = NotificationEvent.make(raw: #"""
+        {"NotificationContainer":{"type":"playing","size":1,"PlaySessionStateNotification":[
+          {"sessionKey":"12","key":"/library/metadata/28282","ratingKey":"28282","viewOffset":754000,"state":"paused"}
+        ]}}
+        """#)
+        #expect(paused.summary.hasPrefix("Paused · /library/metadata/28282 · "))
     }
 
     @Test func untitledTimelineEntryIsLookedUpByItemID() {

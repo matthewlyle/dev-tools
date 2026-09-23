@@ -40,44 +40,54 @@ struct ResponseView<RequestBar: View>: View {
 
     var body: some View {
         @Bindable var requests = requests
-        return Group {
+        // Only the resting and error states transition; the body arrives
+        // instantly because a transition on the text view forces a
+        // full-document layout.
+        return ZStack {
             if let response = requests.response {
-                switch tab {
-                case .raw:
-                    if let document = requests.document {
-                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                Group {
+                    switch tab {
+                    case .raw:
+                        if let document = requests.document {
+                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                                headerBlock
+                            }
+                        } else {
+                            FillingScrollView {
+                                headerBlock
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                    case .headers:
+                        HeadersView(response: response, server: server, editable: editable) {
                             headerBlock
                         }
-                    } else {
-                        FillingScrollView {
-                            headerBlock
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                case .headers:
-                    HeadersView(response: response, server: server, editable: editable) {
-                        headerBlock
                     }
                 }
+                .transition(.identity)
             } else {
                 FillingScrollView {
                     headerBlock
-                    Group {
+                    ZStack {
                         if let error = requests.errorMessage {
                             ContentUnavailableView(
                                 "Request Failed",
                                 systemImage: "exclamationmark.triangle",
                                 description: Text(error)
                             )
+                            .restingStateTransition(rising: true)
                         } else {
                             ZeroState(text: editable
                                 ? "Send a request to see the response here."
                                 : "Select a request to see the response here.")
+                            .restingStateTransition(rising: true)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .restingStateTransition()
+                .zIndex(1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,27 +110,13 @@ struct ResponseView<RequestBar: View>: View {
             requestBar()
             if let response = requests.response {
                 Divider()
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    if let pagination = requests.pagination {
-                        PaginationControls(pagination: pagination, server: server)
-                    }
-                    if tab == .raw, let notice = requests.document?.notice {
-                        ViewThatFits(in: .horizontal) {
-                            Text(notice)
-                                .lineLimit(1)
-                                .fixedSize()
-                            Label(notice, systemImage: "exclamationmark.triangle.fill")
-                                .labelStyle(.iconOnly)
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .help(notice)
-                    }
-                    Spacer()
-                    if tab == .raw, let document = requests.document {
-                        BodyControls(document: document, response: response)
-                    }
+                ResponseInfoRow(
+                    response: response,
+                    pagination: requests.pagination,
+                    server: server,
+                    notice: tab == .raw ? requests.document?.notice : nil,
+                    controls: tab == .raw ? requests.document.map { BodyControls(document: $0, response: response) } : nil
+                ) {
                     Picker("View", selection: $tab) {
                         ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -128,8 +124,6 @@ struct ResponseView<RequestBar: View>: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
         }
         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
@@ -172,15 +166,55 @@ struct FillingScrollView<Content: View>: View {
 
 /// The detail's resting state: one muted sentence, centred. No icon or
 /// heading — the section switcher already says where you are.
-struct ZeroState: View {
+struct ZeroState<Action: View>: View {
     let text: String
+    @ViewBuilder let action: () -> Action
 
     var body: some View {
-        Text(text)
-            .font(.subheadline)
-            .foregroundStyle(.tertiary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 12) {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+            action()
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+extension ZeroState where Action == EmptyView {
+    init(text: String) {
+        self.init(text: text) { EmptyView() }
+    }
+}
+
+extension View {
+    /// How a resting, empty, or error state swaps with content: it arrives
+    /// over a beat and leaves at once, so content never waits on it. `rising`
+    /// adds a small lift on arrival, for states that don't carry the request
+    /// bar — the bar must not move.
+    func restingStateTransition(rising: Bool = false) -> some View {
+        modifier(RestingStateTransition(rising: rising))
+    }
+}
+
+private struct RestingStateTransition: ViewModifier {
+    let rising: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.transition(transition)
+    }
+
+    private var transition: AnyTransition {
+        if reduceMotion { return .identity }
+        let insertion: AnyTransition = rising ? .opacity.combined(with: .offset(y: 6)) : .opacity
+        return .asymmetric(
+            insertion: insertion.animation(.snappy(duration: 0.3)),
+            removal: .opacity.animation(.smooth(duration: 0.1))
+        )
     }
 }
 
@@ -234,6 +268,69 @@ private struct AccessHint: View {
         .padding(.vertical, 8)
         .background(.orange.opacity(0.08))
         .overlay(alignment: .bottom) { Divider() }
+    }
+}
+
+/// The status row under the request: status, paging, any notice, the body's
+/// controls, and the view tabs. A compact width can't hold all of them on
+/// one line, so the tabs share the first with the status and the rest drop
+/// to a second, shown only when it has something in it.
+struct ResponseInfoRow<Tabs: View>: View {
+    let response: PlexResponse
+    let pagination: PaginationInfo?
+    let server: ConnectedServer?
+    var notice: String? = nil
+    var controls: BodyControls? = nil
+    @ViewBuilder let tabs: () -> Tabs
+
+    @Environment(\.isCompactWidth) private var compact
+
+    var body: some View {
+        Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        ResponseStatusBar(response: response)
+                        Spacer(minLength: 0)
+                        tabs()
+                    }
+                    if pagination != nil || notice != nil || controls != nil {
+                        HStack(spacing: 10) {
+                            secondary
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 10) {
+                    ResponseStatusBar(response: response)
+                    secondary
+                    tabs()
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var secondary: some View {
+        if let pagination {
+            PaginationControls(pagination: pagination, server: server)
+        }
+        if let notice {
+            ViewThatFits(in: .horizontal) {
+                Text(notice)
+                    .lineLimit(1)
+                    .fixedSize()
+                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                    .labelStyle(.iconOnly)
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .help(notice)
+        }
+        Spacer()
+        controls
     }
 }
 
@@ -310,6 +407,14 @@ struct ResponseStatusBar: View {
         .padding(.vertical, 6)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
+        .keyframeAnimator(initialValue: 1.0, trigger: response.receivedAt) { view, scale in
+            view.scaleEffect(reduceMotion ? 1 : scale)
+        } keyframes: { _ in
+            KeyframeTrack {
+                CubicKeyframe(0.97, duration: 0)
+                SpringKeyframe(1.0, duration: 0.35, spring: .bouncy)
+            }
+        }
         .help(summary.joined(separator: " · "))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(summary.joined(separator: ", "))

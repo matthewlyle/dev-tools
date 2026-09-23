@@ -48,7 +48,9 @@ final class RequestStore {
         Self.tokenAttributeNames.contains(name)
     }
 
-    private(set) var pathFocusToken = 0
+    /// Set by Focus Path and consumed by the request bar, which may not be on
+    /// screen yet: a compact width pushes it after the request.
+    var pathFocusPending = false
 
     /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
@@ -85,9 +87,13 @@ final class RequestStore {
         return headers
     }
 
+    /// Off in Media: its results come from the builder's form, and going back
+    /// would show a query the form no longer holds.
+    var recordsNavigation = true
+
     func send(to server: ConnectedServer) {
         let request = current
-        if let lastSent, lastSent != request {
+        if recordsNavigation, let lastSent, lastSent != request {
             backStack.append(lastSent)
             forwardStack.removeAll()
         }
@@ -353,10 +359,11 @@ final class RequestStore {
         backStack = []
         forwardStack = []
         editingSavedID = nil
+        pathFocusPending = false
     }
 
     func requestPathFocus() {
-        pathFocusToken &+= 1
+        pathFocusPending = true
     }
 
     func previewURL(for server: ConnectedServer?) -> String {

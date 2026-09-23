@@ -1,13 +1,13 @@
 # dev-tools — Plex API Playground
 
-Native macOS developer tool for exploring the Plex Media Server API. Postman-shaped, but it *knows* Plex: handles auth, discovers servers, drives every documented endpoint from the spec, and renders responses as highlighted, browsable documents.
+Native macOS, iPadOS, and iOS developer tool for exploring the Plex Media Server API. Postman-shaped, but it *knows* Plex: handles auth, discovers servers, drives every documented endpoint from the spec, and renders responses as highlighted, browsable documents.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
-| Platform | macOS 26+ and iPadOS 26+ (Liquid Glass), one universal app target (iPad-only device family). Xcode 27.1, Swift 6, strict concurrency. |
-| UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
+| Platform | macOS 26+, iPadOS 26+, and iOS 26+ (Liquid Glass), one universal app target (iPhone and iPad device families). Xcode 27.1, Swift 6, strict concurrency. |
+| UI | SwiftUI + `@Observable`. Two columns (section list, detail) under one header; the server is the window title and its title menu switches it. On a compact width (iPhone, narrow iPad split) each section is a tab: its list at the root, its detail pushed. Liquid Glass only where the system puts it (toolbar, `.glassProminent` Send); no custom `glassEffect`. System accent and semantic colours; no custom accent. |
 | Deps | Minimal. None planned for v1; reassess only if the hand-rolled XML/JSON highlighter proves inadequate. |
 | Bundle ID | `mldgg.devtools` |
 | Methods | **GET only** in v1. No PUT/DELETE/POST. |
@@ -56,7 +56,9 @@ dev-tools/
     RootView.swift               sign-in vs main split
     Core/
       Typeface.swift             Commit Mono via Font.code(_:); the only monospace path
-      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, SystemBrowser, checkbox/searchable helpers (macOS vs iPadOS)
+      SheetScaffold.swift        a sheet's frame: Mac panel with bottom buttons, iOS navigation bar with close/confirm roles at the medium detent
+      WellBackground.swift       content backdrop: Mac behind-window blur (toggleable), iOS system background with a static accent wash
+      Platform.swift             cross-platform shims: PlatformImage/Font/Color, Clipboard, isCompactWidth (never on macOS)
       Identity/
         ClientIdentity.swift     X-Plex-Client-Identifier (persisted UUID) + Product/Version/Platform/Device headers
       Auth/
@@ -106,16 +108,16 @@ dev-tools/
       ActivityStore.swift        socket status, events ring buffer (cap 2000), type filters, selection, item titles looked up per server + ratingKey
     Features/
       SignIn/                    PIN code, "Open plex.tv/link", polling state; SignOutConfirmation (one dialog for Settings and the App menu)
-      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; preload + reset on switch), ServerMenu (title menu: server names + Server Info…, Refresh Servers, Connect; Settings… on iPad), ServerInfoView (popover from the title: host, version, connection in use)
+      Servers/                   MainSplitView (one header: server title menu, section switcher; two columns on macOS, two panes on iPad with a draggable, remembered list width; on a compact width a tab per section, list at the root and detail pushed via showSectionDetail; preload + reset on switch), ServerMenu (title menu: server names + Server Info…, Refresh Servers; Settings… on iPad and iPhone), ServerInfoView (popover from the title: host, version, connection in use)
       Endpoints/                 EndpointListView (catalog by tag, Saved pinned first, lock on admin-only when shared), PlaceholderSheet (enum / server-list pickers, now+date for epochs, Recently Seen)
       Request/                   WorkspaceView (editable RequestBarView vs read-only RequestSummaryBar, handed to ResponseView), KeyValueEditor
-      Browser/                   HistoryNavButtons — back/forward at the head of the URL line
-      Response/                  ResponseView (request bar, then status · pagination · tabs · body controls, 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
-      History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, ⌫, ⌘⌫) or clear; sort/status menu and Clear over the list (toolbar on macOS, beside the filter field on iPad); the detail rests on "Select a request…" (Endpoints' says "Send a request…")
-      Activity/                  ActivityControlsView (connect/disconnect, clear, event types), ActivityEventsView (events, or Not Connected / Couldn't Connect with its own Connect when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
-      MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
-      Saved/                     SavedRequestRow
-      Settings/                  SettingsView — app-wide response format, wrap lines, clear all history (confirmed); macOS Settings scene, iPad sheet from the title menu or the App menu (⌘,)
+      Browser/                   HistoryNavButtons — back/forward at the head of the URL line (Endpoints and History; Media records no navigation, since Back would show a query its form no longer holds)
+      Response/                  ResponseView (request bar, then ResponseInfoRow — status · pagination · tabs · body controls, two lines on a compact width — and 400/403 hints — one block that scrolls with the body: hosted inside CodeTextView's scroll, inside the poster grid's ScrollView; and at the top of the Headers tab's ScrollView; the status pill never wraps, it sheds content type → subtype → nothing → measurements as the row narrows, full readout in its tooltip), RawResponseView + CodeTextView (highlight, wrap, fold), BodyControls, HeadersView
+      History/                   HistoryListView — read-only replay; selecting auto-runs without recording; delete one (context menu, swipe on a compact width, ⌫, ⌘⌫) or clear; sort/status menu and Clear over the list (toolbar on macOS, beside the filter field on iPad); the detail rests on "Select a request…" (Endpoints' says "Send a request…")
+      Activity/                  ActivityFiltersView (the list pane: event-type toggles; ActivityTypeMenu, the same as a toolbar menu on a compact width, where the events are the tab's root), ActivityEventsView (events over ActivityStatusBar — status, received count, last error, Clear, Connect/Disconnect — or a Not Connected / Couldn't Connect state when disconnected and empty; payload inspector shown while an event is selected, Hide Info ⌘I deselects)
+      MediaQuery/                MediaQueryBuilderView (library/type pickers, filter terms, sorts in precedence order, reordered from a row's context menu or by drag where the form allows, group, limit, live preview, Run / ⌘↩), MediaResultsView (Posters | Response | Headers; poster grid, selection → inspector), MediaInfoView (artwork, title, subtitle, tagline, synopsis, tag sentences, decoded Details, nested elements), RemoteImage
+      Saved/                     SavedRequestRow (context menu, or swipe on a compact width: Rename…, Delete…)
+      Settings/                  SettingsView — app-wide response format, wrap lines, code theme (System, Xcode, GitHub, Atom One; light and dark), clear all history (confirmed); macOS Settings scene, iOS sheet from the title menu or the App menu (⌘,)
     Resources/
       plex-openapi.json          generated by Tools/extract-spec.sh
       Fonts/                     Commit Mono
@@ -142,7 +144,7 @@ dev-tools/
 **Media (M5).** The fourth section. Pick a library and a result type; the types, their `Field`s (with types) and `Sort`s come from `/library/sections/{id}?includeDetails=1`, fetched once per library. Operators are the spec's documented per-type table (integer/boolean/tag/string/date/language) and ride on the query key (`year>>=2000`, URI-encoded); booleans emit `field=1|0`; date values accept relative suffixes (`>>=-3y`). Filters AND together, or all OR with `or=1` ("Match any"); `sort=field[:desc],…`, `group=`, `limit=`. The emitted query is shown live and runs against `/library/sections/{id}/all`. Results show as a **poster grid** (aspect by type: 2:3, square, 16:9; artwork through `ImageStore`), with the raw Response and Headers a tab away and the pagination controls in the status row. Clicking a poster selects it and opens its metadata in the inspector (View › Show Info, ⌘I): artwork, title, `year · rating · runtime`, tagline, synopsis, tag groups as sentences (Genre: …), then every attribute with units decoded and credentials masked, and nested elements (Media → Part → Stream) collapsed. Not yet expressed: nested `push`/`pop` grouping, `sourceType`/field scoping, and picking tag values from the filter endpoints (tag fields take an id).
 
 **Activity (M6).** Connect `wss://{host}/:/websockets/notifications?X-Plex-Token=…` (ws for http servers; note the plural — Plex's own OpenAPI doc lists the singular `/:/websocket/…`, which 404s). Events arrive as `{NotificationContainer: {type, size, <TypeArray>: [...]}}`. Types to filter: `playing`, `timeline`, `activity`, `progress`, `status`, `backgroundProcessingQueue`, `transcodeSession.update/end`, `reachability`, `preference`. Ring buffer capped at 2000. No pause: connect/disconnect and clear only.
-Each row reads `state · subject · progress · position`, e.g. `Playing · The Office — S2 E3 · Diversity Day · 12:34`. The subject is the payload's own words when it has them (`title`/`subtitle`, an Activity's title/subtitle/progress, `message`); a payload naming its item only by key (a playing session, an untitled timeline entry) shows the key until a JSON `GET /library/metadata/<ratingKey>` resolves a title (episode `Show — S2 E3 · Title`, movie `Title (year)`, track `Artist — Title`, else `title`), which crossfades in. Lookups go through `PlexHTTP` (token as header), once per server + ratingKey, failures included, until Clear or a server switch; a failed lookup leaves the key.
+Each row reads `state · subject · progress · position`, e.g. `Paused · The Office — S2 E3 · Diversity Day · 12:34`; a state that only repeats the event type (a `playing` event that is playing) is dropped, since the type badge already says it. The subject is the payload's own words when it has them (`title`/`subtitle`, an Activity's title/subtitle/progress, `message`); a payload naming its item only by key (a playing session, an untitled timeline entry) shows the key until a JSON `GET /library/metadata/<ratingKey>` resolves a title (episode `Show — S2 E3 · Title`, movie `Title (year)`, track `Artist — Title`, else `title`), which crossfades in. Lookups go through `PlexHTTP` (token as header), once per server + ratingKey, failures included, until Clear or a server switch; a failed lookup leaves the key.
 
 ## Liquid Glass usage
 
@@ -161,7 +163,8 @@ Each ends with a smoke-test proof, not a test suite.
 5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
 6. **Activity monitor.** Socket, event list, type filters, payload inspector, item titles in rows — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
-8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion), resizable iPad list pane — in progress.
+8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion, section-switch crossfade, response status settle, empty states fading out as content arrives, poster press and selection settle, parameter and header rows in and out with a rolling count, Activity connection status that pulses while connecting and bounces on connect), resizable iPad list pane — in progress.
+9. **iPhone.** Compact-width shell (a tab per section, list → pushed detail, Edit Request on Endpoints), two-line response info row and parameter rows, swipe actions on History and Saved, iPhone client identity, local-network usage string, Activity reconnect on return from the background — done. Deferred: Dynamic Type for the code face.
 
 ## Tests (targeted, fixture-driven)
 

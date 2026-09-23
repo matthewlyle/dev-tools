@@ -122,7 +122,9 @@ struct RequestBarView: View {
             }
         }
         .padding(12)
-        .onChange(of: requests.pathFocusToken) { _, _ in
+        .task(id: requests.pathFocusPending) {
+            guard requests.pathFocusPending else { return }
+            requests.pathFocusPending = false
             pathFocused = true
         }
         .onChange(of: requests.saveRequestToken) { _, _ in
@@ -164,7 +166,8 @@ struct RequestBarView: View {
             Text(title)
             if count > 0 {
                 Text(String(count))
-                    .font(.caption2.weight(.semibold))
+                    .contentTransition(.numericText(value: Double(count)))
+                    .font(.code(.caption2, weight: .semibold))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(.tint.opacity(0.18), in: .capsule)
@@ -172,6 +175,7 @@ struct RequestBarView: View {
             }
         }
         .font(.callout)
+        .animation(reduceMotion ? nil : .snappy, value: count)
     }
 
     private func send() {
@@ -227,7 +231,7 @@ struct OperationDocs: View {
                                     Text(parameter.name)
                                         .font(.code(.callout))
                                     Text(parameter.location.rawValue + (parameter.type.map { " · \($0)" } ?? ""))
-                                        .font(.caption2)
+                                        .font(.code(.caption2))
                                         .foregroundStyle(.tertiary)
                                 }
                                 Text(parameter.description ?? "")

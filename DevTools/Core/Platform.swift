@@ -53,11 +53,16 @@ extension PlatformColor {
         .quaternaryLabel
         #endif
     }
+
+    /// On iOS the System theme draws straight over the well, whose wash
+    /// otherwise stops at the text view's edge and leaves the body screen
+    /// black against the lists around it. The well is the system background
+    /// under a faint wash, so the System hues' contrast holds.
     static var codeBackground: PlatformColor {
         #if os(macOS)
         .textBackgroundColor
         #else
-        .systemBackground
+        .clear
         #endif
     }
     static var recessedBackground: PlatformColor {
@@ -73,6 +78,25 @@ extension PlatformColor {
     static let codePurple = raisedInLight(.systemPurple)
     static let codeOrange = raisedInLight(.systemOrange)
     static let codeBlue = raisedInLight(.systemBlue)
+
+    /// A fixed sRGB colour per appearance, from `0xRRGGBB` values.
+    static func appearance(light: UInt32, dark: UInt32) -> PlatformColor {
+        let light = srgb(light), dark = srgb(dark)
+        #if os(macOS)
+        return NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light }
+        #else
+        return UIColor { $0.userInterfaceStyle == .dark ? dark : light }
+        #endif
+    }
+
+    private static func srgb(_ hex: UInt32) -> PlatformColor {
+        let r = CGFloat((hex >> 16) & 0xFF) / 255, g = CGFloat((hex >> 8) & 0xFF) / 255, b = CGFloat(hex & 0xFF) / 255
+        #if os(macOS)
+        return NSColor(srgbRed: r, green: g, blue: b, alpha: 1)
+        #else
+        return UIColor(red: r, green: g, blue: b, alpha: 1)
+        #endif
+    }
 
     /// The system hue as-is in dark appearances, and its Increase Contrast
     /// variant in light ones: the code surface is white, where the standard
@@ -112,6 +136,49 @@ enum Clipboard {
         NSPasteboard.general.setString(string, forType: .string)
         #else
         UIPasteboard.general.string = string
+        #endif
+    }
+
+    static func copy(_ image: PlatformImage) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        #else
+        UIPasteboard.general.image = image
+        #endif
+    }
+}
+
+extension Font.TextStyle {
+    /// The code face sets larger on iPad than on the Mac at the same style,
+    /// so list rows step down there to sit level with their neighbours.
+    static var codeListRow: Font.TextStyle {
+        #if os(macOS)
+        .callout
+        #else
+        .subheadline
+        #endif
+    }
+
+    /// The same step for a detail's name/value rows (response headers):
+    /// iOS's body size sets the code face far larger than the Mac's.
+    static var codeDetailRow: Font.TextStyle {
+        #if os(macOS)
+        .body
+        #else
+        .subheadline
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// A horizontally compact layout: an iPhone, or an iPad in Slide Over or
+    /// a narrow split. The Mac has no size classes and is never compact.
+    var isCompactWidth: Bool {
+        #if os(macOS)
+        false
+        #else
+        horizontalSizeClass == .compact
         #endif
     }
 }

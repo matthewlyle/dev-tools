@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// An item's metadata, read top-down: title and one-line summary, tagline and
-/// synopsis, tag groups as sentences, then every attribute with units
-/// decoded, and nested elements collapsed. Artwork isn't repeated here — the
-/// selected poster is already showing in the grid. `Image` elements render as
+/// An item's metadata, read top-down: its title and one-line summary,
+/// tagline and synopsis, tag groups as sentences, then every attribute with
+/// units decoded, and nested elements collapsed. `Image` elements render as
 /// thumbnails that open in a lightbox; `UltraBlurColors` as a palette.
 struct MediaInfoView: View {
     let item: MediaItem
@@ -28,16 +27,15 @@ struct MediaInfoView: View {
                         .font(.title.weight(.semibold))
                         .textSelection(.enabled)
                     Spacer(minLength: 12)
-                    if let itemJSON {
-                        Button {
-                            Clipboard.copy(itemJSON)
-                        } label: {
-                            Label("Copy JSON", systemImage: "curlybraces")
-                                .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Copy this item's JSON from the response")
+                    Button {
+                        if let itemJSON { Clipboard.copy(itemJSON) }
+                    } label: {
+                        Label("Copy JSON", systemImage: "curlybraces")
+                            .labelStyle(.iconOnly)
                     }
+                    .buttonStyle(.borderless)
+                    .disabled(itemJSON == nil)
+                    .help("Copy this item's JSON from the response")
                     Button(action: dismiss) {
                         Label("Hide Info", systemImage: "xmark")
                             .labelStyle(.iconOnly)
@@ -135,7 +133,7 @@ struct MediaInfoView: View {
             Text(name)
                 .font(.title3.weight(.semibold))
             Text(String(count))
-                .font(.caption.weight(.semibold))
+                .font(.code(.caption, weight: .semibold))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(.quaternary, in: .capsule)
@@ -144,7 +142,8 @@ struct MediaInfoView: View {
 }
 
 /// Name → value rows. Names are secondary system text; values are primary,
-/// decoded where the name gives away a unit, otherwise in the code face.
+/// in the code face, decoded where the name gives away a unit (the raw value
+/// is the tooltip).
 /// Credentials are masked and can't be copied.
 private struct AttributeTable: View {
     let attributes: [Attribute]
@@ -174,7 +173,7 @@ private struct AttributeTable: View {
                 .help("Credential — never shown")
         } else if let display = MediaValue.display(name: attribute.name, value: attribute.value) {
             Text(display)
-                .font(.body)
+                .font(.code(.body))
                 .help(attribute.value)
                 .textSelection(.enabled)
         } else {
@@ -230,7 +229,7 @@ private struct ImageStrip: View {
                 Text("Image")
                     .font(.title3.weight(.semibold))
                 Text(String(items.count))
-                    .font(.caption.weight(.semibold))
+                    .font(.code(.caption, weight: .semibold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(.quaternary, in: .capsule)

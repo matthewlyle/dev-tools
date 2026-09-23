@@ -9,6 +9,7 @@ struct EndpointListView: View {
     @Environment(SpecStore.self) private var spec
     @Environment(RequestStore.self) private var requests
     @Environment(SavedStore.self) private var saved
+    @Environment(\.showSectionDetail) private var showDetail
 
     @State private var search = ""
     @State private var pending: SpecOperation?
@@ -76,6 +77,7 @@ struct EndpointListView: View {
             PlaceholderSheet(operation: operation, server: server) { path in
                 guard let server else { return }
                 requests.open(operation, path: path, on: server)
+                showDetail?()
             }
         }
     }
@@ -84,6 +86,7 @@ struct EndpointListView: View {
         guard let server else { return }
         if operation.placeholders.isEmpty {
             requests.open(operation, path: operation.template, on: server)
+            showDetail?()
         } else {
             pending = operation
         }
@@ -106,7 +109,7 @@ private struct EndpointRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(operation.template)
-                        .font(.code(.callout))
+                        .font(.code(.codeListRow))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if lockedOut {

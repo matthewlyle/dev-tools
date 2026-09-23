@@ -131,12 +131,6 @@ struct AppCommands: Commands {
             .keyboardShortcut("r", modifiers: .command)
             .disabled(account.token == nil || servers.isRefreshing)
 
-            Button("Connect") {
-                guard let id = servers.selectedID else { return }
-                Task { await servers.probe(id: id) }
-            }
-            .disabled(servers.selected == nil || servers.selected?.isProbing == true)
-
             Divider()
 
             Button("Delete History Item") { deleteHistoryEntry?.run() }
