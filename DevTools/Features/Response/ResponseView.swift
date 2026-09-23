@@ -148,7 +148,10 @@ struct ResponseView<RequestBar: View>: View {
 /// (empty, loading) go through it so the detail is always a scroll surface:
 /// on macOS the toolbar draws its backdrop over static content and turns
 /// transparent only over a scroll view, and every section should look the
-/// same at rest.
+/// same at rest. The content is pinned to the top: a scroll view proposes no
+/// height, so while the viewport changes size (the keyboard rising) the
+/// content can briefly be shorter than the minimum, and a centred frame
+/// would float the request bar down the screen.
 struct FillingScrollView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -158,7 +161,7 @@ struct FillingScrollView<Content: View>: View {
                 VStack(spacing: 0) {
                     content()
                 }
-                .frame(minHeight: proxy.size.height)
+                .frame(minHeight: proxy.size.height, alignment: .top)
             }
         }
     }
