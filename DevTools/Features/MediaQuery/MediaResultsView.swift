@@ -97,7 +97,7 @@ struct MediaResultsView: View {
                         } else if requests.isSending {
                             ProgressView()
                         } else {
-                            ZeroState(text: "Run a query to see its items as posters.")
+                            ZeroState(text: "Run a query to see results here.")
                                 .restingStateTransition(rising: true)
                         }
                     }
