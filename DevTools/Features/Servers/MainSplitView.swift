@@ -702,10 +702,6 @@ struct MainSplitView: View {
             }
         }
         .id(servers.selected?.id)
-        // The tab bar crossfades whole tabs; cutting the outgoing content
-        // leaves it only the well to fade, so the switch reads as the
-        // regular layout's does.
-        .sectionResident(active: section == item)
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background { WellBackground() }
         .environment(\.showSectionDetail, ShowSectionDetailAction { pushed.insert(item) })
@@ -736,7 +732,6 @@ struct MainSplitView: View {
             case .activity: EmptyView()
             }
         }
-        .sectionResident(active: section == item)
         .modifier(SectionInspector(section: item, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background { WellBackground() }
