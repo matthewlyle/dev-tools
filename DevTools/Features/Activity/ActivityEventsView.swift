@@ -283,6 +283,7 @@ struct EventInspector: View {
                     header: AnyView(EmptyView())
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea(.container, edges: .bottom)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
