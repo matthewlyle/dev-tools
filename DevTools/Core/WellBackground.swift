@@ -15,6 +15,7 @@ struct WellBackground: View {
     #if os(iOS)
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #endif
 
     var body: some View {
@@ -34,6 +35,7 @@ struct WellBackground: View {
                         TopWash(strength: colorScheme == .dark ? 1 : 0.5)
                         SignalRings()
                             .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
+                            .modifier(ListeningPulse(active: state?.showsRings == true && !reduceMotion))
                             .mask(RadialFromTitle())
                             .opacity(ringOpacity)
                             // Rise with the connection, leave quickly when it
@@ -55,6 +57,29 @@ struct WellBackground: View {
     }
     #endif
 }
+
+#if os(iOS)
+/// While the stream is live the rings breathe: a slow swell outward from the
+/// title and back, dimming as they go, so Activity reads as listening. Under
+/// the fixed mask, so they drift into the fade rather than past it.
+private struct ListeningPulse: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.phaseAnimator([false, true]) { view, swelled in
+                view
+                    .opacity(swelled ? 0.55 : 1)
+                    .scaleEffect(swelled ? 1.03 : 1, anchor: .top)
+            } animation: { _ in
+                .easeInOut(duration: 2.4)
+            }
+        } else {
+            content
+        }
+    }
+}
+#endif
 
 #if os(iOS)
 /// Three hues along the top edge blending down to nothing: indigo at the
