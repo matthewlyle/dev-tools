@@ -70,7 +70,7 @@ struct EndpointListView: View {
                     ProgressView()
                 }
             } else if groups.isEmpty && savedRows.isEmpty {
-                ContentUnavailableView.search(text: search)
+                ZeroState(text: "No endpoints match the filter.")
             }
         }
         .sheet(item: $pending) { operation in
