@@ -269,18 +269,7 @@ struct OperationDocs: View {
                 Text(operation.template)
                     .font(.code(.callout))
                     .foregroundStyle(.secondary)
-                switch operation.access {
-                case .admin:
-                    Label("Requires admin — the server's owner", systemImage: "lock")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                case .open:
-                    Label("No token required", systemImage: "lock.open")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                case .anyUser:
-                    EmptyView()
-                }
+                OperationAccessLabel(access: operation.access)
                 if let description = operation.description, !description.isEmpty {
                     Text(description)
                         .font(.callout)
@@ -289,7 +278,7 @@ struct OperationDocs: View {
                     parameters
                 }
                 if operation.supportsMediaQuery {
-                    Text("Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping.")
+                    Text(Self.mediaQueryNote)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -306,19 +295,14 @@ struct OperationDocs: View {
     private var parameters: some View {
         if compact {
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(operation.parameters) { parameter in
-                    VStack(alignment: .leading, spacing: 3) {
-                        name(parameter)
-                        description(parameter)
-                    }
-                }
+                ForEach(operation.parameters) { ParameterDocRow(parameter: $0) }
             }
         } else {
             Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 6) {
                 ForEach(operation.parameters) { parameter in
                     GridRow {
-                        name(parameter)
-                        description(parameter)
+                        ParameterName(parameter: parameter)
+                        ParameterDescription(parameter: parameter)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -326,7 +310,36 @@ struct OperationDocs: View {
         }
     }
 
-    private func name(_ parameter: SpecParameter) -> some View {
+    static var mediaQueryNote: LocalizedStringKey {
+        "Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping."
+    }
+}
+
+/// Who may call an operation, when it isn't every signed-in user.
+struct OperationAccessLabel: View {
+    let access: SpecOperation.Access
+
+    var body: some View {
+        switch access {
+        case .admin:
+            Label("Requires admin — the server's owner", systemImage: "lock")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .open:
+            Label("No token required", systemImage: "lock.open")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .anyUser:
+            EmptyView()
+        }
+    }
+}
+
+/// A documented parameter's name, with where it goes and its type under it.
+struct ParameterName: View {
+    let parameter: SpecParameter
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(parameter.name)
                 .font(.code(.callout))
@@ -335,13 +348,29 @@ struct OperationDocs: View {
                 .foregroundStyle(.tertiary)
         }
     }
+}
 
-    @ViewBuilder
-    private func description(_ parameter: SpecParameter) -> some View {
+struct ParameterDescription: View {
+    let parameter: SpecParameter
+
+    var body: some View {
         if let text = parameter.description, !text.isEmpty {
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// A parameter's name over its description, for widths too narrow to set
+/// them side by side without breaking names mid-word.
+struct ParameterDocRow: View {
+    let parameter: SpecParameter
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ParameterName(parameter: parameter)
+            ParameterDescription(parameter: parameter)
         }
     }
 }
