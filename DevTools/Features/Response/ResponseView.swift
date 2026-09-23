@@ -77,6 +77,8 @@ struct ResponseView<RequestBar: View>: View {
                                 description: Text(error)
                             )
                             .restingStateTransition(rising: true)
+                        } else if requests.isSending {
+                            ProgressView()
                         } else {
                             ZeroState(text: editable
                                 ? "Send a request to see the response here."

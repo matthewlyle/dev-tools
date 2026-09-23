@@ -107,13 +107,6 @@ final class RequestStore {
         perform(current, on: server, recordHistory: false)
     }
 
-    func open(path: String, on server: ConnectedServer) {
-        editingSavedID = nil
-        current.path = path
-        current.query = []
-        send(to: server)
-    }
-
     /// Loads the operation's required parameters. Sends only when they all
     /// have values; otherwise the request waits in the always-visible editor.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
@@ -122,6 +115,7 @@ final class RequestStore {
         current.query = operation.queryParameters
             .filter(\.required)
             .map { QueryParam(name: $0.name, value: $0.suggestedValue) }
+        discardResponse(unlessFor: current)
         if current.query.allSatisfy({ !$0.value.isEmpty }) {
             send(to: server)
         }
@@ -428,6 +422,18 @@ final class RequestStore {
         editingSavedID = nil
         current = request
         current.accept = acceptFormat
+        discardResponse(unlessFor: current)
+    }
+
+    /// Opening a different request drops the last one's response, which
+    /// would otherwise show under it until the send lands. Re-running the
+    /// same request keeps it readable.
+    private func discardResponse(unlessFor request: PlexRequest) {
+        guard request.summary != lastSent?.summary else { return }
+        cancel()
+        response = nil
+        document = nil
+        errorMessage = nil
     }
 
     /// The saved request the bar was loaded from, if any. Edits keep it;
