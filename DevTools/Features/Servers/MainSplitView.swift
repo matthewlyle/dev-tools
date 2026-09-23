@@ -213,6 +213,10 @@ private struct SectionInspector: ViewModifier {
     @Environment(\.isCompactWidth) private var compact
     @State private var tall = false
     @Namespace private var posterZoom
+    /// Where an adapted event sheet rests. It opens at half height, keeps
+    /// its height while another event is picked behind it, and starts at
+    /// half again next time.
+    @State private var eventDetent: PresentationDetent = .medium
 
     private enum Shown {
         case event(NotificationEvent)
@@ -267,7 +271,8 @@ private struct SectionInspector: ViewModifier {
                         // list stays live behind it so another tap re-targets it
                         // instead of first dismissing it; a half-height sheet
                         // leaves the list in view to tap.
-                        .presentationDetents([.medium, .large])
+                        .presentationDetents([.medium, .large], selection: $eventDetent)
+                        .presentationDragIndicator(.visible)
                         .presentationBackgroundInteraction(.enabled)
                 case .item(let item):
                     mediaInfo(item)
@@ -290,6 +295,9 @@ private struct SectionInspector: ViewModifier {
             }
             .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { tall = $0 }
             #endif
+            .onChange(of: inspected == nil) { _, closed in
+                if closed { eventDetent = .medium }
+            }
     }
 
     private func mediaInfo(_ item: MediaItem) -> some View {
