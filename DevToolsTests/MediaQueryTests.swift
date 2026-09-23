@@ -68,6 +68,17 @@ struct MediaQueryTests {
         #expect(query(q.queryParams) == "type=10&sort=ratingCount:desc,title&group=title&limit=100")
     }
 
+    @Test func photoQueriesFlattenAlbums() {
+        var q = MediaQuery()
+        q.sectionKey = "5"
+        q.type = 13
+        q.root.children = [node("addedAt", .date, ">>=", "-1y")]
+        #expect(query(q.queryParams) == "type=13&clusterZoomLevel=1&addedAt>>=-1y")
+
+        q.type = 14
+        #expect(query(q.queryParams) == "type=14&addedAt>>=-1y")
+    }
+
     @Test func requestURLEncodesOperatorCharactersOnTheKey() throws {
         var q = MediaQuery()
         q.sectionKey = "1"

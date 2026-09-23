@@ -234,6 +234,11 @@ struct MediaQuery: Hashable, Sendable {
 
     var queryParams: [QueryParam] {
         var params = [QueryParam(name: "type", value: String(type))]
+        // A photo library's /all lists only its top level, and photos sit in
+        // albums; clusterZoomLevel=1 flattens them so every photo matches.
+        if type == MetadataType.numbers["photo"] {
+            params.append(QueryParam(name: "clusterZoomLevel", value: "1"))
+        }
         params += clauseParams(root)
         if !sorts.isEmpty {
             params.append(QueryParam(name: "sort", value: sorts.map(\.token).joined(separator: ",")))
