@@ -38,27 +38,23 @@ struct PlaceholderSheet: View {
                 .foregroundStyle(.secondary)
         } content: {
             Form {
-                Section {
-                    ForEach(operation.placeholders, id: \.self) { name in
+                ForEach(operation.placeholders, id: \.self) { name in
+                    Section {
                         row(for: name)
-                    }
-                } footer: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if let description = operation.pathParameters.compactMap(\.description).first {
+                    } footer: {
+                        if let description = operation.pathParameters.first(where: { $0.name == name })?.description {
                             Text(description)
                         }
-                        if let description = operation.description, !description.isEmpty {
-                            Text(description)
-                                .textSelection(.enabled)
-                        }
                     }
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+        } footer: {
+            if let description = operation.description, !description.isEmpty {
+                Text(description)
+                    .textSelection(.enabled)
+            }
         }
         .onAppear {
             for name in operation.placeholders {
