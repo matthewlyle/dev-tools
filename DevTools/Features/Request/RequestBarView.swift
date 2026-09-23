@@ -60,8 +60,6 @@ struct RequestBarView: View {
                 HStack(spacing: 8) {
                     HistoryNavButtons(server: server)
                     Spacer(minLength: 0)
-                    docsButton
-                    docsLink
                     sendButton
                 }
             } else {
@@ -154,8 +152,8 @@ struct RequestBarView: View {
     }
 
     /// Docs, save, and copy, beside the URL they act on. A compact width
-    /// moves save and copy into the screen's navigation bar
-    /// (`requestScreenActions`).
+    /// moves them into the screen's navigation bar (`requestScreenActions`),
+    /// the developer docs link inside the documentation sheet.
     @ViewBuilder
     private var urlActions: some View {
         docsLink
@@ -268,6 +266,12 @@ struct OperationDocs: View {
                     Text("Accepts media queries: field operators (`year>>=2000`), `sort=`, `group=`, `limit=`, and `push=1`/`pop=1`/`or=1` for grouping.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if compact, let url = operation.docsURL {
+                    Link(destination: url) {
+                        Label("Open in Developer Docs", systemImage: "safari")
+                    }
+                    .font(.callout)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
