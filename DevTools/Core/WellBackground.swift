@@ -16,6 +16,7 @@ struct WellBackground: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(WashStyle.storageKey) private var wash: WashStyle = .indigoTeal
     #endif
 
     var body: some View {
@@ -28,13 +29,18 @@ struct WellBackground: View {
                 .ignoresSafeArea()
         }
         #else
+        // Drawn as one opaque layer in extended linear colour: an alpha
+        // gradient this faint, rasterised into its own 8-bit layer before
+        // compositing, has only a few dozen levels to fade through, and the
+        // grain can only dither what's left if it's mixed in at float depth.
         ZStack {
             Color(uiColor: .systemBackground)
             if contrast != .increased {
-                TopWash(strength: colorScheme == .dark ? 1 : 0.5)
+                TopWash(style: wash, strength: colorScheme == .dark ? 1 : 0.5)
                 Grain()
             }
         }
+        .drawingGroup(opaque: true, colorMode: .extendedLinear)
         .overlay {
             if contrast != .increased {
                 SignalRings()
@@ -117,17 +123,16 @@ private struct Grain: View {
     }
 }
 
-/// Three hues along the top edge blending down to nothing: indigo at the
-/// leading corner, the accent brightest just under the title, teal at the
-/// trailing corner. The second row bows down under the title so the glow
-/// gathers there. Each hue eases out over several rows to its own
-/// transparent self, not to `.clear` (transparent black, which greys the
-/// blend): a fade that stops at one row shows where it stops.
+/// Three hues along the top edge blending down to nothing, the middle one
+/// under the title. The second row bows down there so the glow gathers
+/// under it. Each hue eases out over several rows to its own transparent
+/// self, not to `.clear` (transparent black, which greys the blend): a fade
+/// that stops at one row shows where it stops.
 private struct TopWash: View {
+    let style: WashStyle
     let strength: Double
 
     var body: some View {
-        let indigo = Color.indigo, accent = Color.accentColor, teal = Color.teal
         let rows: [Double] = [1, 0.5, 0.2, 0.05, 0]
         return MeshGradient(
             width: 3,
@@ -140,11 +145,46 @@ private struct TopWash: View {
                 [0, 1], [0.5, 1], [1, 1],
             ],
             colors: rows.flatMap { share in
-                [indigo.opacity(0.16 * strength * share), accent.opacity(0.2 * strength * share), teal.opacity(0.14 * strength * share)]
+                style.hues.map { $0.color.opacity($0.opacity * strength * share) }
             },
             colorSpace: .perceptual
         )
         .accessibilityHidden(true)
+    }
+}
+
+/// The wash's hues, a Settings choice while they're being compared.
+enum WashStyle: String, CaseIterable, Identifiable {
+    case indigoTeal, blue, cyan, nightSky, aurora, plexAmber, amberBlue
+
+    static let storageKey = "washStyle"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .indigoTeal: "Indigo & Teal"
+        case .blue: "Blue"
+        case .cyan: "Blue & Cyan"
+        case .nightSky: "Night Sky"
+        case .aurora: "Aurora"
+        case .plexAmber: "Plex Amber"
+        case .amberBlue: "Amber & Blue"
+        }
+    }
+
+    /// Leading corner, under the title, trailing corner, each at its top-edge
+    /// strength in dark mode. Warm hues are brighter, so they run fainter.
+    var hues: [(color: Color, opacity: Double)] {
+        switch self {
+        case .indigoTeal: [(.indigo, 0.16), (.accentColor, 0.2), (.teal, 0.14)]
+        case .blue: [(.accentColor, 0.12), (.accentColor, 0.2), (.accentColor, 0.12)]
+        case .cyan: [(.cyan, 0.12), (.blue, 0.2), (.cyan, 0.12)]
+        case .nightSky: [(.blue, 0.12), (.indigo, 0.22), (.purple, 0.12)]
+        case .aurora: [(.teal, 0.14), (.blue, 0.18), (.purple, 0.14)]
+        case .plexAmber: [(.orange, 0.08), (.yellow, 0.1), (.orange, 0.08)]
+        case .amberBlue: [(.orange, 0.1), (.indigo, 0.14), (.accentColor, 0.14)]
+        }
     }
 }
 #endif

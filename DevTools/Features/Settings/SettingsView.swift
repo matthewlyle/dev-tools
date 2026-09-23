@@ -10,6 +10,9 @@ struct SettingsView: View {
     @AppStorage("translucentBackground") private var translucent = true
     #endif
     @AppStorage(CodeTheme.storageKey) private var codeTheme: CodeTheme = .system
+    #if os(iOS)
+    @AppStorage(WashStyle.storageKey) private var wash: WashStyle = .indigoTeal
+    #endif
     @State private var confirmingClear = false
     @State private var confirmingSignOut = false
 
@@ -78,6 +81,10 @@ struct SettingsView: View {
                 }
                 #if os(macOS)
                 Toggle("Translucent background", isOn: $translucent)
+                #else
+                Picker("Background", selection: $wash) {
+                    ForEach(WashStyle.allCases) { Text($0.title).tag($0) }
+                }
                 #endif
             } header: {
                 Text("Appearance")
