@@ -202,11 +202,13 @@ private struct PosterCell: View {
     let select: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.posterZoom) private var posterZoom
 
     var body: some View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 6) {
                 PosterArt(item: item, server: server)
+                    .zoomSource(id: item.id, in: posterZoom)
                     .overlay {
                         ZStack {
                             if isSelected {
@@ -242,6 +244,23 @@ private struct PosterButtonStyle: ButtonStyle {
             .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
             .opacity(pressed && reduceMotion ? 0.7 : 1)
             .animation(.snappy(duration: 0.15), value: pressed)
+    }
+}
+
+private extension View {
+    /// The artwork the item sheet zooms out of, with its corners, so the
+    /// sheet grows from the poster's own shape.
+    @ViewBuilder
+    func zoomSource(id: some Hashable, in namespace: Namespace.ID?) -> some View {
+        #if os(iOS)
+        if let namespace {
+            matchedTransitionSource(id: id, in: namespace) { $0.clipShape(.rect(cornerRadius: 8)) }
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }
 

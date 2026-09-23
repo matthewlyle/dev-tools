@@ -32,6 +32,9 @@ extension EnvironmentValues {
     /// where the detail isn't already beside the list: a compact width, which
     /// pushes it.
     @Entry var showSectionDetail: ShowSectionDetailAction? = nil
+    /// Where Media's posters register as zoom sources, so the item sheet
+    /// grows out of the one tapped. Set by `SectionInspector` on iOS.
+    @Entry var posterZoom: Namespace.ID? = nil
 }
 
 struct ShowSectionDetailAction {
@@ -187,10 +190,11 @@ extension View {
 /// resident siblings, and two `.inspector` modifiers in one column compete
 /// for the same presentation, so a section's own would present or fill from
 /// whichever sibling SwiftUI read last. On a compact width each tab's detail
-/// hosts its own, and only the active tab's presents. A Media item on a
-/// regular-width iPad opens in a centred sheet while the detail is taller
-/// than wide: a side panel there squeezes the poster grid, and a full-width
-/// iPad sheet can't rest at a bottom detent the way a phone's does.
+/// hosts its own, and only the active tab's presents. On iOS a Media item
+/// opens in a sheet that zooms out of its poster wherever the detail is
+/// compact or taller than wide: a side panel there squeezes the poster grid,
+/// and an inspector can't zoom. Only the side inspector lets another poster
+/// be tapped past it; a sheet closes back into its poster first.
 private struct SectionInspector: ViewModifier {
     let section: ServerSection
     let server: ConnectedServer?
@@ -201,6 +205,7 @@ private struct SectionInspector: ViewModifier {
     @Environment(\.sectionIsActive) private var isActive
     @Environment(\.isCompactWidth) private var compact
     @State private var tall = false
+    @Namespace private var posterZoom
 
     private enum Shown {
         case event(NotificationEvent)
@@ -226,7 +231,7 @@ private struct SectionInspector: ViewModifier {
 
     private var itemInSheet: Bool {
         #if os(iOS)
-        !compact && tall
+        compact || tall
         #else
         false
         #endif
@@ -243,6 +248,7 @@ private struct SectionInspector: ViewModifier {
             // UIKit hosts an inspector's main content in its own opaque
             // container, which covers a well drawn behind the modifier.
             .background { WellBackground() }
+            .environment(\.posterZoom, posterZoom)
             #endif
             .inspector(isPresented: Binding(get: { inspected != nil }, set: { if !$0, isActive, sheetItem == nil { dismiss() } })) {
                 switch inspected {
@@ -259,20 +265,20 @@ private struct SectionInspector: ViewModifier {
                 case .item(let item):
                     mediaInfo(item)
                         .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
-                        .presentationDetents([.medium, .large])
-                        .presentationBackgroundInteraction(.enabled)
-                        // A compact inspector is a sheet, over the window's
-                        // lightbox; the sheet needs its own.
-                        .overlay { if compact { LightboxOverlay() } }
                 case nil:
                     EmptyView()
                 }
             }
             #if os(iOS)
+            // The window's lightbox is drawn under a sheet; the sheet needs
+            // its own.
             .sheet(isPresented: Binding(get: { sheetItem != nil }, set: { if !$0, isActive, itemInSheet { dismiss() } })) {
                 if let sheetItem {
                     mediaInfo(sheetItem)
                         .overlay { LightboxOverlay() }
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
+                        .navigationTransition(.zoom(sourceID: sheetItem.id, in: posterZoom))
                 }
             }
             .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { tall = $0 }
