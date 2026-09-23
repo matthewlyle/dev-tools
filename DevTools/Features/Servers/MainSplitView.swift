@@ -410,7 +410,6 @@ struct SectionColumnList<Content: View>: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
-            .reportsWellScroll()
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -419,7 +418,6 @@ struct SectionColumnList<Content: View>: View {
                 .padding(.vertical, 6)
             }
             .scrollDismissesKeyboard(.immediately)
-            .reportsWellScroll()
         }
     }
 }

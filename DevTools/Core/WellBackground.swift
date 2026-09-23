@@ -5,12 +5,11 @@ import SwiftUI
 /// area (as Safari's start page does), toggleable in Settings. iOS has no
 /// desktop behind the window, so it's the system background under a faint,
 /// static mesh of colour across the top — indigo, the accent strongest
-/// behind the server title, teal — with faint rings spreading out from the
-/// title, as a signal from the server every screen is scoped to. Both are
-/// gone by mid-screen; they give the glass bars something to refract.
-/// Increase Contrast drops both.
+/// behind the server title, teal — gone by mid-screen, which gives the glass
+/// bars something to refract. While Activity is live, faint rings spread
+/// from the title as the server's signal. Increase Contrast drops both.
 struct WellBackground: View {
-    var scroll: WellScroll? = nil
+    var state: WellState? = nil
 
     @AppStorage("translucentBackground") private var translucent = true
     #if os(iOS)
@@ -33,18 +32,28 @@ struct WellBackground: View {
                 if contrast != .increased {
                     ZStack {
                         TopWash(strength: colorScheme == .dark ? 1 : 0.5)
-                        // The rings belong to the top of the screen; once its
-                        // content scrolls under the bar they give way to it.
                         SignalRings()
                             .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
                             .mask(RadialFromTitle())
-                            .opacity(1 - (scroll?.fade ?? 0))
+                            .opacity(ringOpacity)
+                            // Rise with the connection, leave quickly when it
+                            // drops; the scroll fade follows the finger.
+                            .animation(state?.showsRings == true ? .smooth(duration: 0.6) : .easeOut(duration: 0.2), value: state?.showsRings)
                     }
                 }
             }
             .ignoresSafeArea()
         #endif
     }
+
+    #if os(iOS)
+    /// They belong to the top of the screen; once its content scrolls under
+    /// the bar they give way to it.
+    private var ringOpacity: Double {
+        guard let state, state.showsRings else { return 0 }
+        return 1 - state.ringFade
+    }
+    #endif
 }
 
 #if os(iOS)
@@ -77,27 +86,15 @@ private struct TopWash: View {
 }
 #endif
 
-/// How far a screen's content has scrolled from its top, as the share of the
-/// fade distance its rings have faded, from every scroll view on the screen
-/// that reports. The furthest-scrolled one wins, so an iPad's list or detail
-/// scrolling under the bar fades them either way.
+/// What a screen's content asks of its well: the signal rings, and how far
+/// they've faded as that content scrolled from its top.
 @MainActor
 @Observable
-final class WellScroll {
+final class WellState {
     nonisolated static let fadeDistance: CGFloat = 120
 
-    private var progress: [UUID: Double] = [:]
-
-    var fade: Double { progress.values.max() ?? 0 }
-
-    func set(_ value: Double, for reporter: UUID) {
-        guard progress[reporter] != value else { return }
-        progress[reporter] = value
-    }
-
-    func remove(_ reporter: UUID) {
-        progress[reporter] = nil
-    }
+    var showsRings = false
+    var ringFade: Double = 0
 
     /// Offset from the top as a fade share, in twentieths, so a scroll
     /// updates the well a handful of times, not every frame.
@@ -107,57 +104,63 @@ final class WellScroll {
 }
 
 extension EnvironmentValues {
-    @Entry var wellScroll: WellScroll? = nil
+    @Entry var well: WellState? = nil
 }
 
 private struct WellBackgroundModifier: ViewModifier {
-    @State private var scroll = WellScroll()
+    @State private var state = WellState()
 
     func body(content: Content) -> some View {
         content
-            .environment(\.wellScroll, scroll)
-            .background { WellBackground(scroll: scroll) }
+            .environment(\.well, state)
+            .background { WellBackground(state: state) }
     }
 }
 
-private struct WellScrollReporter: ViewModifier {
-    @Environment(\.wellScroll) private var scroll
-    @Environment(\.sectionIsActive) private var isActive
-    @State private var id = UUID()
-    @State private var share: Double = 0
+private struct SignalRingsRequest: ViewModifier {
+    let visible: Bool
+
+    @Environment(\.well) private var well
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: visible, initial: true) { _, visible in
+                well?.showsRings = visible
+            }
+            .onDisappear { well?.showsRings = false }
+    }
+}
+
+private struct SignalRingsFade: ViewModifier {
+    @Environment(\.well) private var well
 
     func body(content: Content) -> some View {
         #if os(iOS)
-        content
-            .onScrollGeometryChange(for: Double.self) { geometry in
-                WellScroll.share(scrolled: geometry.contentOffset.y + geometry.contentInsets.top)
-            } action: { _, value in
-                share = value
-                report()
-            }
-            // A hidden resident section keeps its scroll position; it mustn't
-            // hold the rings faded on the one that's showing.
-            .onChange(of: isActive) { _, _ in report() }
-            .onDisappear { scroll?.remove(id) }
+        content.onScrollGeometryChange(for: Double.self) { geometry in
+            WellState.share(scrolled: geometry.contentOffset.y + geometry.contentInsets.top)
+        } action: { _, share in
+            well?.ringFade = share
+        }
         #else
         content
         #endif
     }
-
-    private func report() {
-        scroll?.set(isActive ? share : 0, for: id)
-    }
 }
 
 extension View {
-    /// The screen's well, whose rings fade as scroll views inside it that
-    /// `reportsWellScroll()` move off their top.
+    /// The screen's well, owning what its content asks of it.
     func wellBackground() -> some View {
         modifier(WellBackgroundModifier())
     }
 
-    func reportsWellScroll() -> some View {
-        modifier(WellScrollReporter())
+    /// Raises the screen well's signal rings while `visible`.
+    func signalRings(visible: Bool) -> some View {
+        modifier(SignalRingsRequest(visible: visible))
+    }
+
+    /// Fades the rings as this scroll view leaves its top.
+    func fadesSignalRings() -> some View {
+        modifier(SignalRingsFade())
     }
 }
 

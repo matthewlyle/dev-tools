@@ -174,7 +174,7 @@ private struct EventList: View {
             } else {
                 events(visible)
                     .sectionListStyle()
-                    .reportsWellScroll()
+                    .fadesSignalRings()
                     .overlay {
                         ZStack {
                             if visible.isEmpty, activity.status.isActive {
@@ -188,6 +188,7 @@ private struct EventList: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .signalRings(visible: isActive && activity.status == .connected)
         .focusedSceneValue(\.clearEvents, isActive && !activity.events.isEmpty ? ClearEventsAction { activity.clear() } : nil)
     }
 

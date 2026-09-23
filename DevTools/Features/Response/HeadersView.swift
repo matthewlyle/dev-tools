@@ -124,6 +124,5 @@ struct HeadersView<Header: View>: View {
                 .padding(.bottom, 12)
             }
         }
-        .reportsWellScroll()
     }
 }
