@@ -279,32 +279,36 @@ private struct SectionInspector: ViewModifier {
         #endif
     }
 
+    /// An adapted inspector opens full height on an iPhone whatever its
+    /// detents say; a real sheet honours them.
+    private var eventInSheet: Bool {
+        #if os(iOS)
+        compact
+        #else
+        false
+        #endif
+    }
+
     func body(content: Content) -> some View {
         let shown = shown
         let isActive = isActive
         let itemInSheet = itemInSheet
+        let eventInSheet = eventInSheet
         let sheetItem: MediaItem? = if itemInSheet, case .item(let item) = shown { item } else { nil }
-        let inspected = sheetItem == nil ? shown : nil
+        let sheetEvent: NotificationEvent? = if eventInSheet, case .event(let event) = shown { event } else { nil }
+        let inspected = sheetItem == nil && sheetEvent == nil ? shown : nil
         content
             #if os(iOS)
             // UIKit hosts an inspector's main content in its own opaque
             // container, which covers a well drawn behind the modifier.
-            .background { WellBackground() }
+            .wellBackground()
             .environment(\.posterZoom, posterZoom)
             #endif
-            .inspector(isPresented: Binding(get: { inspected != nil }, set: { if !$0, isActive, sheetItem == nil { dismiss() } })) {
+            .inspector(isPresented: Binding(get: { inspected != nil }, set: { if !$0, isActive, sheetItem == nil, sheetEvent == nil { dismiss() } })) {
                 switch inspected {
                 case .event(let event):
                     EventInspector(event: event)
                         .inspectorColumnWidth(min: 320, ideal: 460, max: 800)
-                        // Where the inspector adapts to a sheet or an overlay
-                        // (compact width, a portrait or split-screen iPad), the
-                        // list stays live behind it so another tap re-targets it
-                        // instead of first dismissing it; a half-height sheet
-                        // leaves the list in view to tap.
-                        .presentationDetents([.medium, .large], selection: $eventDetent)
-                        .presentationDragIndicator(.visible)
-                        .presentationBackgroundInteraction(.enabled)
                 case .item(let item):
                     mediaInfo(item)
                         .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
@@ -324,9 +328,19 @@ private struct SectionInspector: ViewModifier {
                         .navigationTransition(.zoom(sourceID: sheetItem.id, in: posterZoom))
                 }
             }
+            // Half height leaves the list in view and live behind it, so
+            // another tap re-targets the sheet instead of first dismissing it.
+            .sheet(isPresented: Binding(get: { sheetEvent != nil }, set: { if !$0, isActive, eventInSheet { dismiss() } })) {
+                if let sheetEvent {
+                    EventInspector(event: sheetEvent)
+                        .presentationDetents([.medium, .large], selection: $eventDetent)
+                        .presentationDragIndicator(.visible)
+                        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                }
+            }
             .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { tall = $0 }
             #endif
-            .onChange(of: inspected == nil) { _, closed in
+            .onChange(of: inspected == nil && sheetEvent == nil) { _, closed in
                 if closed { eventDetent = .medium }
             }
             .onChange(of: sheetItem == nil) { _, closed in
@@ -606,7 +620,7 @@ struct MainSplitView: View {
     private var loadingShell: some View {
         connectionStatus
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background { WellBackground() }
+            .wellBackground()
             .modifier(Header(title: title, entry: servers.selected, section: nil))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -660,7 +674,7 @@ struct MainSplitView: View {
             NavigationStack {
                 noServer
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background { WellBackground() }
+                    .wellBackground()
                     .modifier(Header(title: title, entry: servers.selected, section: nil))
                     .navigationBarTitleDisplayMode(.inline)
             }
@@ -714,7 +728,7 @@ struct MainSplitView: View {
         }
         .id(servers.selected?.id)
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
         .environment(\.showSectionDetail, ShowSectionDetailAction { pushed.insert(item) })
         .modifier(Header(title: title, entry: servers.selected, section: nil))
         .navigationBarTitleDisplayMode(.inline)
@@ -745,7 +759,7 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: item, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
         .navigationTitle(detailTitle(item))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -883,7 +897,7 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: section, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .background { WellBackground() }
+        .wellBackground()
     }
 
     /// The shell's content before the first connection: a spinner while
@@ -953,7 +967,7 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
                 }
                 detail
             }
-            .background { WellBackground() }
+            .wellBackground()
             .animation(.smooth, value: showsList)
             .animation(reduceMotion ? nil : .smooth, value: storedWidth)
         }

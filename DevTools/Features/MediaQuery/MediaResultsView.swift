@@ -37,9 +37,14 @@ struct MediaResultsView: View {
     var body: some View {
         // Resting, error, and no-items states transition; results arrive
         // without one — the grid runs its own entrance, and the body can't
-        // take one.
+        // take one. Hidden, it draws nothing: sections share the workspace,
+        // so a hidden grid would lay out, and fetch art for, whatever another
+        // section just received, and a switch back swaps in Media's own
+        // response anyway.
         ZStack {
-            if let response = requests.response {
+            if !isActive {
+                EmptyView()
+            } else if let response = requests.response {
                 Group {
                     switch tab {
                     case .posters:

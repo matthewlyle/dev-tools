@@ -10,9 +10,8 @@ final class RequestStore {
     private(set) var errorMessage: String?
     private(set) var isSending = false
     private(set) var history: [HistoryEntry] = []
-    /// Set by the request bar's ⓘ; the docs popover is presented from the
-    /// response view's own SwiftUI tree, since the request bar itself is
-    /// hosted inside the response text view where popovers can't present.
+    /// The documentation popover on Endpoints' ⓘ toolbar item, also opened by
+    /// Request ▸ Show Documentation.
     var showingDocs = false
 
     var acceptFormat: AcceptFormat {
