@@ -87,18 +87,27 @@ struct BodyControls: View {
     }
 
     var body: some View {
-        let isImage = document.format == .image
         Button {
-            if isImage {
-                if let image = PlatformImage(data: response.body) { Clipboard.copy(image) }
-            } else {
-                Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
-            }
+            Self.copy(document: document, response: response)
         } label: {
-            Label(isImage ? "Copy Image" : "Copy Body", systemImage: "doc.on.doc")
+            Label(Self.title(for: document), systemImage: "doc.on.doc")
                 .labelStyle(.iconOnly)
         }
-        .help(isImage ? "Copy image" : "Copy body")
+        .help(Self.title(for: document))
         .buttonStyle(.borderless)
+    }
+
+    static func title(for document: ResponseDocument) -> String {
+        document.format == .image ? "Copy Image" : "Copy Body"
+    }
+
+    /// The body as shown: the image for an image response, otherwise the
+    /// displayed text (pretty-printed where it was), or the raw text.
+    static func copy(document: ResponseDocument, response: PlexResponse) {
+        if document.format == .image {
+            if let image = PlatformImage(data: response.body) { Clipboard.copy(image) }
+        } else {
+            Clipboard.copy(document.text.isEmpty ? response.bodyText : document.text)
+        }
     }
 }

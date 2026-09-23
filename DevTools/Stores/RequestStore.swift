@@ -410,6 +410,12 @@ final class RequestStore {
         return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
     }
 
+    /// The current request's URL, safe to paste anywhere: the token travels
+    /// as a header, never in it.
+    func shareableURL(for server: ConnectedServer) -> String? {
+        current.url(base: server.baseURL)?.absoluteString
+    }
+
     /// The current request as a `curl` command with `$PLEX_TOKEN` in place
     /// of the credential.
     func curl(for server: ConnectedServer) -> String? {

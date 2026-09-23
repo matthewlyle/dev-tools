@@ -20,6 +20,7 @@ struct WorkspaceView: View {
                 RequestSummaryBar(server: server)
             }
         }
+        .requestScreenActions(server: server)
     }
 }
 
@@ -51,15 +52,18 @@ struct RequestSummaryBar: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button {
-                showSave = true
-            } label: {
-                Label("Save Request", systemImage: "bookmark")
-                    .labelStyle(.iconOnly)
+            // A compact width saves from the screen's navigation bar.
+            if !compact {
+                Button {
+                    showSave = true
+                } label: {
+                    Label("Save Request", systemImage: "bookmark")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .disabled(server == nil)
+                .help("Save this request (⌘S)")
             }
-            .buttonStyle(.borderless)
-            .disabled(server == nil)
-            .help("Save this request (⌘S)")
         }
         .padding(12)
         .savesCurrentRequest(isPresented: $showSave, server: server)
