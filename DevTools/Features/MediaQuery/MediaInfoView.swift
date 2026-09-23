@@ -7,6 +7,9 @@ import SwiftUI
 struct MediaInfoView: View {
     let item: MediaItem
     let server: ConnectedServer?
+    /// Where the view zooms out of the tapped poster (a sheet), it leads with
+    /// that artwork so the poster lands somewhere instead of vanishing.
+    var showsPoster = false
     let dismiss: () -> Void
 
     @Environment(RequestStore.self) private var requests
@@ -22,35 +25,45 @@ struct MediaInfoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.title)
-                        .font(.title.weight(.semibold))
-                        .textSelection(.enabled)
-                    Spacer(minLength: 12)
-                    Button {
-                        if let itemJSON { Clipboard.copy(itemJSON) }
-                    } label: {
-                        Label("Copy JSON", systemImage: "curlybraces")
-                            .labelStyle(.iconOnly)
+                HStack(alignment: .top, spacing: 16) {
+                    if showsPoster {
+                        PosterArt(item: item, server: server)
+                            .frame(width: 110)
+                            .accessibilityHidden(true)
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(itemJSON == nil)
-                    .help("Copy this item's JSON from the response")
-                    Button(action: dismiss) {
-                        Label("Hide Info", systemImage: "xmark")
-                            .labelStyle(.iconOnly)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(item.title)
+                                .font(.title.weight(.semibold))
+                                .textSelection(.enabled)
+                            Spacer(minLength: 12)
+                            Button {
+                                if let itemJSON { Clipboard.copy(itemJSON) }
+                            } label: {
+                                Label("Copy JSON", systemImage: "curlybraces")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(itemJSON == nil)
+                            .help("Copy this item's JSON from the response")
+                            Button(action: dismiss) {
+                                Label("Hide Info", systemImage: "xmark")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Hide Info (⌘I)")
+                        }
+                        if showsPoster, let tagline = item.tagline {
+                            taglineText(tagline)
+                        }
                     }
-                    .buttonStyle(.borderless)
-                    .help("Hide Info (⌘I)")
                 }
 
-                if item.tagline != nil || item.summary != nil {
+                let tagline = showsPoster ? nil : item.tagline
+                if tagline != nil || item.summary != nil {
                     VStack(alignment: .leading, spacing: 12) {
-                        if let tagline = item.tagline {
-                            Text(tagline)
-                                .font(.title3.italic())
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
+                        if let tagline {
+                            taglineText(tagline)
                         }
                         if let summary = item.summary {
                             Text(summary)
@@ -122,6 +135,13 @@ struct MediaInfoView: View {
                 return nil
             }.value
         }
+    }
+
+    private func taglineText(_ tagline: String) -> some View {
+        Text(tagline)
+            .font(.title3.italic())
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
     }
 
     private func groupLabel(_ name: String, count: Int) -> some View {

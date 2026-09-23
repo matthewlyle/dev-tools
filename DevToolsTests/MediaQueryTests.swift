@@ -89,6 +89,18 @@ struct MediaQueryTests {
         #expect(!url.absoluteString.contains("X-Plex-Token"))
     }
 
+    @Test func aRunAsksForItsFirstPageInHeaders() throws {
+        var q = MediaQuery()
+        q.sectionKey = "2"
+        q.type = 4
+        let request = q.request()
+        let headers = Dictionary(uniqueKeysWithValues: request.headers.map { ($0.name, $0.value) })
+        #expect(headers["X-Plex-Container-Start"] == "0")
+        #expect(headers["X-Plex-Container-Size"] == String(MediaQuery.pageSize))
+        let url = try #require(request.url(base: URL(string: "http://host:32400")!))
+        #expect(!url.absoluteString.contains("X-Plex-Container"))
+    }
+
     @Test func documentedOperatorsPerType() {
         #expect(MediaFieldType.string.operators.map(\.key) == ["=", "!=", "==", "!==", "<=", ">="])
         #expect(MediaFieldType.date.operators.map(\.key) == ["=", "!=", ">>=", "<<="])

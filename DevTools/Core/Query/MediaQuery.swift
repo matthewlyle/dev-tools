@@ -290,9 +290,17 @@ struct MediaQuery: Hashable, Sendable {
         }
     }
 
+    /// A run asks for one page, so a query as broad as every episode in a TV
+    /// library returns rather than timing out; the results header pages on.
+    static let pageSize = 100
+
     func request() -> PlexRequest {
         var request = PlexRequest(path: path)
         request.query = queryParams
+        request.headers = [
+            HeaderField(name: "X-Plex-Container-Start", value: "0"),
+            HeaderField(name: "X-Plex-Container-Size", value: String(Self.pageSize)),
+        ]
         return request
     }
 }

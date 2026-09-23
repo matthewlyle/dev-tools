@@ -314,7 +314,7 @@ private struct SectionInspector: ViewModifier {
             // its own.
             .sheet(isPresented: Binding(get: { sheetItem != nil }, set: { if !$0, isActive, itemInSheet { dismiss() } })) {
                 if let sheetItem {
-                    mediaInfo(sheetItem)
+                    mediaInfo(sheetItem, showsPoster: true)
                         .overlay { LightboxOverlay() }
                         .presentationDetents([.medium, .large], selection: $itemDetent)
                         .presentationDragIndicator(.visible)
@@ -331,8 +331,8 @@ private struct SectionInspector: ViewModifier {
             }
     }
 
-    private func mediaInfo(_ item: MediaItem) -> some View {
-        MediaInfoView(item: item, server: server) { mediaQuery.showsItemInfo = false }
+    private func mediaInfo(_ item: MediaItem, showsPoster: Bool = false) -> some View {
+        MediaInfoView(item: item, server: server, showsPoster: showsPoster) { mediaQuery.showsItemInfo = false }
     }
 
     private func dismiss() {
