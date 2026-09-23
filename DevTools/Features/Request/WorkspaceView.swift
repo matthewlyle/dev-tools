@@ -25,12 +25,13 @@ struct WorkspaceView: View {
 
 /// The request as a read-only URL: History replays past requests without
 /// exposing the path or parameter editors, and selecting an entry runs it,
-/// so there is nothing to send here.
+/// so there is nothing to send here. It can still be saved.
 struct RequestSummaryBar: View {
     let server: ConnectedServer?
 
     @Environment(RequestStore.self) private var requests
     @Environment(\.isCompactWidth) private var compact
+    @State private var showSave = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -49,7 +50,18 @@ struct RequestSummaryBar: View {
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                showSave = true
+            } label: {
+                Label("Save Request", systemImage: "bookmark")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .disabled(server == nil)
+            .help("Save this request (⌘S)")
         }
         .padding(12)
+        .savesCurrentRequest(isPresented: $showSave, server: server)
     }
 }
