@@ -33,9 +33,18 @@ struct PlaceholderSheet: View {
             confirm: SheetAction(title: "Open", disabled: !canOpen, run: commit),
             busy: !loading.isEmpty
         ) {
-            Text(operation.template)
-                .font(.code(.callout))
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(operation.template)
+                    .font(.code(.callout))
+                    .foregroundStyle(.secondary)
+                if let description = operation.description, !description.isEmpty {
+                    Text(description)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            }
         } content: {
             Form {
                 ForEach(operation.placeholders, id: \.self) { name in
@@ -50,11 +59,6 @@ struct PlaceholderSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-        } footer: {
-            if let description = operation.description, !description.isEmpty {
-                Text(description)
-                    .textSelection(.enabled)
-            }
         }
         .onAppear {
             for name in operation.placeholders {
