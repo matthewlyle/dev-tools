@@ -346,19 +346,58 @@ final class RequestStore {
     }
 
     /// Returns the workspace to a clean request: default path, no response,
-    /// no navigation history. Used when the visible section changes so stale
-    /// results don't linger under a different tab.
+    /// no navigation history.
     func reset() {
         cancel()
-        current = PlexRequest(path: "/")
+        apply(Workspace())
+    }
+
+    /// One section's request and what it produced, kept while another
+    /// section has the workspace.
+    private struct Workspace {
+        var current = PlexRequest(path: "/")
+        var response: PlexResponse?
+        var document: ResponseDocument?
+        var errorMessage: String?
+        var lastSent: PlexRequest?
+        var backStack: [PlexRequest] = []
+        var forwardStack: [PlexRequest] = []
+        var editingSavedID: UUID?
+    }
+
+    private var parked: [String: Workspace] = [:]
+
+    /// Sections share this one workspace, so a switch parks the outgoing
+    /// section's and restores the incoming one's: each keeps its last
+    /// request and response, and a pushed detail still has it on return.
+    /// A send in flight is cancelled; its result would land in the wrong
+    /// section.
+    func switchWorkspace(from outgoing: String, to incoming: String) {
+        cancel()
+        parked[outgoing] = Workspace(
+            current: current, response: response, document: document, errorMessage: errorMessage,
+            lastSent: lastSent, backStack: backStack, forwardStack: forwardStack, editingSavedID: editingSavedID
+        )
+        apply(parked.removeValue(forKey: incoming) ?? Workspace())
+    }
+
+    /// Every section's workspace, gone: they belong to the server they ran on.
+    func resetAllWorkspaces() {
+        parked.removeAll()
+        reset()
+    }
+
+    private func apply(_ workspace: Workspace) {
+        current = workspace.current
         current.accept = acceptFormat
-        response = nil
-        document = nil
-        errorMessage = nil
-        lastSent = nil
-        backStack = []
-        forwardStack = []
-        editingSavedID = nil
+        response = workspace.response
+        document = workspace.document
+        errorMessage = workspace.errorMessage
+        lastSent = workspace.lastSent
+        backStack = workspace.backStack
+        forwardStack = workspace.forwardStack
+        editingSavedID = workspace.editingSavedID
+        showingDocs = false
         pathFocusPending = false
     }
 
