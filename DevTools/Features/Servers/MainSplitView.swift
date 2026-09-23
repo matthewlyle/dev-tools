@@ -213,10 +213,11 @@ private struct SectionInspector: ViewModifier {
     @Environment(\.isCompactWidth) private var compact
     @State private var tall = false
     @Namespace private var posterZoom
-    /// Where an adapted event sheet rests. It opens at half height, keeps
-    /// its height while another event is picked behind it, and starts at
-    /// half again next time.
+    /// Where the event and item sheets rest. Each opens at half height and
+    /// is dragged taller from there; an event sheet keeps its height while
+    /// another event is picked behind it. Both start at half again next time.
     @State private var eventDetent: PresentationDetent = .medium
+    @State private var itemDetent: PresentationDetent = .medium
 
     private enum Shown {
         case event(NotificationEvent)
@@ -288,7 +289,7 @@ private struct SectionInspector: ViewModifier {
                 if let sheetItem {
                     mediaInfo(sheetItem)
                         .overlay { LightboxOverlay() }
-                        .presentationDetents([.medium, .large])
+                        .presentationDetents([.medium, .large], selection: $itemDetent)
                         .presentationDragIndicator(.visible)
                         .navigationTransition(.zoom(sourceID: sheetItem.id, in: posterZoom))
                 }
@@ -297,6 +298,9 @@ private struct SectionInspector: ViewModifier {
             #endif
             .onChange(of: inspected == nil) { _, closed in
                 if closed { eventDetent = .medium }
+            }
+            .onChange(of: sheetItem == nil) { _, closed in
+                if closed { itemDetent = .medium }
             }
     }
 
