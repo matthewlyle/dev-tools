@@ -89,6 +89,10 @@ struct MediaQueryBuilderView: View {
                             GroupEditor(clause: $store.query.root, type: type, server: server, isRoot: true, remove: nil)
                         } header: {
                             Text("Filters")
+                        } footer: {
+                            // Beneath the card, not a row of it, so an empty
+                            // builder is a line rather than a card of actions.
+                            FilterAddButtons(clause: $store.query.root, type: type)
                         }
 
                         Section {
@@ -112,19 +116,24 @@ struct MediaQueryBuilderView: View {
                                     store.query.sorts.move(fromOffsets: from, toOffset: to)
                                 }
                             }
-                            Button {
-                                if let option = type.sorts.first {
-                                    store.query.sorts.append(MediaQuery.Sort(key: option.key))
-                                }
-                            } label: {
-                                Label("Add Sort", systemImage: "plus")
-                            }
-                            .disabled(type.sorts.isEmpty)
                         } header: {
                             Text("Sort")
                         } footer: {
-                            if store.query.sorts.count > 1 {
-                                Text("Sorted by the first; each one after breaks ties in the ones above. Reorder from a sort's context menu.")
+                            VStack(alignment: .leading, spacing: 8) {
+                                CompactAddRow {
+                                    Button {
+                                        if let option = type.sorts.first {
+                                            store.query.sorts.append(MediaQuery.Sort(key: option.key))
+                                        }
+                                    } label: {
+                                        Label("Sort", systemImage: "plus")
+                                    }
+                                    .disabled(type.sorts.isEmpty)
+                                    .accessibilityLabel("Add Sort")
+                                }
+                                if store.query.sorts.count > 1 {
+                                    Text("Sorted by the first; each one after breaks ties in the ones above. Reorder from a sort's context menu.")
+                                }
                             }
                         }
 
@@ -221,9 +230,61 @@ struct MediaQueryBuilderView: View {
     }
 }
 
+/// A line of small add buttons: an action beside the rows it adds to, not a
+/// row of its own.
+private struct CompactAddRow<Buttons: View>: View {
+    @ViewBuilder let buttons: Buttons
+
+    var body: some View {
+        HStack(spacing: 20) {
+            buttons
+        }
+        .font(.subheadline)
+        .buttonStyle(.borderless)
+        .labelStyle(CompactAddLabelStyle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct CompactAddLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon.imageScale(.small)
+            configuration.title
+        }
+    }
+}
+
+private struct FilterAddButtons: View {
+    @Binding var clause: MediaQuery.Group
+    let type: MediaType
+
+    var body: some View {
+        CompactAddRow {
+            Button {
+                if let field = type.fields.first {
+                    clause.children.append(.term(MediaQuery.Term(field: field)))
+                }
+            } label: {
+                Label("Filter", systemImage: "plus")
+            }
+            .disabled(type.fields.isEmpty)
+            .accessibilityLabel("Add Filter")
+
+            Button {
+                clause.children.append(.group(MediaQuery.Group()))
+            } label: {
+                Label("Group", systemImage: "plus")
+            }
+            .accessibilityLabel("Add Filter Group")
+            .help("Nest filters in parentheses to mix all/any, e.g. (A or B) and C")
+        }
+    }
+}
+
 /// Edits one group of the filter tree. The root's parts are rows of the
-/// Filters section, so its add buttons are Form rows like Add Sort; nested
-/// groups draw a box with their own match toggle and a remove button.
+/// Filters section; nested groups draw a box with their own match toggle,
+/// a remove button, and their add buttons.
 /// Bindings are keyed by node id, not index: an index-backed
 /// `ForEach($array)` shifts on removal and hangs the view.
 private struct GroupEditor: View {
@@ -282,21 +343,10 @@ private struct GroupEditor: View {
             nodeView(node)
         }
 
-        Button {
-            if let field = type.fields.first {
-                clause.children.append(.term(MediaQuery.Term(field: field)))
-            }
-        } label: {
-            Label("Add Filter", systemImage: "plus")
+        // The root's buttons sit in its section's footer.
+        if !isRoot {
+            FilterAddButtons(clause: $clause, type: type)
         }
-        .disabled(type.fields.isEmpty)
-
-        Button {
-            clause.children.append(.group(MediaQuery.Group()))
-        } label: {
-            Label("Add Filter Group", systemImage: "plus")
-        }
-        .help("Nest filters in parentheses to mix all/any, e.g. (A or B) and C")
     }
 
     @ViewBuilder
