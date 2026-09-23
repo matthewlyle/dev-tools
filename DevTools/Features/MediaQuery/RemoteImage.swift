@@ -18,40 +18,44 @@ struct RemoteImage<Placeholder: View>: View {
     @State private var image: PlatformImage?
     @State private var loading = true
 
+    /// The clear base takes exactly the size offered and the image fills it
+    /// as an overlay: a scaled-to-fill image reports more than it was
+    /// offered, and a flexible frame around it would grow to match, so the
+    /// crop would land outside the tile.
     var body: some View {
-        ZStack {
-            if let image {
-                if fit {
-                    Image(platformImage: image).resizable().scaledToFit().transition(.opacity)
+        Color.clear
+            .overlay {
+                if let image {
+                    if fit {
+                        Image(platformImage: image).resizable().scaledToFit().transition(.opacity)
+                    } else {
+                        Image(platformImage: image).resizable().scaledToFill().transition(.opacity)
+                    }
                 } else {
-                    Image(platformImage: image).resizable().scaledToFill().transition(.opacity)
+                    placeholder(loading)
                 }
-            } else {
-                placeholder(loading)
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .task(id: "\(server?.machineID ?? "")|\(value ?? "")|\(Int(size.width))x\(Int(size.height))@\(displayScale)") {
-            guard let value, let server else {
+            .clipped()
+            .task(id: "\(server?.machineID ?? "")|\(value ?? "")|\(Int(size.width))x\(Int(size.height))@\(displayScale)") {
+                guard let value, let server else {
+                    image = nil
+                    loading = false
+                    return
+                }
+                let pw = Int((size.width * displayScale).rounded()), ph = Int((size.height * displayScale).rounded())
+                if let cached = images.cachedImage(for: value, server: server, width: pw, height: ph) {
+                    image = cached
+                    return
+                }
                 image = nil
+                loading = true
+                let loaded = await images.image(for: value, server: server, width: pw, height: ph)
+                guard !Task.isCancelled else { return }
                 loading = false
-                return
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) { image = loaded }
             }
-            let pw = Int((size.width * displayScale).rounded()), ph = Int((size.height * displayScale).rounded())
-            if let cached = images.cachedImage(for: value, server: server, width: pw, height: ph) {
-                image = cached
-                return
-            }
-            image = nil
-            loading = true
-            let loaded = await images.image(for: value, server: server, width: pw, height: ph)
-            guard !Task.isCancelled else { return }
-            loading = false
-            withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) { image = loaded }
-        }
-        // Lazy containers keep created cells alive, so drop the decoded image
-        // when scrolled away; ImageStore's cache makes the return instant.
-        .onDisappear { image = nil }
+            // Lazy containers keep created cells alive, so drop the decoded image
+            // when scrolled away; ImageStore's cache makes the return instant.
+            .onDisappear { image = nil }
     }
 }
