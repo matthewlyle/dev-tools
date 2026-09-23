@@ -30,10 +30,7 @@ struct EndpointListView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ListFilterField(text: $search, prompt: "Filter endpoints")
-            list
-        }
+        list.listFilter(text: $search, prompt: "Filter endpoints")
     }
 
     private var list: some View {

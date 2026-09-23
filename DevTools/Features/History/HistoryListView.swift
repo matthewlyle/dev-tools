@@ -88,12 +88,9 @@ struct HistoryListView: View {
     private var rows: [HistoryEntry] { filtered.sorted(by: sort.areInIncreasingOrder) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ListFilterField(text: $search, prompt: "Filter history") {
-                sortMenu
-                clearButton
-            }
-            list
+        list.listFilter(text: $search, prompt: "Filter history") {
+            sortMenu
+            clearButton
         }
     }
 

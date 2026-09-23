@@ -43,59 +43,53 @@ struct ShowSectionDetailAction {
     func callAsFunction() { run() }
 }
 
-/// A filter field pinned atop a section list. Endpoints and History filter
-/// in place rather than through `.searchable`: on macOS its search field is a
-/// toolbar item, so entering those sections reconfigured the window toolbar
-/// and reflowed the section switcher mid-animation.
-struct ListFilterField<Actions: View>: View {
+/// A section list's text filter. A compact width takes the system search
+/// field. Wider layouts pin a field atop the list instead: on macOS the
+/// system field is a toolbar item, so entering the section reconfigured the
+/// window toolbar and reflowed the section switcher mid-animation.
+private struct ListFilter<Actions: View>: ViewModifier {
     @Binding var text: String
     let prompt: String
-    private let actions: Actions?
+    let actions: Actions?
 
     @Environment(\.isCompactWidth) private var compact
 
-    init(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) {
-        _text = text
-        self.prompt = prompt
-        self.actions = actions()
-    }
-
-    var body: some View {
-        placed
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
-    }
-
-    /// The list's own actions (sort, clear) sit in the bar over the list:
-    /// over its column on macOS, and in the tab's own bar on a compact
-    /// width. A regular-width iPad has one bar spanning both panes, which
-    /// would push them to its far end over the detail, so there they sit
-    /// beside the field.
-    @ViewBuilder
-    private var placed: some View {
-        if let actions, besideField {
-            HStack(spacing: 12) {
-                field
-                actions
-                    .labelStyle(.iconOnly)
-                    .imageScale(.large)
-            }
-        } else if let actions {
-            field.sectionListToolbar {
-                ToolbarItemGroup(placement: .primaryAction) { actions }
-            }
-        } else {
-            field
-        }
-    }
-
-    private var besideField: Bool {
+    /// A regular-width iPad has one bar spanning both panes, which would put
+    /// the list's own actions at its far end over the detail, so there they
+    /// sit beside the field; everywhere else they're in the bar over the list.
+    private var actionsBesideField: Bool {
         #if os(iOS)
         !compact
         #else
         false
         #endif
+    }
+
+    func body(content: Content) -> some View {
+        if compact {
+            content
+                .searchable(text: $text, prompt: Text(prompt))
+                .modifier(ActionsInBar(actions: actions))
+        } else if actionsBesideField {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    field
+                    if let actions {
+                        actions
+                            .labelStyle(.iconOnly)
+                            .imageScale(.large)
+                    }
+                }
+                .modifier(FieldPadding())
+                content
+            }
+        } else {
+            VStack(spacing: 0) {
+                field.modifier(FieldPadding())
+                content
+            }
+            .modifier(ActionsInBar(actions: actions))
+        }
     }
 
     private var field: some View {
@@ -123,11 +117,36 @@ struct ListFilterField<Actions: View>: View {
     }
 }
 
-extension ListFilterField where Actions == EmptyView {
-    init(text: Binding<String>, prompt: String) {
-        _text = text
-        self.prompt = prompt
-        actions = nil
+private struct FieldPadding: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+    }
+}
+
+private struct ActionsInBar<Actions: View>: ViewModifier {
+    let actions: Actions?
+
+    func body(content: Content) -> some View {
+        content.sectionListToolbar {
+            if let actions {
+                ToolbarItemGroup(placement: .primaryAction) { actions }
+            }
+        }
+    }
+}
+
+extension View {
+    /// Filters a section list by `text`; `actions` are the list's own sort
+    /// and clear controls, placed per platform.
+    func listFilter<Actions: View>(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) -> some View {
+        modifier(ListFilter(text: text, prompt: prompt, actions: actions()))
+    }
+
+    func listFilter(text: Binding<String>, prompt: String) -> some View {
+        modifier(ListFilter<EmptyView>(text: text, prompt: prompt, actions: nil))
     }
 }
 
