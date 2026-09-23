@@ -795,14 +795,9 @@ struct MainSplitView: View {
     @ViewBuilder
     private var connectionStatus: some View {
         if stillConnecting {
-            VStack(spacing: 16) {
+            ZeroState(text: servers.isRefreshing ? "Finding your servers" : "Connecting to \(servers.selected?.resource.name ?? "your server")") {
                 ProgressView()
-                    .controlSize(.large)
-                Text(servers.isRefreshing ? "Finding your servers" : "Connecting to \(servers.selected?.resource.name ?? "your server")")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if servers.entries.isEmpty {
             ContentUnavailableView {
                 Label("No Servers", systemImage: "server.rack")
