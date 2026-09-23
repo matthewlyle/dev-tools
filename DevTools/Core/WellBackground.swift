@@ -28,22 +28,16 @@ struct WellBackground: View {
                 .ignoresSafeArea()
         }
         #else
-        // Drawn as one opaque layer in extended linear colour: an alpha
-        // gradient this faint, rasterised into its own 8-bit layer before
-        // compositing, has only a few dozen levels to fade through, and the
-        // grain can only dither what's left if it's mixed in at float depth.
-        ZStack {
-            Color(uiColor: .systemBackground)
-            if contrast != .increased {
-                LinearGradient(
-                    colors: [.accentColor.opacity(colorScheme == .dark ? 0.16 : 0.08), .accentColor.opacity(0)],
-                    startPoint: .top,
-                    endPoint: UnitPoint(x: 0.5, y: 0.55)
-                )
-                Grain()
+        Color(uiColor: .systemBackground)
+            .overlay {
+                if contrast != .increased {
+                    LinearGradient(
+                        colors: [.accentColor.opacity(colorScheme == .dark ? 0.16 : 0.08), .clear],
+                        startPoint: .top,
+                        endPoint: UnitPoint(x: 0.5, y: 0.55)
+                    )
+                }
             }
-        }
-        .drawingGroup(opaque: true, colorMode: .extendedLinear)
         .overlay {
             if contrast != .increased {
                 SignalRings()
@@ -56,11 +50,6 @@ struct WellBackground: View {
                     .mask(RadialFromTitle())
                     .opacity(ringOpacity)
                     .animation(state?.showsRings == true ? .smooth(duration: 1.1) : .smooth(duration: 0.5), value: state?.showsRings)
-                // The land the rings carry over, only while there's nothing
-                // on screen to sit behind: gone as the first event arrives.
-                Ridgelines(hue: .accentColor, strength: colorScheme == .dark ? 1 : 0.6)
-                    .opacity(state?.showsRidges == true ? 1 : 0)
-                    .animation(state?.showsRidges == true ? .smooth(duration: 0.9) : .easeOut(duration: 0.25), value: state?.showsRidges)
             }
         }
         .ignoresSafeArea()
@@ -76,59 +65,6 @@ struct WellBackground: View {
     }
     #endif
 }
-
-#if os(iOS)
-/// Three layered ridgelines along the bottom, the nearest the most solid.
-/// Their wavelengths are in points, not a share of the width, so a wider
-/// screen shows more mountains rather than stretched ones, and the shapes
-/// are fixed, so they don't change between launches.
-private struct Ridgelines: View {
-    let hue: Color
-    let strength: Double
-
-    private struct Layer {
-        let height: CGFloat
-        let opacity: Double
-        let phase: CGFloat
-    }
-
-    private static let layers = [
-        Layer(height: 170, opacity: 0.05, phase: 0.8),
-        Layer(height: 125, opacity: 0.08, phase: 2.9),
-        Layer(height: 80, opacity: 0.12, phase: 5.1),
-    ]
-
-    var body: some View {
-        Canvas { context, size in
-            for layer in Self.layers {
-                context.fill(Self.ridge(layer, in: size), with: .color(hue.opacity(layer.opacity * strength)))
-            }
-        }
-        .accessibilityHidden(true)
-    }
-
-    /// Main peaks, smaller ones between, and a little jaggedness, each a
-    /// folded sine sharpened to a point, over a long swell so the range
-    /// rises and falls.
-    private static func ridge(_ layer: Layer, in size: CGSize) -> Path {
-        func height(at x: CGFloat) -> CGFloat {
-            func peak(_ wavelength: CGFloat, _ shift: CGFloat) -> CGFloat { pow(1 - abs(sin(x / wavelength + shift)), 2.2) }
-            let swell = 0.5 + 0.5 * sin(x / 230 + layer.phase * 0.6)
-            return layer.height * (0.28 + 0.5 * peak(95, layer.phase) + 0.16 * peak(41, layer.phase * 1.9) + 0.05 * peak(13, layer.phase * 3.7) + 0.18 * swell)
-        }
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: size.height))
-        var x: CGFloat = 0
-        while x <= size.width + 4 {
-            path.addLine(to: CGPoint(x: x, y: size.height - height(at: x)))
-            x += 4
-        }
-        path.addLine(to: CGPoint(x: size.width, y: size.height))
-        path.closeSubpath()
-        return path
-    }
-}
-#endif
 
 #if os(iOS)
 /// While the stream is live the rings breathe: a slow swell outward from the
@@ -151,43 +87,8 @@ private struct ListeningPulse: ViewModifier {
 }
 #endif
 
-#if os(iOS)
-/// A faint gradient over a dark background spans only a few 8-bit steps,
-/// which show as bands; grain of about a step per pixel, over the washed
-/// area only, breaks their edges up. One random tile, made once and tiled.
-private struct Grain: View {
-    private static let tile: CGImage? = {
-        let side = 128
-        var alpha = [UInt8](repeating: 0, count: side * side)
-        var generator = SystemRandomNumberGenerator()
-        for index in alpha.indices { alpha[index] = UInt8.random(in: 0...255, using: &generator) }
-        guard let provider = CGDataProvider(data: Data(alpha) as CFData) else { return nil }
-        return CGImage(
-            width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: side,
-            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
-            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
-        )
-    }()
-
-    @Environment(\.displayScale) private var displayScale
-
-    var body: some View {
-        if let tile = Self.tile {
-            Image(decorative: tile, scale: displayScale)
-                .resizable(resizingMode: .tile)
-                .opacity(0.02)
-                .mask {
-                    LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.62))
-                }
-                .accessibilityHidden(true)
-        }
-    }
-}
-
-#endif
-
-/// What a screen's content asks of its well: the signal rings and how far
-/// they've faded as that content scrolled from its top, and the ridgelines.
+/// What a screen's content asks of its well: the signal rings, and how far
+/// they've faded as that content scrolled from its top.
 @MainActor
 @Observable
 final class WellState {
@@ -195,7 +96,6 @@ final class WellState {
 
     var showsRings = false
     var ringFade: Double = 0
-    var showsRidges = false
 
     /// Offset from the top as a fade share, in twentieths, so a scroll
     /// updates the well a handful of times, not every frame.
@@ -260,11 +160,6 @@ extension View {
     /// Raises the screen well's signal rings while `visible`.
     func signalRings(visible: Bool) -> some View {
         modifier(WellRequest(flag: \.showsRings, visible: visible))
-    }
-
-    /// Raises the screen well's ridgelines while `visible`.
-    func ridgelines(visible: Bool) -> some View {
-        modifier(WellRequest(flag: \.showsRidges, visible: visible))
     }
 
     /// Fades the rings as this scroll view leaves its top.
