@@ -35,7 +35,7 @@ struct WellBackground: View {
                             endPoint: UnitPoint(x: 0.5, y: 0.55)
                         )
                         SignalRings()
-                            .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.3 : 0.2))
+                            .foregroundStyle(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.13))
                             .mask(RadialFromTitle())
                     }
                 }
@@ -66,8 +66,8 @@ private struct RadialFromTitle: View {
 #if os(iOS)
 /// Concentric circles around the top centre, drawn once per size.
 private struct SignalRings: View {
-    private static let spacing: CGFloat = 28
-    private static let lineWidth: CGFloat = 0.75
+    private static let spacing: CGFloat = 32
+    private static let lineWidth: CGFloat = 0.6
 
     var body: some View {
         Canvas { context, size in
