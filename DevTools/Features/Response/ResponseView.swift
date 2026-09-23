@@ -391,6 +391,7 @@ struct ResponseStatusBar: View {
 
     var body: some View {
         let type = response.contentType.flatMap(Self.mediaType)
+        let settles = !reduceMotion
         ViewThatFits(in: .horizontal) {
             readout(type: type)
             if let type, let subtype = Self.subtype(of: type), subtype != type {
@@ -408,7 +409,7 @@ struct ResponseStatusBar: View {
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
         .keyframeAnimator(initialValue: 1.0, trigger: response.receivedAt) { view, scale in
-            view.scaleEffect(reduceMotion ? 1 : scale)
+            view.scaleEffect(settles ? scale : 1)
         } keyframes: { _ in
             KeyframeTrack {
                 CubicKeyframe(0.97, duration: 0)
