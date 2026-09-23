@@ -19,6 +19,16 @@ struct SpecParameter: Sendable, Hashable, Identifiable {
     var suggestedValue: String {
         defaultValue ?? example ?? enumValues.first ?? ""
     }
+
+    /// Values to pick from, labelled: the schema's enum, or for a query
+    /// `type` the metadata types, which the spec lists only in prose.
+    var valueOptions: [(value: String, label: String)] {
+        if !enumValues.isEmpty { return enumValues.map { ($0, $0) } }
+        if location == .query, name == "type" {
+            return MetadataType.all.map { (String($0.number), MetadataType.label(number: $0.number, name: $0.name)) }
+        }
+        return []
+    }
 }
 
 struct SpecOperation: Sendable, Hashable, Identifiable {

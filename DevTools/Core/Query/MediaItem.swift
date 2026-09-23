@@ -114,6 +114,9 @@ struct MediaItem: Identifiable, Hashable, Sendable {
 /// Human formatting for attribute values whose names give away their unit.
 enum MediaValue {
     static func display(name: String, value: String) -> String? {
+        if name == "type" || name == "metadataType", let label = MetadataType.label(value) {
+            return label
+        }
         if name.hasSuffix("At"), name != "originallyAvailableAt", let epoch = TimeInterval(value), epoch > 1_000_000_000 {
             return Date(timeIntervalSince1970: epoch).formatted(date: .abbreviated, time: .shortened)
         }

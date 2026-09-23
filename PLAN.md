@@ -18,17 +18,17 @@ Native macOS, iPadOS, and iOS developer tool for exploring the Plex Media Server
 
 1. Sign in (PIN flow) + server picker with connection probing — done
 2. Request builder + response inspector (Response / Headers), history — done
-3. Response browser: back/forward between requests — done (breadcrumbs removed; they repeated the URL). The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
+3. Response browser: back/forward between requests — done (breadcrumbs removed; they repeated the URL). The structured Pretty view and in-response hyperlinks were removed.
 4. Spec integration: endpoint catalog by tag, parameter autocomplete, pagination controls — done. The response-customization (include/exclude) menus were removed; `includeFields` etc. are typed as ordinary params
 5. Media Query builder — done as the fourth section, "Media" (⌘4): filters with nested `push`/`pop` grouping (AND/OR per group), a tag-value picker over the server's filter values, sort, group, limit
 6. Live WebSocket activity monitor — done (connect/disconnect, clear, type filters; no pause; rows name the item they're about)
 7. Saved requests — done
 
-Deferred to v1.1: code export (cURL/Swift/Python/JS), non-GET methods, JWT auth, API-version diff mode.
-
 ## The spec
 
 developer.plex.tv is a Redoc site; the full OpenAPI 3.1 document (207 paths, 260 operations, 64 schemas, 24 tags, plus long-form docs on media queries, pagination, response customization, auth) is embedded in the page as `__redoc_state`. `Tools/extract-spec.sh` pulls and minifies it into `DevTools/Resources/plex-openapi.json`. It replaces the hand-written cookbook and quick links and drives autocomplete.
+
+Metadata types are numbers on the wire (`type=1`, `"type": 4` in payloads) and names only in the spec's prose "List of Metadata Types". `MetadataType` restates that table (a test holds it to the bundled spec): decoded values read `episode (4)` for `type`/`metadataType`, and a query `type` parameter offers the types as documented values. Raw response text is never rewritten.
 
 ## Architecture
 
@@ -88,7 +88,8 @@ dev-tools/
         MediaItem.swift          one container item as read: title, artwork, aspect by type, one-line subtitle, tag vs element child groups; MediaValue decodes units by attribute name
       Spec/
         OpenAPISpec.swift        Codable model of the bundled OpenAPI document
-        SpecCatalog.swift        operations grouped by tag, placeholder matching, access scopes, documented headers
+        SpecCatalog.swift        operations grouped by tag, placeholder matching, access scopes, documented headers; labelled value options (schema enums, metadata types for a query `type`)
+        MetadataType.swift       the spec's List of Metadata Types (movie 1 … collection 18): section parsing, `movie (1)` labels
       Socket/
         NotificationTransport.swift  URLSessionWebSocketTask → /:/websockets/notifications (plural); reconnect with backoff
         NotificationEvent.swift  type, timestamp, raw payload; ratingKey/state/viewOffset and the row line (payload titles first, else a key); itemTitle(metadata:) names a library item
@@ -135,7 +136,7 @@ dev-tools/
 
 **Requests.** GET only; method picker hidden in v1. Path + query params editable. Token is always sent as the `X-Plex-Token` header, never in the URL, and is never displayed or copyable. Response format is an app-wide setting (`Accept: application/json` by default, or `application/xml`, which is what PMS sends without an Accept header). Container paging params (`X-Plex-Container-Start/Size`) offered as header toggles. Every send from the builder appends to history; replaying an entry from History does not.
 
-**Response browsing.** Back/forward between sent requests, at the head of the URL line. In-response hyperlinks and the structured Pretty/Tree views were removed; responses render as highlighted Raw text and a Headers table. A redesigned Pretty view is deferred; when it returns it will re-introduce navigable link attributes and inline thumbnails via `/photo/:/transcode`.
+**Response browsing.** Back/forward between sent requests, at the head of the URL line. In-response hyperlinks and the structured Pretty/Tree views were removed; responses render as highlighted Raw text and a Headers table.
 
 **Endpoint catalog (M4).** Spec operations grouped by tag in the content column. Click → path template loads into the builder; `{placeholder}`s prompt for values in a sheet, each with the richest helper its value allows: a picker when the spec enumerates it (`element`, `transcodeType`, `identifier`, `index`) or the server can list it (`sectionId` → `/library/sections`, `playlistId` → `/playlists`, `collectionId` → each library's `/collections`, grouped by library, `deviceId` → `/media/grabbers/devices`); Now + a date picker for epoch placeholders (`updatedAt`, `timestamp`); otherwise a field plus values seen in earlier responses. Listable options are preloaded when a server connects so pickers don't flash. Typed parameters with descriptions feed the Parameters editor as an autocomplete list. Documented headers (`X-Plex-Container-Start/Size/Focus-Key`, `X-Plex-Pms-Api-Version`, `X-Plex-Client-Profile-*`) offered in the Headers editor.
 
@@ -158,13 +159,13 @@ Each ends with a smoke-test proof, not a test suite.
 
 1. **Skeleton + auth + discovery.** Done.
 2. **Request/response core.** Done — Response / Headers inspector, history with read-only replay.
-3. **Parse + browser.** `Node` parsers, back/forward, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed; a redesigned Pretty view is deferred.
+3. **Parse + browser.** `Node` parsers, back/forward, breadcrumbs — done. The structured Pretty view and in-response hyperlinks were removed.
 4. **Spec integration.** Endpoint catalog by tag, parameter/header autocomplete, pagination controls — done. Response-customization menus removed.
-5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview — done. Deferred: `push`/`pop` grouping, tag-value picker. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
+5. **Media.** Fourth section with library/type pickers, typed filter terms, sort, group, limit, live query preview, `push`/`pop` grouping, tag-value picker — done. *Proof: movies added in the last 3 years, unwatched, sorted by rating desc — `type=1&addedAt>>=-3y&unwatched=1&sort=rating:desc` returns the expected items.*
 6. **Activity monitor.** Socket, event list, type filters, payload inspector, item titles in rows — done. No pause; connect/disconnect + clear. *Proof: start playback on any client; `playing`/`timeline` events appear live.*
 7. **Saved requests.** Save-as, edit, delete — done.
-8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion, section-switch crossfade, response status settle, empty states fading out as content arrives, poster press and selection settle, parameter and header rows in and out with a rolling count, Activity connection status that pulses while connecting and bounces on connect), resizable iPad list pane — in progress.
-9. **iPhone.** Compact-width shell (a tab per section, list → pushed detail, Edit Request on Endpoints), two-line response info row and parameter rows, swipe actions on History and Saved, iPhone client identity, local-network usage string, Activity reconnect on return from the background — done. Deferred: Dynamic Type for the code face.
+8. **Polish.** Shortcuts, error/empty states, app icon, glass tuning, read-only history replay, liveliness motion (poster-grid entrance stagger, artwork decode crossfade, live activity-event insertion, section-switch crossfade, response status settle, empty states fading out as content arrives, poster press and selection settle, parameter and header rows in and out with a rolling count, Activity connection status that pulses while connecting and bounces on connect), resizable iPad list pane — done.
+9. **iPhone.** Compact-width shell (a tab per section, list → pushed detail, Edit Request on Endpoints), two-line response info row and parameter rows, swipe actions on History and Saved, iPhone client identity, local-network usage string, Activity reconnect on return from the background — done.
 
 ## Tests (targeted, fixture-driven)
 
@@ -179,8 +180,4 @@ Each ends with a smoke-test proof, not a test suite.
 - `PlaceholderOptionTests`: playlists/collections map `ratingKey`/`title` (collections carry their library as a group); tuner devices fall back through `key`/`uuid`/`id` and `title`/make+model.
 - `MediaItemTests`: aspect by type; movie/episode subtitle composition; thumb fallback through parent art; tag groups vs element groups; unit decoding by attribute name (size, bitrate, epoch `*At`, runtime).
 - `NotificationEventTests`: ratingKey (digits only, from `ratingKey`, `itemID` or a metadata key), state and viewOffset from playing/timeline/activity payloads; payload titles skip the lookup; item titles from metadata for episode/movie/track/other.
-
-## Open items
-
-- Refresh cadence for the bundled spec (manual via script for now).
-- A general Pretty view for arbitrary responses (removed from the inspector) stays deferred; the Media section's poster grid + info inspector now covers structured browsing of query results. Open: whether to decode `type` integers to names using the spec's metadata type table.
+- `MetadataTypeTests`: the table matches the bundled spec's List of Metadata Types; `type`/`metadataType` numbers decode to `name (n)`, names and unknown numbers and other `*Type` attributes don't; a query `type` parameter offers every type.
