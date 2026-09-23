@@ -136,12 +136,20 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     @Environment(\.sectionIsActive) private var active
     let items: Items
 
+    /// The toolbar stays attached whatever the section: branching around
+    /// `.toolbar` gives the wrapped view a new identity on every switch. The
+    /// Mac keeps the items and hides them, so a switch doesn't build and tear
+    /// down toolbar items (a menu's included); iOS can't hide toolbar items,
+    /// so there they come and go inside the builder.
     func body(content: Content) -> some View {
-        if visible && active {
-            content.toolbar { items }
-        } else {
-            content
+        let shown = visible && active
+        #if os(macOS)
+        content.toolbar { items.hidden(!shown) }
+        #else
+        content.toolbar {
+            if shown { items }
         }
+        #endif
     }
 }
 
