@@ -2,7 +2,9 @@ import SwiftUI
 
 /// The Activity list pane: which event types the events show. Like every
 /// section's list it only filters what's on the right; the connection and
-/// its controls are the events' footer (`ActivityStatusBar`).
+/// its controls are the events' footer (`ActivityStatusBar`). Until events
+/// arrive it's blank: the events pane's own zero state says what to do, and
+/// a second one here would compete with it.
 struct ActivityFiltersView: View {
     @Environment(ActivityStore.self) private var activity
 
@@ -28,11 +30,6 @@ struct ActivityFiltersView: View {
             }
         }
         .sectionListStyle()
-        .overlay {
-            if activity.typeCounts.isEmpty {
-                ZeroState(text: "Event types appear here as events arrive.")
-            }
-        }
     }
 }
 
