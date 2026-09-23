@@ -138,10 +138,7 @@ private struct Facts {
         let named = human.isEmpty ? (value("message") ?? value("description")) : human.joined(separator: " · ")
         titled = named != nil
 
-        // The row's badge already names the type, so a state that only
-        // repeats it (a `playing` event that is playing) is left out.
-        let lead = state.map(Self.displayState) ?? value("event").map(Self.capitalized)
-        line.lead = lead?.lowercased() == container["type"]?.lowercased() ? nil : lead
+        line.lead = state.map(Self.displayState) ?? value("event").map(Self.capitalized)
         line.subject = named
         if named == nil {
             for name in Self.identifiers {
