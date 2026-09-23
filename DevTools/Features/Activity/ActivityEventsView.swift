@@ -28,7 +28,7 @@ struct ActivityEventsView: View {
             }
             // The section's own actions, in the bar like History's: the type
             // filter (which a compact width has no list pane for) and Clear.
-            .sectionListToolbar {
+            .sectionListToolbar(followsList: false) {
                 ToolbarItemGroup(placement: .primaryAction) {
                     if compact { ActivityTypeMenu() }
                     ClearEventsButton()
