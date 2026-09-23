@@ -86,13 +86,14 @@ struct ActivityConnectionControl: View {
                 Text(statusText)
                     .font(.code(.callout))
                     .lineLimit(1)
-                    .contentTransition(.interpolate)
+                    .contentTransition(.numericText())
                 if activity.status.isActive, !inline {
                     Text("\(activity.receivedCount.formatted()) received")
                         .font(.code(.caption))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .help("Messages received on the wire since connecting")
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
                 }
                 Spacer(minLength: 8)
                 if activity.status.isActive {
