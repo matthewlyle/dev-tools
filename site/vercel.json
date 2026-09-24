@@ -1,9 +1,0 @@
-{
-  "redirects": [
-    {
-      "source": "/DevTools.dmg",
-      "destination": "/DevTools-0.2.dmg",
-      "permanent": false
-    }
-  ]
-}
