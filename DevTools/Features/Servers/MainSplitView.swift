@@ -132,11 +132,16 @@ private struct FieldPadding: ViewModifier {
 private struct ActionsInBar<Actions: View>: ViewModifier {
     let actions: Actions?
 
+    /// A list without actions adds no toolbar at all, rather than one whose
+    /// content changes as its section shows and hides.
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content.sectionListToolbar {
-            if let actions {
+        if let actions {
+            content.sectionListToolbar {
                 ToolbarItemGroup(placement: .primaryAction) { actions }
             }
+        } else {
+            content
         }
     }
 }

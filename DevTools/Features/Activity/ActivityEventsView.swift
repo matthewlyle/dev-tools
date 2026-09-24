@@ -11,6 +11,31 @@ struct ActivityEventsView: View {
     @Environment(\.connectionInTabBar) private var connectionInTabBar
 
     var body: some View {
+        // On a compact width the events are the tab's root and own its bar:
+        // the type filter (there's no list pane for it) and Clear. Elsewhere
+        // Clear is declared over the detail (`ActivityToolbarItems`), so the
+        // events add no toolbar there at all.
+        Group {
+            if compact {
+                events.sectionListToolbar(followsList: false) {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        ActivityTypeMenu()
+                        ClearEventsButton()
+                    }
+                }
+            } else {
+                events
+            }
+        }
+        .focusedSceneValue(
+            \.showMediaInfo,
+            isActive && activity.selectedEvent != nil
+                ? ShowMediaInfoAction(visible: true) { activity.selectedEventID = nil }
+                : nil
+        )
+    }
+
+    private var events: some View {
         EventList()
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 // The tab bar carries the control as its accessory on an
@@ -27,24 +52,6 @@ struct ActivityEventsView: View {
                         .padding(.bottom, 12)
                 }
             }
-            // On a compact width the events are the tab's root and own its
-            // bar: the type filter (there's no list pane for it) and Clear.
-            // Elsewhere Clear is declared over the detail with the other
-            // sections' items (`ActivityToolbarItems`).
-            .sectionListToolbar(followsList: false) {
-                if compact {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        ActivityTypeMenu()
-                        ClearEventsButton()
-                    }
-                }
-            }
-            .focusedSceneValue(
-                \.showMediaInfo,
-                isActive && activity.selectedEvent != nil
-                    ? ShowMediaInfoAction(visible: true) { activity.selectedEventID = nil }
-                    : nil
-            )
     }
 }
 

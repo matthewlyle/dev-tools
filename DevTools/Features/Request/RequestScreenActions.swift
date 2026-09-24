@@ -94,7 +94,8 @@ private struct SaveButton: View {
 
 /// A request screen's share of the request actions: the Show Documentation
 /// command wherever it's the visible section, and on a compact width the
-/// toolbar items for its own bar.
+/// toolbar items for its own bar. On a regular width the detail declares
+/// the items, so the screen adds no toolbar there at all.
 private struct RequestScreenActions: ViewModifier {
     let server: ConnectedServer?
 
@@ -105,14 +106,19 @@ private struct RequestScreenActions: ViewModifier {
 
     func body(content: Content) -> some View {
         let documented = spec.operation(matching: requests.current.path) != nil
-        content
-            .sectionListToolbar(followsList: false) {
-                if compact { RequestToolbarItems(server: server) }
+        Group {
+            if compact {
+                content.sectionListToolbar(followsList: false) {
+                    RequestToolbarItems(server: server)
+                }
+            } else {
+                content
             }
-            .focusedSceneValue(
-                \.showDocumentation,
-                isActive && documented ? ShowDocumentationAction(path: requests.current.path) { requests.showingDocs = true } : nil
-            )
+        }
+        .focusedSceneValue(
+            \.showDocumentation,
+            isActive && documented ? ShowDocumentationAction(path: requests.current.path) { requests.showingDocs = true } : nil
+        )
     }
 }
 
