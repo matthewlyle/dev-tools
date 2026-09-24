@@ -1,16 +1,19 @@
 #!/bin/sh
 # Builds a Developer ID-signed, notarized, stapled DevTools.app, packs it in a
-# signed, notarized, stapled DMG (build/release/DevTools-<version>.dmg), and
-# publishes it to the landing page as site/DevTools-<version>.dmg: the download
-# link and version line in site/index.html point at it, and site/vercel.json
-# redirects /DevTools.dmg to it so links already shared keep working. The name
-# comes from MARKETING_VERSION, so bump it for every release.
+# signed, notarized, stapled DMG (build/release/DevTools-<version>.dmg),
+# publishes it to the landing page as site/DevTools-<version>.dmg (the download
+# link and version line in site/index.html point at it), and tags the commit it
+# was built from v<version>, with the merges since the last tag as its notes.
+# The name and tag come from MARKETING_VERSION, so bump it for every release;
+# the build refuses to start if that tag exists or the tree has changes, since
+# the tag has to name exactly what was built.
 #
 # One-time setup: xcrun notarytool store-credentials notary
 # (Apple ID, team LQ2SFRWR75, and an app-specific password from
 # appleid.apple.com). NOTARY_PROFILE picks a different keychain profile;
 # SKIP_NOTARIZE=1 stops before notarizing, for checking the build locally,
-# and leaves site/ untouched so an unnotarized DMG can't be deployed.
+# and leaves site/ and the tags untouched so an unnotarized DMG can't be
+# deployed or tagged.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -32,6 +35,19 @@ if [ -z "$identity" ]; then
   exit 1
 fi
 
+version="$(grep -m1 -oE 'MARKETING_VERSION = [^;]+' DevTools.xcodeproj/project.pbxproj | cut -d' ' -f3)"
+tag="v$version"
+if [ "$skip" != 1 ]; then
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    echo "$tag is already tagged. Bump MARKETING_VERSION for a new release." >&2
+    exit 1
+  fi
+  if ! git diff --quiet HEAD --; then
+    echo "The tree has uncommitted changes; commit them so $tag names what's built." >&2
+    exit 1
+  fi
+fi
+
 rm -rf "$out"
 mkdir -p "$out"
 
@@ -42,7 +58,6 @@ xcodebuild -project DevTools.xcodeproj -scheme DevTools \
 xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out/export" \
   -exportOptionsPlist Tools/ExportOptions-macOS.plist -allowProvisioningUpdates -quiet
 
-version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")"
 dmg="$out/DevTools-$version.dmg"
 
@@ -81,9 +96,11 @@ sed -i '' -E \
   -e "s|(<p class=\"version\">Version )[^<]*|\1$version|" \
   -e "s|href=\"DevTools[^\"]*\.dmg\"|href=\"DevTools-$version.dmg\"|" \
   site/index.html
-jq --arg to "/DevTools-$version.dmg" \
-  '(.redirects[] | select(.source == "/DevTools.dmg") | .destination) = $to' \
-  site/vercel.json > site/vercel.json.tmp
-mv site/vercel.json.tmp site/vercel.json
 
-echo "wrote $dmg ($version, build $build) and published it to site/"
+previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+notes="$(git log --first-parent --format='- %s' ${previous:+"$previous"..}HEAD | sed 's/^- Merge: /- /' | awk '{ print "- " toupper(substr($0, 3, 1)) substr($0, 4) }')"
+git tag -a "$tag" -m "Dev Tools for Plex $version (build $build)" -m "$notes"
+
+echo "wrote $dmg ($version, build $build), published it to site/, and tagged $tag:"
+echo "$notes"
+echo "Next: commit site/index.html, deploy site/, and git push origin main $tag."
