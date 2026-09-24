@@ -89,7 +89,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .signOutConfirmation(isPresented: $confirmingSignOut) { dismiss() }
+        .signOutConfirmation(isPresented: $confirmingSignOut)
+        .platformClosesWindow(when: account.user == nil)
         .confirmationDialog(
             "Clear all \(requests.history.count.formatted()) recorded requests across every server?",
             isPresented: $confirmingClear,
