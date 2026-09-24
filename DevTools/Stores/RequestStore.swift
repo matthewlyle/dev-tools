@@ -159,13 +159,13 @@ final class RequestStore {
                 let token = server.accessToken
                 let result = await Task.detached(priority: .userInitiated) { CredentialRedactor.redact(sent, known: [token]) }.value
                 guard !Task.isCancelled else { return }
+                response = result
                 if recordHistory { record(request, server: server, status: result.status, duration: result.duration, error: nil) }
-                // The response and its parsed body swap in together, so the
-                // last response stays on screen, pager and all, until the
-                // next one is ready to replace it.
+                // The last body stays until this one is parsed: dropping it
+                // first put the response view in a parsing state for a
+                // moment, a flash on every page. Sending lasts until then.
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
-                response = result
                 document = parsed
                 isSending = false
                 if let root = parsed.tree { memory.record(root: root, serverID: server.machineID) }

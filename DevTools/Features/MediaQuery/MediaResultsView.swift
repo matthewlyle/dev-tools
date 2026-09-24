@@ -99,7 +99,7 @@ struct MediaResultsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .requestScreenActions(server: server)
-        .onChange(of: requests.response?.receivedAt) { _, _ in
+        .onChange(of: requests.document?.version) { _, _ in
             mediaQuery.selectedItemID = nil
             mediaQuery.showsItemInfo = false
             collapsed = []

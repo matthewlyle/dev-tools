@@ -91,7 +91,7 @@ struct ResponseView<RequestBar: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: requests.response?.receivedAt) { _, _ in
+        .onChange(of: requests.document?.version) { _, _ in
             collapsed = []
         }
     }
@@ -340,16 +340,20 @@ struct PaginationControls: View {
     @Environment(RequestStore.self) private var requests
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private enum Action { case previous, next, all }
+    /// The page being fetched, so its button shows the progress: Send's
+    /// spinner is across the window from the button that was pressed.
+    @State private var pending: Action?
+
     var body: some View {
         HStack(spacing: 4) {
             Button {
-                guard let server else { return }
-                requests.page(start: pagination.start - pagination.pageSize, size: pagination.pageSize, on: server)
+                run(.previous) { requests.page(start: pagination.start - pagination.pageSize, size: pagination.pageSize, on: $0) }
             } label: {
-                Label("Previous Page", systemImage: "chevron.left")
+                Label { Text("Previous Page") } icon: { progress(for: .previous) { Image(systemName: "chevron.left") } }
                     .labelStyle(.iconOnly)
             }
-            .disabled(!pagination.hasPrevious || server == nil)
+            .disabled(!pagination.hasPrevious || unavailable(for: .previous))
             .help("Previous page")
 
             Text(pagination.label)
@@ -361,22 +365,25 @@ struct PaginationControls: View {
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
             Button {
-                guard let server else { return }
-                requests.page(start: pagination.end, size: pagination.pageSize, on: server)
+                run(.next) { requests.page(start: pagination.end, size: pagination.pageSize, on: $0) }
             } label: {
-                Label("Next Page", systemImage: "chevron.right")
+                Label { Text("Next Page") } icon: { progress(for: .next) { Image(systemName: "chevron.right") } }
                     .labelStyle(.iconOnly)
             }
-            .disabled(!pagination.hasNext || server == nil)
+            .disabled(!pagination.hasNext || unavailable(for: .next))
             .help("Next page")
 
-            Button("Fetch All") {
-                guard let server else { return }
-                requests.fetchAll(on: server)
+            Button {
+                run(.all) { requests.fetchAll(on: $0) }
+            } label: {
+                progress(for: .all) { Text("Fetch All") }
             }
             .font(.callout)
-            .disabled((!pagination.hasPrevious && !pagination.hasNext) || server == nil)
+            .disabled((!pagination.hasPrevious && !pagination.hasNext) || unavailable(for: .all))
             .help("Send again without paging, to get every item in one response")
+        }
+        .onChange(of: requests.isSending) { _, sending in
+            if !sending { pending = nil }
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)
@@ -384,6 +391,29 @@ struct PaginationControls: View {
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
         .animation(reduceMotion ? nil : .snappy, value: pagination)
+    }
+
+    /// The pressed button stays enabled so its spinner isn't dimmed; a second
+    /// press is ignored in `run` instead.
+    private func unavailable(for action: Action) -> Bool {
+        server == nil || (requests.isSending && pending != action)
+    }
+
+    private func run(_ action: Action, _ fetch: (ConnectedServer) -> Void) {
+        guard let server, !requests.isSending else { return }
+        pending = action
+        fetch(server)
+    }
+
+    /// Swaps in a spinner at the content's own size, so nothing shifts.
+    private func progress(for action: Action, @ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .opacity(pending == action ? 0 : 1)
+            .overlay {
+                if pending == action {
+                    ProgressView().controlSize(.mini)
+                }
+            }
     }
 }
 
