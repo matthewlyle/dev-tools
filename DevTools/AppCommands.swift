@@ -47,7 +47,7 @@ struct ShowServerInfoAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
-/// Published by Endpoints' request screen while its path is documented.
+/// Published by the visible request screen while its path is documented.
 struct ShowDocumentationAction: Equatable {
     let path: String
     let run: () -> Void

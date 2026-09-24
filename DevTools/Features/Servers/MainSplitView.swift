@@ -899,7 +899,9 @@ struct MainSplitView: View {
     /// Soft edge on both panes: `.automatic` can resolve to the hard style,
     /// which fills the toolbar while the pointer is over the scroll view even
     /// with nothing scrolled beneath it. Soft only blurs what actually passes
-    /// under the bar.
+    /// under the bar. The request actions are declared here, once, so a
+    /// switch between sections that show a request leaves them in place;
+    /// Activity shows none, so they aren't there at all.
     private var detailPane: some View {
         ZStack {
             WorkspaceView(editable: section == .endpoints)
@@ -911,6 +913,9 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: section, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .toolbar {
+            if section != .activity { RequestToolbarItems(server: connected) }
+        }
         .wellBackground()
     }
 

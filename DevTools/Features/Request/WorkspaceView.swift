@@ -20,7 +20,7 @@ struct WorkspaceView: View {
                 RequestSummaryBar(server: server)
             }
         }
-        .requestScreenActions(server: server, showsDocs: editable)
+        .requestScreenActions(server: server)
     }
 }
 
