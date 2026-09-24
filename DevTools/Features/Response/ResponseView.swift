@@ -377,6 +377,14 @@ struct PaginationControls: View {
             }
             .disabled(!pagination.hasNext || server == nil)
             .help("Next page")
+
+            Button("Show All") {
+                guard let server else { return }
+                requests.showAll(on: server)
+            }
+            .font(.callout)
+            .disabled((!pagination.hasPrevious && !pagination.hasNext) || server == nil)
+            .help("Send again without paging, to get every item in one response")
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)

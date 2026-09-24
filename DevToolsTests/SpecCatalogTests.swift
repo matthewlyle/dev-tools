@@ -131,4 +131,27 @@ struct PaginationTests {
         #expect(info.pageSize == PaginationInfo.defaultPageSize)
         #expect(info.hasNext)
     }
+
+    @Test func firstPageReplacesLeftoverPagingAndKeepsOtherHeaders() {
+        var request = PlexRequest(path: "/library/all")
+        request.headers = [
+            HeaderField(name: "x-plex-container-start", value: "300"),
+            HeaderField(name: "X-Plex-Container-Focus-Key", value: "/library/metadata/9"),
+            HeaderField(name: "X-Plex-Pms-Api-Version", value: "1.0"),
+        ]
+        request.resetPaging(firstPage: true)
+        #expect(request.headers.map(\.name) == ["X-Plex-Pms-Api-Version", "X-Plex-Container-Start", "X-Plex-Container-Size"])
+        #expect(request.headers.map(\.value) == ["1.0", "0", String(PaginationInfo.defaultPageSize)])
+    }
+
+    @Test func noPagingDropsLeftoverPagingSoItCantCarryOver() {
+        var request = PlexRequest(path: "/status/sessions")
+        request.headers = [
+            HeaderField(name: "X-Plex-Container-Start", value: "100"),
+            HeaderField(name: "X-Plex-Container-Size", value: "100"),
+            HeaderField(name: "X-Plex-Pms-Api-Version", value: "1.0"),
+        ]
+        request.resetPaging(firstPage: false)
+        #expect(request.headers.map(\.name) == ["X-Plex-Pms-Api-Version"])
+    }
 }

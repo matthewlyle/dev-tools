@@ -99,14 +99,18 @@ final class RequestStore {
         perform(current, on: server, recordHistory: false)
     }
 
-    /// Loads the operation's required parameters. Sends only when they all
-    /// have values; otherwise the request waits in the always-visible editor.
+    /// Loads the operation's required parameters, and starts a media-query
+    /// listing on its first page: those are the library listings that run to
+    /// megabytes, and they report their total, so the pager shows what's left.
+    /// Sends only when every required parameter has a value; otherwise the
+    /// request waits in the always-visible editor.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
         editingSavedID = nil
         current.path = path
         current.query = operation.queryParameters
             .filter(\.required)
             .map { QueryParam(name: $0.name, value: $0.suggestedValue) }
+        current.resetPaging(firstPage: operation.supportsMediaQuery)
         discardResponse(unlessFor: current)
         if current.query.allSatisfy({ !$0.value.isEmpty }) {
             send(to: server)
@@ -189,6 +193,11 @@ final class RequestStore {
     func page(start: Int, size: Int, on server: ConnectedServer) {
         setHeader("X-Plex-Container-Start", to: String(max(start, 0)))
         setHeader("X-Plex-Container-Size", to: String(size))
+        send(to: server)
+    }
+
+    func showAll(on server: ConnectedServer) {
+        current.resetPaging(firstPage: false)
         send(to: server)
     }
 

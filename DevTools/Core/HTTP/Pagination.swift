@@ -8,7 +8,9 @@ struct PaginationInfo: Hashable, Sendable {
     let size: Int
     let total: Int
 
-    static let defaultPageSize = 50
+    /// The page a listing asks for when none is set: a Media run, and a
+    /// media-query endpoint opened from the catalog.
+    static let defaultPageSize = 100
 
     init?(response: PlexResponse, root: Node?) {
         func header(_ name: String) -> Int? {
@@ -29,5 +31,19 @@ struct PaginationInfo: Hashable, Sendable {
     var label: String {
         if size == 0 { return "0 of \(total.formatted())" }
         return "\((start + 1).formatted())–\(end.formatted()) of \(total.formatted())"
+    }
+}
+
+extension PlexRequest {
+    /// Starts the request on its first page, or with no paging at all.
+    /// Either way paging left from an earlier request goes: it would
+    /// otherwise quietly page whatever is opened next.
+    mutating func resetPaging(firstPage: Bool) {
+        let names: Set<String> = ["x-plex-container-start", "x-plex-container-size", "x-plex-container-focus-key"]
+        headers.removeAll { names.contains($0.name.lowercased()) }
+        if firstPage {
+            headers.append(HeaderField(name: "X-Plex-Container-Start", value: "0"))
+            headers.append(HeaderField(name: "X-Plex-Container-Size", value: String(PaginationInfo.defaultPageSize)))
+        }
     }
 }
