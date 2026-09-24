@@ -1,39 +1,15 @@
 import Foundation
 import Security
 
-/// The Plex token and this install's device key, in the Keychain.
 enum TokenStore {
     private static let service = "mldgg.devtools"
-    private static let tokenAccount = "plex.tv"
-    private static let deviceKeyAccount = "plex.tv.device-key"
+    private static let account = "plex.tv"
 
     enum Failure: Error {
         case status(OSStatus)
     }
 
-    static func load() -> String? {
-        data(for: tokenAccount).map { String(decoding: $0, as: UTF8.self) }
-    }
-
-    static func save(_ token: String) throws {
-        try save(Data(token.utf8), for: tokenAccount)
-    }
-
-    static func delete() {
-        SecItemDelete(query(for: tokenAccount) as CFDictionary)
-    }
-
-    /// Kept across sign-outs: plex.tv already holds its public half, so the
-    /// next sign-in reuses the registration.
-    static func loadDeviceKey() -> Data? {
-        data(for: deviceKeyAccount)
-    }
-
-    static func saveDeviceKey(_ raw: Data) throws {
-        try save(raw, for: deviceKeyAccount)
-    }
-
-    private static func query(for account: String) -> [CFString: Any] {
+    private static var baseQuery: [CFString: Any] {
         [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -41,25 +17,32 @@ enum TokenStore {
         ]
     }
 
-    private static func data(for account: String) -> Data? {
-        var query = query(for: account)
+    static func load() -> String? {
+        var query = baseQuery
         query[kSecReturnData] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
-        return item as? Data
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data
+        else { return nil }
+        return String(decoding: data, as: UTF8.self)
     }
 
-    private static func save(_ data: Data, for account: String) throws {
+    static func save(_ token: String) throws {
+        let data = Data(token.utf8)
         let update: [CFString: Any] = [kSecValueData: data]
-        let status = SecItemUpdate(query(for: account) as CFDictionary, update as CFDictionary)
+        let status = SecItemUpdate(baseQuery as CFDictionary, update as CFDictionary)
         if status == errSecSuccess { return }
         guard status == errSecItemNotFound else { throw Failure.status(status) }
 
-        var insert = query(for: account)
+        var insert = baseQuery
         insert[kSecValueData] = data
         insert[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
         let addStatus = SecItemAdd(insert as CFDictionary, nil)
         guard addStatus == errSecSuccess else { throw Failure.status(addStatus) }
+    }
+
+    static func delete() {
+        SecItemDelete(baseQuery as CFDictionary)
     }
 }
