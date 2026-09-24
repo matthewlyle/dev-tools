@@ -3,7 +3,9 @@
 # signed, notarized, stapled DMG (build/release/DevTools-<version>.dmg),
 # publishes it to the landing page as site/DevTools-<version>.dmg (the download
 # link and version line in site/index.html point at it), and tags the commit it
-# was built from v<version>, with the merges since the last tag as its notes.
+# was built from v<version>. The tag's notes are the merges since the last tag
+# that changed the app (DevTools/): the repo also holds the site, skills, and
+# docs, and the site commit for a release always lands after its tag.
 # The name and tag come from MARKETING_VERSION, so bump it for every release;
 # the build refuses to start if that tag exists or the tree has changes, since
 # the tag has to name exactly what was built.
@@ -98,7 +100,7 @@ sed -i '' -E \
   site/index.html
 
 previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-notes="$(git log --first-parent --format='- %s' ${previous:+"$previous"..}HEAD | sed 's/^- Merge: /- /' | awk '{ print "- " toupper(substr($0, 3, 1)) substr($0, 4) }')"
+notes="$(git log --first-parent --format='- %s' ${previous:+"$previous"..}HEAD -- DevTools | sed 's/^- Merge: /- /' | awk '{ print "- " toupper(substr($0, 3, 1)) substr($0, 4) }')"
 git tag -a "$tag" -m "Dev Tools for Plex $version (build $build)" -m "$notes"
 
 echo "wrote $dmg ($version, build $build), published it to site/, and tagged $tag:"

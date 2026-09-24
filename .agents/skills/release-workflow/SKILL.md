@@ -21,7 +21,7 @@ description: Cutting a release of the dev-tools Mac app — version bump, notari
 ## 2. Bump the version
 
 - `MARKETING_VERSION` goes up every release: the DMG is named from it, and the tag `v<version>` must not already exist (`git tag`). `CURRENT_PROJECT_VERSION` goes up by one. Both appear four times in `DevTools.xcodeproj/project.pbxproj`; replace all.
-- Bump inside the last change's branch, before merging it. A merge of its own ("Merge: version 0.3") lands in the tag's release notes as if it were a change. If nothing is pending, a `release-<version>` branch through `change-workflow` is the fallback.
+- Bump on a `release-<version>` branch through `change-workflow`, or inside the last change's branch. Either is fine: the tag's notes list only merges that changed `DevTools/`, so neither the bump (which touches only `project.pbxproj`) nor the site commit shows up as a change.
 - Build and test before merging the bump, as for any change.
 
 ## 3. Run the release
