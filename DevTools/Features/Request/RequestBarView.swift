@@ -94,7 +94,7 @@ struct RequestBarView: View {
 
     private var pathField: some View {
         @Bindable var requests = requests
-        return TextField("/library/sections", text: $requests.current.path)
+        return TextField("/library/sections", text: $requests.editedPath)
             .textFieldStyle(.roundedBorder)
             .font(.code(.body))
             .focused($pathFocused)

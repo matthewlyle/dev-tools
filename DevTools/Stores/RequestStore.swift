@@ -83,6 +83,17 @@ final class RequestStore {
     /// would show a query the form no longer holds.
     var recordsNavigation = true
 
+    /// The path as the path field edits it. Paging belongs to the listing it
+    /// was set for, so a different path drops it.
+    var editedPath: String {
+        get { current.path }
+        set {
+            guard newValue != current.path else { return }
+            current.path = newValue
+            current.resetPaging(firstPage: false)
+        }
+    }
+
     func send(to server: ConnectedServer) {
         let request = current
         if recordsNavigation, let lastSent, lastSent != request {
@@ -148,13 +159,15 @@ final class RequestStore {
                 let token = server.accessToken
                 let result = await Task.detached(priority: .userInitiated) { CredentialRedactor.redact(sent, known: [token]) }.value
                 guard !Task.isCancelled else { return }
-                response = result
-                document = nil
                 if recordHistory { record(request, server: server, status: result.status, duration: result.duration, error: nil) }
-                isSending = false
+                // The response and its parsed body swap in together, so the
+                // last response stays on screen, pager and all, until the
+                // next one is ready to replace it.
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
+                response = result
                 document = parsed
+                isSending = false
                 if let root = parsed.tree { memory.record(root: root, serverID: server.machineID) }
             } catch is CancellationError {
                 return
@@ -196,7 +209,7 @@ final class RequestStore {
         send(to: server)
     }
 
-    func showAll(on server: ConnectedServer) {
+    func fetchAll(on server: ConnectedServer) {
         current.resetPaging(firstPage: false)
         send(to: server)
     }
