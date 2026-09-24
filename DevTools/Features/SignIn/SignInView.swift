@@ -17,8 +17,8 @@ struct SignInView: View {
                 .font(.largeTitle.weight(.semibold))
             Group {
                 switch account.state {
-                case .awaitingApproval:
-                    approval
+                case .awaitingApproval(let pin):
+                    approval(pin)
                 default:
                     signedOut
                 }
@@ -53,10 +53,17 @@ struct SignInView: View {
         .keyboardShortcut(.defaultAction)
     }
 
-    private var approval: some View {
+    private func approval(_ pin: PlexPIN) -> some View {
         VStack(spacing: 16) {
             Text("Approve this sign-in in your browser.")
                 .foregroundStyle(.secondary)
+
+            Text(pin.code)
+                .font(.code(size: 34, weight: .medium))
+                .textSelection(.enabled)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(.quaternary, in: .rect(cornerRadius: 12))
 
             ProgressView()
                 .controlSize(.small)
