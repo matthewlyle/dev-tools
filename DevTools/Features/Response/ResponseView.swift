@@ -449,8 +449,9 @@ struct ResponseStatusBar: View {
             view.scaleEffect(settles ? scale : 1)
         } keyframes: { _ in
             KeyframeTrack {
-                CubicKeyframe(0.97, duration: 0)
+                MoveKeyframe(0.97)
                 SpringKeyframe(1.0, duration: 0.35, spring: .bouncy)
+                MoveKeyframe(1.0)
             }
         }
         .help(summary.joined(separator: " · "))
