@@ -1,8 +1,10 @@
 #!/bin/sh
 # Builds a Developer ID-signed, notarized, stapled DevTools.app, packs it in a
 # signed, notarized, stapled DMG (build/release/DevTools-<version>.dmg), and
-# publishes it to the landing page: site/DevTools.dmg plus the version line in
-# site/index.html.
+# publishes it to the landing page as site/DevTools-<version>.dmg: the download
+# link and version line in site/index.html point at it, and site/vercel.json
+# redirects /DevTools.dmg to it so links already shared keep working. The name
+# comes from MARKETING_VERSION, so bump it for every release.
 #
 # One-time setup: xcrun notarytool store-credentials notary
 # (Apple ID, team LQ2SFRWR75, and an app-specific password from
@@ -73,7 +75,15 @@ xcrun notarytool submit "$dmg" --keychain-profile "$profile" --wait
 xcrun stapler staple "$dmg"
 spctl --assess --type open --context context:primary-signature --verbose "$dmg"
 
-cp "$dmg" site/DevTools.dmg
-sed -i '' -E "s|(<p class=\"version\">Version )[^<]*|\1$version|" site/index.html
+rm -f site/DevTools*.dmg
+cp "$dmg" "site/DevTools-$version.dmg"
+sed -i '' -E \
+  -e "s|(<p class=\"version\">Version )[^<]*|\1$version|" \
+  -e "s|href=\"DevTools[^\"]*\.dmg\"|href=\"DevTools-$version.dmg\"|" \
+  site/index.html
+jq --arg to "/DevTools-$version.dmg" \
+  '(.redirects[] | select(.source == "/DevTools.dmg") | .destination) = $to' \
+  site/vercel.json > site/vercel.json.tmp
+mv site/vercel.json.tmp site/vercel.json
 
 echo "wrote $dmg ($version, build $build) and published it to site/"
