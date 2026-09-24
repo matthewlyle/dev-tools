@@ -38,7 +38,7 @@ xcodebuild -project DevTools.xcodeproj -scheme DevTools \
   -allowProvisioningUpdates -quiet archive
 
 xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out/export" \
-  -exportOptionsPlist Tools/ExportOptions.plist -allowProvisioningUpdates -quiet
+  -exportOptionsPlist Tools/ExportOptions-macOS.plist -allowProvisioningUpdates -quiet
 
 version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")"
