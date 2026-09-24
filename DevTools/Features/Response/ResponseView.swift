@@ -43,20 +43,12 @@ struct ResponseView<RequestBar: View>: View {
         // instantly because a transition on the text view forces a
         // full-document layout.
         ZStack {
-            if let response = requests.response {
+            if let response = requests.response, let document = requests.document {
                 Group {
                     switch tab {
                     case .raw:
-                        if let document = requests.document {
-                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
-                                headerBlock
-                            }
-                        } else {
-                            FillingScrollView {
-                                headerBlock
-                                ProgressView()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
+                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                            headerBlock
                         }
                     case .headers:
                         HeadersView(response: response, server: server, editable: editable) {
@@ -365,7 +357,7 @@ struct PaginationControls: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize()
-                .contentTransition(.numericText(value: Double(pagination.start)))
+                .contentTransition(.numericText(value: Double(pagination.end)))
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
             Button {
@@ -377,13 +369,21 @@ struct PaginationControls: View {
             }
             .disabled(!pagination.hasNext || server == nil)
             .help("Next page")
+
+            Button("Fetch All") {
+                guard let server else { return }
+                requests.fetchAll(on: server)
+            }
+            .font(.callout)
+            .disabled((!pagination.hasPrevious && !pagination.hasNext) || server == nil)
+            .help("Send again without paging, to get every item in one response")
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
-        .animation(reduceMotion ? nil : .snappy, value: pagination.start)
+        .animation(reduceMotion ? nil : .snappy, value: pagination)
     }
 }
 

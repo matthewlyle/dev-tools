@@ -10,6 +10,7 @@ struct RequestBarView: View {
     @Environment(\.isCompactWidth) private var compact
 
     @State private var showSave = false
+    @State private var focusID = UUID()
 
     private var operation: SpecOperation? {
         spec.operation(matching: requests.current.path)
@@ -68,6 +69,18 @@ struct RequestBarView: View {
             requests.pathFocusPending = false
             pathFocused = true
         }
+        // A compact width hands the screen to the response: the keyboard
+        // would cover it the moment it arrives.
+        .task {
+            if requests.pathFocusHolder != nil, !compact { pathFocused = true }
+        }
+        .onChange(of: pathFocused) { _, focused in
+            if focused {
+                requests.pathFocusHolder = focusID
+            } else if requests.pathFocusHolder == focusID {
+                requests.pathFocusHolder = nil
+            }
+        }
         .savesCurrentRequest(isPresented: $showSave, server: server)
     }
 
@@ -81,7 +94,7 @@ struct RequestBarView: View {
 
     private var pathField: some View {
         @Bindable var requests = requests
-        return TextField("/library/sections", text: $requests.current.path)
+        return TextField("/library/sections", text: $requests.editedPath)
             .textFieldStyle(.roundedBorder)
             .font(.code(.body))
             .focused($pathFocused)

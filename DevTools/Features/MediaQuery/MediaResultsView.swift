@@ -44,19 +44,12 @@ struct MediaResultsView: View {
         ZStack {
             if !isActive {
                 EmptyView()
-            } else if let response = requests.response {
+            } else if let response = requests.response, let document = requests.document {
                 Group {
                     switch tab {
                     case .posters:
                         ZStack {
-                            if requests.document == nil {
-                                FillingScrollView {
-                                    headerBlock
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                }
-                                .transition(.identity)
-                            } else if items.isEmpty {
+                            if items.isEmpty {
                                 FillingScrollView {
                                     headerBlock
                                     ZeroState(text: "The query matched nothing. Loosen a filter and run it again.")
@@ -70,16 +63,8 @@ struct MediaResultsView: View {
                             }
                         }
                     case .response:
-                        if let document = requests.document {
-                            RawResponseView(document: document, response: response, collapsed: $collapsed) {
-                                headerBlock
-                            }
-                        } else {
-                            FillingScrollView {
-                                headerBlock
-                                ProgressView()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
+                        RawResponseView(document: document, response: response, collapsed: $collapsed) {
+                            headerBlock
                         }
                     case .headers:
                         HeadersView(response: response, server: server, editable: false) {

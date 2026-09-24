@@ -114,13 +114,6 @@ private struct EndpointRow: View {
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("Admin only")
                     }
-                    if operation.supportsMediaQuery {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .help("Supports media queries")
-                            .accessibilityLabel("Supports media queries")
-                    }
                 }
                 Text(operation.summary)
                     .font(.caption)

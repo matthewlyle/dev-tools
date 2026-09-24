@@ -46,4 +46,18 @@ struct RequestWorkspaceTests {
         requests.switchWorkspace(from: "History", to: "Endpoints")
         #expect(requests.current.path == "/")
     }
+
+    @Test func editingThePathDropsItsPagingButKeepsOtherHeaders() {
+        let requests = store()
+        var paged = PlexRequest(path: "/library/all")
+        paged.headers = [HeaderField(name: "X-Plex-Pms-Api-Version", value: "1.0")]
+        paged.resetPaging(firstPage: true)
+        requests.load(paged)
+
+        requests.editedPath = "/library/all"
+        #expect(requests.current.headers.count == 3)
+
+        requests.editedPath = "/status/sessions"
+        #expect(requests.current.headers.map(\.name) == ["X-Plex-Pms-Api-Version"])
+    }
 }

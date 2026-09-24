@@ -32,6 +32,12 @@ final class RequestStore {
     /// screen yet: a compact width pushes it after the request.
     var pathFocusPending = false
 
+    /// Which request bar's path field has focus. A send moves the response
+    /// through states that each build their own bar with fresh focus, so the
+    /// next bar takes focus up from here. An outgoing bar can still be on
+    /// screen as the next one takes focus, so only the holder clears it.
+    var pathFocusHolder: UUID?
+
     /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
 
@@ -77,6 +83,17 @@ final class RequestStore {
     /// would show a query the form no longer holds.
     var recordsNavigation = true
 
+    /// The path as the path field edits it. Paging belongs to the listing it
+    /// was set for, so a different path drops it.
+    var editedPath: String {
+        get { current.path }
+        set {
+            guard newValue != current.path else { return }
+            current.path = newValue
+            current.resetPaging(firstPage: false)
+        }
+    }
+
     func send(to server: ConnectedServer) {
         let request = current
         if recordsNavigation, let lastSent, lastSent != request {
@@ -93,14 +110,18 @@ final class RequestStore {
         perform(current, on: server, recordHistory: false)
     }
 
-    /// Loads the operation's required parameters. Sends only when they all
-    /// have values; otherwise the request waits in the always-visible editor.
+    /// Loads the operation's required parameters, and starts a media-query
+    /// listing on its first page: those are the library listings that run to
+    /// megabytes, and they report their total, so the pager shows what's left.
+    /// Sends only when every required parameter has a value; otherwise the
+    /// request waits in the always-visible editor.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
         editingSavedID = nil
         current.path = path
         current.query = operation.queryParameters
             .filter(\.required)
             .map { QueryParam(name: $0.name, value: $0.suggestedValue) }
+        current.resetPaging(firstPage: operation.supportsMediaQuery)
         discardResponse(unlessFor: current)
         if current.query.allSatisfy({ !$0.value.isEmpty }) {
             send(to: server)
@@ -138,13 +159,15 @@ final class RequestStore {
                 let token = server.accessToken
                 let result = await Task.detached(priority: .userInitiated) { CredentialRedactor.redact(sent, known: [token]) }.value
                 guard !Task.isCancelled else { return }
-                response = result
-                document = nil
                 if recordHistory { record(request, server: server, status: result.status, duration: result.duration, error: nil) }
-                isSending = false
+                // The response and its parsed body swap in together, so the
+                // last response stays on screen, pager and all, until the
+                // next one is ready to replace it.
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
+                response = result
                 document = parsed
+                isSending = false
                 if let root = parsed.tree { memory.record(root: root, serverID: server.machineID) }
             } catch is CancellationError {
                 return
@@ -183,6 +206,11 @@ final class RequestStore {
     func page(start: Int, size: Int, on server: ConnectedServer) {
         setHeader("X-Plex-Container-Start", to: String(max(start, 0)))
         setHeader("X-Plex-Container-Size", to: String(size))
+        send(to: server)
+    }
+
+    func fetchAll(on server: ConnectedServer) {
+        current.resetPaging(firstPage: false)
         send(to: server)
     }
 
@@ -381,6 +409,7 @@ final class RequestStore {
         editingSavedID = workspace.editingSavedID
         showingDocs = false
         pathFocusPending = false
+        pathFocusHolder = nil
     }
 
     func requestPathFocus() {

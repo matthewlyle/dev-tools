@@ -96,7 +96,7 @@ struct MediaQueryTests {
         let request = q.request()
         let headers = Dictionary(uniqueKeysWithValues: request.headers.map { ($0.name, $0.value) })
         #expect(headers["X-Plex-Container-Start"] == "0")
-        #expect(headers["X-Plex-Container-Size"] == String(MediaQuery.pageSize))
+        #expect(headers["X-Plex-Container-Size"] == String(PaginationInfo.defaultPageSize))
         let url = try #require(request.url(base: URL(string: "http://host:32400")!))
         #expect(!url.absoluteString.contains("X-Plex-Container"))
     }
