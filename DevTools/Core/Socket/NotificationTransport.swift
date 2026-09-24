@@ -29,9 +29,10 @@ enum NotificationTransport {
     /// server only routes the plural (see python-plexapi's AlertListener).
     static let path = "/:/websockets/notifications"
 
-    private static func request(server: ConnectedServer, identity: ClientIdentity) throws -> URLRequest {
+    static func request(server: ConnectedServer, identity: ClientIdentity) throws -> URLRequest {
         var components = URLComponents(url: server.baseURL, resolvingAgainstBaseURL: false)!
-        components.scheme = components.scheme == "https" ? "wss" : "ws"
+        guard components.scheme?.lowercased() == "https" else { throw NotificationTransportError.badURL }
+        components.scheme = "wss"
         components.path = path
         guard let url = components.url else { throw NotificationTransportError.badURL }
         var request = URLRequest(url: url)

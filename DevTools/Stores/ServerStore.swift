@@ -137,8 +137,9 @@ final class ServerStore {
         guard let current = entries.firstIndex(where: { $0.id == id }),
               entries[current].pendingProbe == sequence
         else { return }
-        entries[current].probes = results
         entries[current].pendingProbe = nil
+        guard !Task.isCancelled else { return }
+        entries[current].probes = results
     }
 
     func activeProbe(for entry: Entry) -> ProbeResult? {

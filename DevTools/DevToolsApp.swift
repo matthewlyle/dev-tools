@@ -57,6 +57,8 @@ struct DevToolsApp: App {
                 .environment(images)
                 .environment(activity)
                 .environment(mediaQuery)
+                .environment(lightbox)
+                .environment(memory)
         }
         #endif
     }

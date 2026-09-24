@@ -54,6 +54,10 @@ final class ValueMemory {
         seen[serverID] = merged
     }
 
+    func forgetSeen() {
+        seen = [:]
+    }
+
     private static func isIdentifier(_ name: String, value: String) -> Bool {
         guard !value.isEmpty, value.count <= 64 else { return false }
         if name == "ratingKey" || name == "id" { return true }
