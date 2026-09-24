@@ -128,6 +128,7 @@ A feature is complete when every line below is true, in the same commit. This is
 
 ## Working here
 
+- Every change follows the `change-workflow` skill (branch, verify, pre-merge checklist, review, merge on approval); a release follows `release-workflow`. Both are in `.agents/skills/`.
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
 - Build: `xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'platform=macOS' -derivedDataPath DerivedData/Build build`. Test: same with `test` (Swift Testing, `DevToolsTests/`). Build iOS too with `-destination 'generic/platform=iOS Simulator'`. Both platforms and the tests must be green before a commit.
 - A `Local` connection on an iOS device triggers the local-network privacy prompt (`INFOPLIST_KEY_NSLocalNetworkUsageDescription`); the simulator never asks, so networking changes need a device check against a LAN server.
