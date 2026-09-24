@@ -54,6 +54,8 @@ struct PlexRequestURLTests {
         #expect(!(stripped.url(base: base)?.absoluteString.contains("typed") ?? true))
 
         #expect(PlexRequest(path: "/x?X-Plex-Token=typed").withoutCredentials.path == "/x")
+        #expect(PlexRequest.withoutCredentials("/status/custom?X-PLEX-TOKEN=typed") == "/status/custom")
+        #expect(PlexRequest.withoutCredentials("What's new? Everything") == "What's new? Everything")
     }
 
     @Test func splitPathKeepsPercentEncodedQuery() {
@@ -61,5 +63,12 @@ struct PlexRequestURLTests {
         #expect(path == "/hubs/search")
         #expect(items.first?.name == "query")
         #expect(items.first?.value == "hello world")
+    }
+
+    @Test func splitPathSurvivesInvalidEncoding() {
+        let (path, items) = PlexRequest.splitPath("/x?title=a b&pct=100%&bad=%zz&tag=#1")
+        #expect(path == "/x")
+        #expect(items.map(\.name) == ["title", "pct", "bad", "tag"])
+        #expect(items.map(\.value) == ["a b", "100%", "%zz", "#1"])
     }
 }

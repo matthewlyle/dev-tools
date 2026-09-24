@@ -91,7 +91,8 @@ struct Connection: Sendable, Codable, Hashable, Identifiable {
     let IPv6: Bool
 
     var url: URL? { URL(string: uri) }
-    var isHTTPS: Bool { `protocol` == "https" }
+    /// From the URI actually dialled, not the `protocol` field beside it.
+    var isHTTPS: Bool { url?.scheme?.lowercased() == "https" }
 
     enum Kind: String, Sendable {
         case local = "Local"
@@ -104,9 +105,8 @@ struct Connection: Sendable, Codable, Hashable, Identifiable {
         return local ? .local : .remote
     }
 
-    /// Every HTTPS connection before any plain HTTP one, relay included:
-    /// over HTTP the token crosses the network in the clear. Within each,
-    /// local first; relay trails direct HTTPS for its bandwidth cap.
+    /// Local first; relay trails direct HTTPS for its bandwidth cap. Plain
+    /// HTTP, never probed, sorts after all of them.
     var rank: Int {
         switch (isHTTPS, relay, local) {
         case (true, false, true): 0

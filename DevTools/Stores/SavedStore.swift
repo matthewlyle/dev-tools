@@ -12,6 +12,7 @@ final class SavedStore {
         let loaded = AppSupportStore.load([SavedRequest].self, name: Self.file) ?? []
         saved = loaded.map { item in
             var item = item
+            item.name = PlexRequest.withoutCredentials(item.name)
             item.request = item.request.withoutCredentials
             return item
         }
@@ -25,7 +26,7 @@ final class SavedStore {
 
     @discardableResult
     func add(name: String, request: PlexRequest, serverID: String) -> SavedRequest {
-        let item = SavedRequest(id: UUID(), name: name, request: request.withoutCredentials, serverID: serverID, createdAt: .now)
+        let item = SavedRequest(id: UUID(), name: PlexRequest.withoutCredentials(name), request: request.withoutCredentials, serverID: serverID, createdAt: .now)
         saved.insert(item, at: 0)
         persist()
         return item
@@ -33,7 +34,7 @@ final class SavedStore {
 
     func update(id: UUID, name: String, request: PlexRequest? = nil) {
         guard let index = saved.firstIndex(where: { $0.id == id }) else { return }
-        saved[index].name = name
+        saved[index].name = PlexRequest.withoutCredentials(name)
         if let request { saved[index].request = request.withoutCredentials }
         persist()
     }

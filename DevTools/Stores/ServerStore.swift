@@ -8,8 +8,14 @@ final class ServerStore {
         var id: String { resource.clientIdentifier }
         let resource: PlexResource
         var probes: [ProbeResult] = []
-        var isProbing = false
+        /// The probe whose answer is kept; an older one's is dropped.
+        fileprivate var pendingProbe: Int?
 
+        init(resource: PlexResource) {
+            self.resource = resource
+        }
+
+        var isProbing: Bool { pendingProbe != nil }
         var reachable: [ProbeResult] { probes.filter(\.outcome.isOK) }
     }
 
@@ -31,6 +37,10 @@ final class ServerStore {
 
     private let plexTV: PlexTVClient
     private let prober: ConnectionProber
+    /// Bumped by whatever makes an in-flight refresh's answer stale: a newer
+    /// refresh, sign-out.
+    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var probeSequence = 0
 
     init(plexTV: PlexTVClient, prober: ConnectionProber) {
         self.plexTV = plexTV
@@ -71,8 +81,10 @@ final class ServerStore {
     }
 
     func refresh(token: String) async {
+        generation += 1
+        let generation = generation
         isRefreshing = true
-        defer { isRefreshing = false }
+        defer { if generation == self.generation { isRefreshing = false } }
         errorMessage = nil
 
         async let avatarsTask = plexTV.friendAvatars(token: token)
@@ -80,6 +92,7 @@ final class ServerStore {
             let servers = try await plexTV.resources(token: token)
                 .filter(\.isServer)
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            guard generation == self.generation else { return }
             let previous = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
             entries = servers.map { resource in
                 var entry = Entry(resource: resource)
@@ -91,9 +104,12 @@ final class ServerStore {
             }
             if selectedID == nil { selectedID = entries.first?.id }
         } catch {
+            guard generation == self.generation else { return }
             errorMessage = error.localizedDescription
         }
-        if let avatars = try? await avatarsTask { ownerAvatars = avatars }
+        let avatars = try? await avatarsTask
+        guard generation == self.generation else { return }
+        if let avatars { ownerAvatars = avatars }
         persist()
 
         await probeAll()
@@ -114,12 +130,15 @@ final class ServerStore {
 
     func probe(id: String) async {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
-        entries[index].isProbing = true
+        probeSequence += 1
+        let sequence = probeSequence
+        entries[index].pendingProbe = sequence
         let results = await prober.probeAll(entries[index].resource)
-        // Entries may have been replaced by a refresh while probing.
-        guard let current = entries.firstIndex(where: { $0.id == id }) else { return }
+        guard let current = entries.firstIndex(where: { $0.id == id }),
+              entries[current].pendingProbe == sequence
+        else { return }
         entries[current].probes = results
-        entries[current].isProbing = false
+        entries[current].pendingProbe = nil
     }
 
     func activeProbe(for entry: Entry) -> ProbeResult? {
@@ -142,7 +161,11 @@ final class ServerStore {
     }
 
     func clear() {
+        generation += 1
+        isRefreshing = false
+        errorMessage = nil
         entries = []
+        ownerAvatars = [:]
         selectedID = nil
         persist()
     }

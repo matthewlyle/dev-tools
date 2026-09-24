@@ -143,7 +143,7 @@ private struct SaveCurrentRequestSheet: View {
         } else {
             SaveRequestSheet(
                 title: "Save Request",
-                name: spec.operation(matching: requests.current.path)?.summary ?? requests.current.path,
+                name: spec.operation(matching: requests.current.path)?.summary ?? requests.current.withoutCredentials.path,
                 summary: summary,
                 action: "Save"
             ) { name in

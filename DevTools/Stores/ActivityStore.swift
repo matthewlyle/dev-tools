@@ -139,10 +139,12 @@ final class ActivityStore {
 
     /// A suspended app's socket is torn down under it, and the failure may
     /// never surface, so a connection the user left open starts over on
-    /// return from the background instead of waiting on a dead one.
-    func resumeAfterBackground() {
-        guard status.isActive, let server else { return }
-        connect(to: server)
+    /// return from the background instead of waiting on a dead one. It
+    /// starts over on the server's current connection, which the network
+    /// change may have dropped.
+    func resume(on server: ConnectedServer?) {
+        guard status.isActive else { return }
+        if let server { connect(to: server) } else { disconnect() }
     }
 
     func clear() {
@@ -151,6 +153,14 @@ final class ActivityStore {
         selectedEvent = nil
         titles.removeAll()
         requestedTitles.removeAll()
+    }
+
+    /// Sign-out: nothing of the account, its server's token included, stays.
+    func endSession() {
+        disconnect()
+        clear()
+        server = nil
+        hiddenTypes = []
     }
 
     /// Sessions are only as current as the stream: without it, none can be

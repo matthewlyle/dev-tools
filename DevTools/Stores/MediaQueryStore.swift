@@ -59,6 +59,18 @@ final class MediaQueryStore {
         errorMessage = nil
     }
 
+    func reset() {
+        serverID = ""
+        query = MediaQuery()
+        detailsByServer = [:]
+        valuesByServer = [:]
+        loadingKey = nil
+        loadingValues = []
+        errorMessage = nil
+        selectedItemID = nil
+        showsItemInfo = false
+    }
+
     /// Called after `query.sectionKey` changes: start over for that library,
     /// defaulting to its first type when the details are already known. The
     /// replacement is built whole and assigned once so observers see one
