@@ -4,27 +4,17 @@ struct SignInView: View {
     @Environment(AccountStore.self) private var account
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
-    @Environment(\.isCompactWidth) private var compact
 
     private var isAwaitingApproval: Bool {
         if case .awaitingApproval = account.state { return true }
         return false
     }
 
-    /// A compact width is a phone's whole screen, so it takes no card or
-    /// intro: the header and the one thing to do.
+    /// The app's name and the one thing to do: no card, icon, or intro.
     var body: some View {
         VStack(spacing: 24) {
-            if !compact {
-                Image(systemName: "terminal")
-                    .font(.system(size: 44, weight: .regular))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-
             Text("Plex Dev Tools")
                 .font(.largeTitle.weight(.semibold))
-
             Group {
                 switch account.state {
                 case .awaitingApproval(let pin):
@@ -44,11 +34,6 @@ struct SignInView: View {
             }
         }
         .padding(40)
-        .background {
-            if !compact {
-                RoundedRectangle(cornerRadius: 28).fill(.regularMaterial)
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { WellBackground() }
         .onChange(of: account.approvalURL) { _, url in
@@ -57,24 +42,15 @@ struct SignInView: View {
     }
 
     private var signedOut: some View {
-        VStack(spacing: 16) {
-            if !compact {
-                Text("Sign in with your Plex account to discover your servers and start exploring the API.")
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 360)
-            }
-
-            Button {
-                Task { await account.beginSignIn() }
-            } label: {
-                Text("Sign In with Plex")
-                    .frame(minWidth: 180)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
+        Button {
+            Task { await account.beginSignIn() }
+        } label: {
+            Text("Sign In with Plex")
+                .frame(minWidth: 180)
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .keyboardShortcut(.defaultAction)
     }
 
     private func approval(_ pin: PlexPIN) -> some View {

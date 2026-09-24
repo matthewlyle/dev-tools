@@ -22,13 +22,10 @@ struct CodeTextView {
     /// unbounded here.
     var header: AnyView? = nil
 
-    @AppStorage(CodeTheme.storageKey) private var theme: CodeTheme = .system
-
     @MainActor final class Coordinator: NSObject {
         var appliedVersion: Date?
         var appliedCollapsed: Set<Int>?
         var appliedWrap: Bool?
-        var appliedTheme: CodeTheme?
         var toggle: ((Int) -> Void)?
         var renderTask: Task<Void, Never>?
         var headerHeight: CGFloat = 0
@@ -72,7 +69,8 @@ struct CodeTextView {
         .backgroundColor: PlatformColor.codeQuaternaryLabel.withAlphaComponent(0.25),
     ]
 
-    private nonisolated static func render(text: String, tokens: [Token], folds: [FoldRegion], collapsed: Set<Int>, colors: CodeColors) -> Rendered {
+    private nonisolated static func render(text: String, tokens: [Token], folds: [FoldRegion], collapsed: Set<Int>) -> Rendered {
+        let colors = CodeColors.system
         let source = text as NSString
         let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: colors.text]
         let result = NSMutableAttributedString()
@@ -155,6 +153,7 @@ extension CodeTextView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = true
+        scrollView.backgroundColor = CodeColors.system.background
 
         let textView = scrollView.documentView as! NSTextView
         textView.delegate = context.coordinator
@@ -244,24 +243,19 @@ extension CodeTextView: NSViewRepresentable {
         Self.layoutHeader(in: scrollView, coordinator: coordinator, force: true)
 
         let versionChanged = coordinator.appliedVersion != version
-        if coordinator.appliedTheme != theme {
-            scrollView.backgroundColor = theme.colors.background
-        }
-        if versionChanged || coordinator.appliedCollapsed != collapsed || coordinator.appliedTheme != theme {
+        if versionChanged || coordinator.appliedCollapsed != collapsed {
             coordinator.appliedVersion = version
             coordinator.appliedCollapsed = collapsed
-            coordinator.appliedTheme = theme
             coordinator.renderTask?.cancel()
 
-            let text = text, tokens = tokens, folds = folds, collapsed = collapsed, version = version, theme = theme
+            let text = text, tokens = tokens, folds = folds, collapsed = collapsed, version = version
             coordinator.renderTask = Task { @MainActor in
                 let rendered = await Task.detached(priority: .userInitiated) {
-                    Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed, colors: theme.colors)
+                    Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed)
                 }.value
                 guard !Task.isCancelled,
                       coordinator.appliedVersion == version,
-                      coordinator.appliedCollapsed == collapsed,
-                      coordinator.appliedTheme == theme
+                      coordinator.appliedCollapsed == collapsed
                 else { return }
                 let visibleRect = scrollView.contentView.bounds
                 textView.textStorage?.setAttributedString(rendered.string)
@@ -383,6 +377,7 @@ extension CodeTextView: UIViewRepresentable {
         textView.smartDashesType = .no
         textView.spellCheckingType = .no
         textView.contentInsetAdjustmentBehavior = .never
+        textView.backgroundColor = CodeColors.system.background
 
         if header != nil {
             let host = UIHostingController(rootView: AnyView(EmptyView()))
@@ -411,24 +406,19 @@ extension CodeTextView: UIViewRepresentable {
         textView.invalidateHeader()
 
         let versionChanged = coordinator.appliedVersion != version
-        if coordinator.appliedTheme != theme {
-            textView.backgroundColor = theme.colors.background
-        }
-        if versionChanged || coordinator.appliedCollapsed != collapsed || coordinator.appliedTheme != theme {
+        if versionChanged || coordinator.appliedCollapsed != collapsed {
             coordinator.appliedVersion = version
             coordinator.appliedCollapsed = collapsed
-            coordinator.appliedTheme = theme
             coordinator.renderTask?.cancel()
 
-            let text = text, tokens = tokens, folds = folds, collapsed = collapsed, version = version, theme = theme
+            let text = text, tokens = tokens, folds = folds, collapsed = collapsed, version = version
             coordinator.renderTask = Task { @MainActor in
                 let rendered = await Task.detached(priority: .userInitiated) {
-                    Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed, colors: theme.colors)
+                    Self.render(text: text, tokens: tokens, folds: folds, collapsed: collapsed)
                 }.value
                 guard !Task.isCancelled,
                       coordinator.appliedVersion == version,
-                      coordinator.appliedCollapsed == collapsed,
-                      coordinator.appliedTheme == theme
+                      coordinator.appliedCollapsed == collapsed
                 else { return }
                 let offset = textView.contentOffset
                 textView.attributedText = rendered.string
