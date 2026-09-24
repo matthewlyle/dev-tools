@@ -2,7 +2,7 @@ import Foundation
 
 struct HistoryEntry: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
-    let request: PlexRequest
+    var request: PlexRequest
     let serverID: String
     let serverName: String
     let status: Int?

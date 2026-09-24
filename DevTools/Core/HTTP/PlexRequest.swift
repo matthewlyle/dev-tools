@@ -60,6 +60,28 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return components.url
     }
 
+    /// The request minus any `X-Plex-Token` typed into its path, params, or
+    /// headers: the form that's saved, copied, or exported, since a typed
+    /// credential would otherwise sit in plain JSON on disk. Sending it falls
+    /// back to the server's own token.
+    var withoutCredentials: PlexRequest {
+        var copy = self
+        copy.headers.removeAll { Self.isCredential($0.name) }
+        copy.query.removeAll { Self.isCredential($0.name) }
+        let (purePath, embedded) = Self.splitPath(path)
+        if embedded.contains(where: { Self.isCredential($0.name) }) {
+            var components = URLComponents()
+            components.queryItems = embedded.filter { !Self.isCredential($0.name) }
+            let query = components.percentEncodedQuery ?? ""
+            copy.path = query.isEmpty ? purePath : purePath + "?" + query
+        }
+        return copy
+    }
+
+    private static func isCredential(_ name: String) -> Bool {
+        name.caseInsensitiveCompare("X-Plex-Token") == .orderedSame
+    }
+
     static func splitPath(_ raw: String) -> (path: String, query: [URLQueryItem]) {
         guard let qIndex = raw.firstIndex(of: "?") else { return (raw, []) }
         let path = String(raw[..<qIndex])

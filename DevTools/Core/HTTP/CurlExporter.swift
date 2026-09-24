@@ -1,11 +1,12 @@
 import Foundation
 
-/// Renders a request as a `curl` command. The token is never emitted;
-/// `$PLEX_TOKEN` stands in, double-quoted so the shell expands it.
+/// Renders a request as a `curl` command. The token is never emitted, typed
+/// or not; `$PLEX_TOKEN` stands in, double-quoted so the shell expands it.
 enum CurlExporter {
     static let tokenPlaceholder = "$PLEX_TOKEN"
 
     static func command(for request: PlexRequest, base: URL, identityHeaders: [String: String]) -> String? {
+        let request = request.withoutCredentials
         guard let url = request.url(base: base) else { return nil }
         var lines = ["curl \(quote(url.absoluteString))"]
         lines.append("-H \(quote("Accept: \(request.accept.rawValue)"))")

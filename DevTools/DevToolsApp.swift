@@ -54,6 +54,7 @@ struct DevToolsApp: App {
                 .environment(requests)
                 .environment(account)
                 .environment(servers)
+                .environment(images)
         }
         #endif
     }

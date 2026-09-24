@@ -21,30 +21,11 @@ final class RequestStore {
         }
     }
 
-    /// Tokens are never shown: not in URLs, copies, history, headers, or
-    /// token-like response values. There is deliberately no way to reveal them.
-    static let mask = "••••••••"
     private static let acceptKey = "acceptFormat"
 
-    /// Attribute names whose values are credentials in Plex payloads.
-    static let tokenAttributeNames: Set<String> = [
-        "token", "authToken", "accessToken", "authenticationToken", "transientToken", "X-Plex-Token",
-    ]
-
-    func redacted(_ value: String, token: String?) -> String {
-        guard let token, !token.isEmpty else { return value }
-        return value.replacingOccurrences(of: token, with: Self.mask)
-    }
-
-    /// A request's path + params for display: the server's token masked
-    /// wherever it appears, plus any `X-Plex-Token=…` typed into the path.
+    /// A request's path + params for display, credentials masked.
     func redactedSummary(of request: PlexRequest, token: String?) -> String {
-        redacted(request.summary, token: token)
-            .replacing(/X-Plex-Token=[^&\s]+/) { _ in "X-Plex-Token=\(Self.mask)" }
-    }
-
-    func shouldMask(attributeNamed name: String) -> Bool {
-        Self.tokenAttributeNames.contains(name)
+        CredentialRedactor.redact(request.summary, known: token.map { [$0] } ?? [])
     }
 
     /// Set by Focus Path and consumed by the request bar, which may not be on
@@ -74,14 +55,20 @@ final class RequestStore {
         self.memory = memory
         acceptFormat = UserDefaults.standard.string(forKey: Self.acceptKey).flatMap(AcceptFormat.init(rawValue:)) ?? .json
         current.accept = acceptFormat
-        history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
+        let loaded = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
+        history = loaded.map { entry in
+            var entry = entry
+            entry.request = entry.request.withoutCredentials
+            return entry
+        }
+        if history != loaded { AppSupportStore.save(history, name: Self.historyFile) }
     }
 
     func implicitHeaders(for server: ConnectedServer?) -> [(name: String, value: String)] {
         var headers = http.identity.headers.sorted { $0.key < $1.key }.map { (name: $0.key, value: $0.value) }
         headers.insert((name: "Accept", value: current.accept.rawValue), at: 0)
         if server != nil {
-            headers.append((name: "X-Plex-Token", value: Self.mask))
+            headers.append((name: "X-Plex-Token", value: CredentialRedactor.mask))
         }
         return headers
     }
@@ -147,7 +134,9 @@ final class RequestStore {
 
         sendTask = Task { [http] in
             do {
-                let result = try await http.send(request, to: server)
+                let sent = try await http.send(request, to: server)
+                let token = server.accessToken
+                let result = await Task.detached(priority: .userInitiated) { CredentialRedactor.redact(sent, known: [token]) }.value
                 guard !Task.isCancelled else { return }
                 response = result
                 document = nil
@@ -400,13 +389,14 @@ final class RequestStore {
 
     func previewURL(for server: ConnectedServer?) -> String {
         guard let server else { return "No server selected" }
-        return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
+        guard let url = current.url(base: server.baseURL) else { return "Invalid URL" }
+        return CredentialRedactor.redact(url.absoluteString, known: [server.accessToken])
     }
 
     /// The current request's URL, safe to paste anywhere: the token travels
-    /// as a header, never in it.
+    /// as a header, and one typed into the request is dropped.
     func shareableURL(for server: ConnectedServer) -> String? {
-        current.url(base: server.baseURL)?.absoluteString
+        current.withoutCredentials.url(base: server.baseURL)?.absoluteString
     }
 
     /// The current request as a `curl` command with `$PLEX_TOKEN` in place
@@ -460,7 +450,7 @@ final class RequestStore {
     private func record(_ request: PlexRequest, server: ConnectedServer, status: Int?, duration: Duration?, error: String?) {
         let entry = HistoryEntry(
             id: UUID(),
-            request: request,
+            request: request.withoutCredentials,
             serverID: server.machineID,
             serverName: server.name,
             status: status,

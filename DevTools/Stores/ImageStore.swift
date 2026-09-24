@@ -10,17 +10,22 @@ import UIKit
 /// Loads server artwork through `PlexHTTP`, so the token travels as a header
 /// and never appears in an image URL. Server-relative paths go through
 /// `/photo/:/transcode` at the requested pixel size; absolute URLs (public
-/// CDN art) are fetched as-is without credentials. Decoded images are cached
-/// in memory per server, path, and size.
+/// CDN art, plex.tv avatars) are fetched as-is without credentials, on a
+/// session with no URL cache: artwork is kept in memory only, per server,
+/// path, and size.
 @MainActor
 @Observable
 final class ImageStore {
     private let http: PlexHTTP
+    private let publicSession: URLSession
     private let cache = NSCache<NSString, PlatformImage>()
     private var inFlight: [String: Task<Data?, Never>] = [:]
 
     init(http: PlexHTTP) {
         self.http = http
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        publicSession = URLSession(configuration: config)
         // Bounded by decoded bytes, not count: a 2× poster is ~400 KB, so a
         // count limit alone lets a big library scroll into hundreds of MB.
         cache.totalCostLimit = 160 * 1024 * 1024
@@ -38,13 +43,10 @@ final class ImageStore {
     }
 
     func image(for value: String, server: ConnectedServer, width: Int, height: Int) async -> PlatformImage? {
-        let key = cacheKey(value, server, width, height)
-        if let cached = cache.object(forKey: key) { return cached }
-
-        let task = inFlight[key as String] ?? Task<Data?, Never> { [http] in
+        await load(key: cacheKey(value, server, width, height), cost: width * height * 4) { [http, publicSession] in
             if value.contains("://") {
-                guard let url = URL(string: value), let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-                return data
+                guard let url = URL(string: value) else { return nil }
+                return try? await publicSession.data(from: url).0
             }
             var request = PlexRequest(path: "/photo/:/transcode")
             request.query = [
@@ -57,12 +59,25 @@ final class ImageStore {
             guard let response = try? await http.send(request, to: server), response.status == 200 else { return nil }
             return response.body
         }
+    }
+
+    /// A public image not tied to a server, such as the account's avatar.
+    func image(at url: URL, width: Int, height: Int) async -> PlatformImage? {
+        await load(key: "public|\(url.absoluteString)|\(width)x\(height)" as NSString, cost: width * height * 4) { [publicSession] in
+            try? await publicSession.data(from: url).0
+        }
+    }
+
+    private func load(key: NSString, cost: Int, fetch: @escaping @Sendable () async -> Data?) async -> PlatformImage? {
+        if let cached = cache.object(forKey: key) { return cached }
+
+        let task = inFlight[key as String] ?? Task<Data?, Never> { await fetch() }
         inFlight[key as String] = task
         let data = await task.value
         inFlight[key as String] = nil
 
         guard let data, let image = PlatformImage(data: data) else { return nil }
-        cache.setObject(image, forKey: key, cost: width * height * 4)
+        cache.setObject(image, forKey: key, cost: cost)
         return image
     }
 }

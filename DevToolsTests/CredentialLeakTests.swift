@@ -43,4 +43,57 @@ struct CredentialLeakTests {
     @Test func defaultPortMatchesExplicitPort() {
         #expect(SameOriginRedirects.allows(from: URL(string: "https://plex.tv/api")!, to: URL(string: "https://plex.tv:443/api/v2")!))
     }
+
+    private func redact(_ text: String, known: [String] = []) -> String {
+        CredentialRedactor.redact(text, known: known)
+    }
+
+    @Test func labelledValuesAreMaskedAndTheRestKept() {
+        let json = redact(#"{"MyPlex":{"authToken":"abcdefghijklmnopqrst","username":"matt"}}"#)
+        #expect(json == #"{"MyPlex":{"authToken":"••••••••","username":"matt"}}"#)
+
+        let xml = redact(#"<Video token="abcdefghijklmnopqrst" title="Alien"/>"#)
+        #expect(xml == #"<Video token="••••••••" title="Alien"/>"#)
+
+        let url = redact(#"{"thumb":"/library/1/thumb?x-plex-token=abcdefghijklmnopqrst&w=1"}"#)
+        #expect(url == #"{"thumb":"/library/1/thumb?x-plex-token=••••••••&w=1"}"#)
+    }
+
+    @Test func plexOnlineTokenSettingIsMaskedWithoutTouchingItsNeighbours() {
+        let json = redact(#"{"Setting":[{"id":"FriendlyName","value":"Basement"},{"id":"PlexOnlineToken","type":"text","value":"onlinetoken123456789","hidden":true},{"value":"Upstairs","id":"Other"}]}"#)
+        #expect(!json.contains("onlinetoken123456789"))
+        #expect(json.contains(#""value":"Basement""#))
+        #expect(json.contains(#""value":"Upstairs""#))
+
+        let xml = redact(#"<Setting id="FriendlyName" value="Basement"/><Setting id="PlexOnlineToken" value="onlinetoken123456789"/><Setting value="reversed1234567890" id="PlexOnlineToken"/>"#)
+        #expect(xml == #"<Setting id="FriendlyName" value="Basement"/><Setting id="PlexOnlineToken" value="••••••••"/><Setting value="••••••••" id="PlexOnlineToken"/>"#)
+    }
+
+    @Test func aCredentialIsMaskedWhereverItReappears() {
+        let labelled = redact(#"{"authToken":"abcdefghijklmnop","note":"sent abcdefghijklmnop"}"#)
+        #expect(!labelled.contains("abcdefghijklmnop"))
+
+        let known = redact(#"{"key":"/transcode?session=1&t=KNOWNTOKEN12345"}"#, known: ["KNOWNTOKEN12345"])
+        #expect(known == #"{"key":"/transcode?session=1&t=••••••••"}"#)
+    }
+
+    @Test func aShortLabelledValueIsMaskedOnlyWhereLabelled() {
+        #expect(redact(#"{"token":"abc","title":"abc"}"#) == #"{"token":"••••••••","title":"abc"}"#)
+    }
+
+    @Test func responseHeadersAreMaskedAndBinaryBodiesLeftAlone() {
+        let token = "KNOWNTOKEN12345"
+        let binary = Data([0xFF, 0xD8, 0xFF]) + Data(token.utf8)
+        let response = PlexResponse(
+            url: URL(string: "https://server.example:32400/x")!,
+            status: 302,
+            headers: ["Location": "https://elsewhere.example/?X-Plex-Token=\(token)"],
+            body: binary,
+            duration: .zero,
+            receivedAt: .now
+        )
+        let redacted = CredentialRedactor.redact(response, known: [token])
+        #expect(redacted.headers["Location"] == "https://elsewhere.example/?X-Plex-Token=••••••••")
+        #expect(redacted.body == binary)
+    }
 }

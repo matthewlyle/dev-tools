@@ -9,7 +9,13 @@ final class SavedStore {
     private static let file = "saved.json"
 
     init() {
-        saved = AppSupportStore.load([SavedRequest].self, name: Self.file) ?? []
+        let loaded = AppSupportStore.load([SavedRequest].self, name: Self.file) ?? []
+        saved = loaded.map { item in
+            var item = item
+            item.request = item.request.withoutCredentials
+            return item
+        }
+        if saved != loaded { persist() }
     }
 
     /// Newest first, for one server.
@@ -19,7 +25,7 @@ final class SavedStore {
 
     @discardableResult
     func add(name: String, request: PlexRequest, serverID: String) -> SavedRequest {
-        let item = SavedRequest(id: UUID(), name: name, request: request, serverID: serverID, createdAt: .now)
+        let item = SavedRequest(id: UUID(), name: name, request: request.withoutCredentials, serverID: serverID, createdAt: .now)
         saved.insert(item, at: 0)
         persist()
         return item
@@ -28,7 +34,7 @@ final class SavedStore {
     func update(id: UUID, name: String, request: PlexRequest? = nil) {
         guard let index = saved.firstIndex(where: { $0.id == id }) else { return }
         saved[index].name = name
-        if let request { saved[index].request = request }
+        if let request { saved[index].request = request.withoutCredentials }
         persist()
     }
 

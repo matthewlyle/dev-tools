@@ -35,16 +35,8 @@ struct SettingsView: View {
             if let user = account.user {
                 Section {
                     HStack(spacing: 12) {
-                        AsyncImage(url: user.thumbURL) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Image(systemName: "person.crop.circle.fill")
-                                .resizable()
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(width: 36, height: 36)
-                        .clipShape(.circle)
-                        .accessibilityHidden(true)
+                        AccountAvatar(url: user.thumbURL, side: 36)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(user.title)
                             Text(user.username)
@@ -101,6 +93,37 @@ struct SettingsView: View {
             }
         } message: {
             Text("This can't be undone. Saved requests are kept.")
+        }
+    }
+}
+
+private struct AccountAvatar: View {
+    let url: URL?
+    let side: CGFloat
+
+    @Environment(ImageStore.self) private var images
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: PlatformImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(platformImage: image).resizable().scaledToFill()
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: side, height: side)
+        .clipShape(.circle)
+        .task(id: url) {
+            guard let url else {
+                image = nil
+                return
+            }
+            let pixels = Int((side * displayScale).rounded())
+            image = await images.image(at: url, width: pixels, height: pixels)
         }
     }
 }

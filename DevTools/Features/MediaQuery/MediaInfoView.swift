@@ -93,7 +93,7 @@ struct MediaInfoView: View {
 
                 Divider()
 
-                AttributeTable(attributes: details, masking: requests.shouldMask(attributeNamed:))
+                AttributeTable(attributes: details)
 
                 ForEach(item.elementGroups, id: \.name) { group in
                     switch group.name {
@@ -105,7 +105,7 @@ struct MediaInfoView: View {
                         DisclosureGroup {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(group.nodes) { child in
-                                    ElementDetail(node: child, masking: requests.shouldMask(attributeNamed:))
+                                    ElementDetail(node: child)
                                         .padding(10)
                                         .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 8))
                                 }
@@ -160,10 +160,8 @@ struct MediaInfoView: View {
 /// Name → value rows. Names are secondary system text; values are primary,
 /// in the code face, decoded where the name gives away a unit (the raw value
 /// is the tooltip).
-/// Credentials are masked and can't be copied.
 private struct AttributeTable: View {
     let attributes: [Attribute]
-    let masking: (String) -> Bool
 
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 10) {
@@ -182,12 +180,7 @@ private struct AttributeTable: View {
 
     @ViewBuilder
     private func value(for attribute: Attribute) -> some View {
-        if masking(attribute.name), !attribute.value.isEmpty {
-            Text(RequestStore.mask)
-                .font(.code(.body))
-                .foregroundStyle(.secondary)
-                .help("Credential — never shown")
-        } else if let display = MediaValue.display(name: attribute.name, value: attribute.value) {
+        if let display = MediaValue.display(name: attribute.name, value: attribute.value) {
             Text(display)
                 .font(.code(.body))
                 .help(attribute.value)
@@ -205,16 +198,15 @@ private struct AttributeTable: View {
 /// children, recursively.
 private struct ElementDetail: View {
     let node: Node
-    let masking: (String) -> Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if !node.attributes.isEmpty {
-                AttributeTable(attributes: node.attributes, masking: masking)
+                AttributeTable(attributes: node.attributes)
             }
             ForEach(node.children) { child in
                 DisclosureGroup(child.name) {
-                    ElementDetail(node: child, masking: masking)
+                    ElementDetail(node: child)
                         .padding(.top, 6)
                 }
                 .font(.body)

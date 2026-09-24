@@ -15,7 +15,15 @@ struct CurlExporterTests {
         #expect(command.contains("-H 'Accept: application/json'"))
         #expect(command.contains("-H 'X-Plex-Product: Dev Tools for Plex'"))
         #expect(command.contains("-H 'X-Plex-Container-Size: 50'"))
-        #expect(!command.contains("Token: ") || command.contains("$PLEX_TOKEN"))
+    }
+
+    @Test func aTypedTokenNeverReachesTheCommand() {
+        var request = PlexRequest(path: "/library/sections?X-Plex-Token=typed-in-path")
+        request.headers = [HeaderField(name: "X-Plex-Token", value: "typed-in-header")]
+        let command = CurlExporter.command(for: request, base: base, identityHeaders: [:])!
+
+        #expect(!command.contains("typed-in"))
+        #expect(command.components(separatedBy: "X-Plex-Token").count == 2)
     }
 
     @Test func disabledHeadersAreOmittedAndQuotesAreEscaped() {
