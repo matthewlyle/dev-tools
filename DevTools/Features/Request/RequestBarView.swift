@@ -20,9 +20,6 @@ struct RequestBarView: View {
         @Bindable var requests = requests
 
         VStack(alignment: .leading, spacing: 10) {
-            // The bar scrolls away with the response, so a compact width
-            // spends height rather than squeezing the path: it takes the
-            // whole first line, the URL wraps, and Send closes the bar.
             if compact {
                 HStack(spacing: 8) {
                     methodBadge
@@ -69,8 +66,7 @@ struct RequestBarView: View {
             requests.pathFocusPending = false
             pathFocused = true
         }
-        // A compact width hands the screen to the response: the keyboard
-        // would cover it the moment it arrives.
+        // Not on a compact width: the keyboard would cover the response the moment it arrives.
         .task {
             if requests.pathFocusHolder != nil, !compact { pathFocused = true }
         }
@@ -152,8 +148,6 @@ struct RequestBarView: View {
     }
 }
 
-/// The request's documentation: a size-capped popover from the toolbar's ⓘ,
-/// or on a compact width the sheet that popover becomes, which it fills.
 struct OperationDocs: View {
     let operation: SpecOperation
 
@@ -215,9 +209,6 @@ struct OperationDocs: View {
         }
     }
 
-    /// Name beside description where there's width for both; on a compact
-    /// width the name column would break names mid-word, so each parameter
-    /// stacks its name over its description.
     @ViewBuilder
     private var parameters: some View {
         if compact {

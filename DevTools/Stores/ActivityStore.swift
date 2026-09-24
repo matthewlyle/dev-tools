@@ -30,19 +30,12 @@ final class ActivityStore {
     var hiddenTypes: Set<String> = []
     private(set) var selectedEvent: NotificationEvent?
     private(set) var live = LiveSessions()
-    /// The session the list is narrowed to, picked in the sidebar. It lets
-    /// go when the session ends, since its row goes with it.
     var focusedSession: NotificationEvent.Session?
-    /// Whether `/status/sessions` has answered, or failed, since connecting.
-    /// The stream reports a playback only every few seconds, so the sidebar
-    /// holds back until then and arrives whole.
     private(set) var sessionsLoaded = false
     private var sessionsLoad: Task<Void, Never>?
 
-    /// Resolved item titles for rows whose payload names the item by key
-    /// alone. `requestedTitles` holds every key ever asked for, in flight,
-    /// resolved or failed, so a playing session's repeated frames fetch once
-    /// and a failure isn't retried until the events are cleared.
+    /// `requestedTitles` keeps every key ever asked for, failures included, so a
+    /// playing session's repeated frames fetch once.
     private(set) var titles: [TitleKey: String] = [:]
     private var requestedTitles: Set<TitleKey> = []
 
@@ -62,9 +55,8 @@ final class ActivityStore {
         hiddenTypes.isEmpty ? events : events.filter { !hiddenTypes.contains($0.type) }
     }
 
-    /// The selection holds the event itself rather than looking it up in the
-    /// buffer, so views reading it aren't invalidated by every incoming frame
-    /// and the ring buffer can trim it without closing the inspector.
+    /// Holds the event itself, so readers aren't invalidated per incoming frame and
+    /// the ring buffer can trim it without closing the inspector.
     var selectedEventID: UUID? {
         get { selectedEvent?.id }
         set {
@@ -73,7 +65,6 @@ final class ActivityStore {
         }
     }
 
-    /// The looked-up title of the item an event names by key, once resolved.
     func title(for event: NotificationEvent) -> String? {
         event.titleKey.flatMap(title(ratingKey:))
     }
@@ -137,11 +128,8 @@ final class ActivityStore {
         endSessions()
     }
 
-    /// A suspended app's socket is torn down under it, and the failure may
-    /// never surface, so a connection the user left open starts over on
-    /// return from the background instead of waiting on a dead one. It
-    /// starts over on the server's current connection, which the network
-    /// change may have dropped.
+    /// A suspended app's socket is torn down under it and the failure may never
+    /// surface, so an open connection starts over on return.
     func resume(on server: ConnectedServer?) {
         guard status.isActive else { return }
         if let server { connect(to: server) } else { disconnect() }
@@ -155,7 +143,6 @@ final class ActivityStore {
         requestedTitles.removeAll()
     }
 
-    /// Sign-out: nothing of the account, its server's token included, stays.
     func endSession() {
         disconnect()
         clear()
@@ -163,8 +150,6 @@ final class ActivityStore {
         hiddenTypes = []
     }
 
-    /// Sessions are only as current as the stream: without it, none can be
-    /// shown as running.
     private func endSessions() {
         sessionsLoad?.cancel()
         sessionsLoaded = false
@@ -172,8 +157,6 @@ final class ActivityStore {
         focusedSession = nil
     }
 
-    /// Seeds the running sessions, and their items' titles, which the
-    /// response names outright.
     private func loadSessions(on server: ConnectedServer) {
         sessionsLoad = Task { [http, weak self] in
             var request = PlexRequest(path: "/status/sessions")
@@ -214,8 +197,6 @@ final class ActivityStore {
         }
     }
 
-    /// Internal lookups pin JSON like the app's other background fetches;
-    /// the Accept setting is for the requests the user sends.
     private func resolveTitle(_ ratingKey: String) {
         guard let server else { return }
         let key = TitleKey(server: server.machineID, ratingKey: ratingKey)

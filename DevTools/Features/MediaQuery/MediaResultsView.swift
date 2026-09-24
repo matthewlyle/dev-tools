@@ -8,9 +8,6 @@ enum MediaResultsTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// The Media section's result pane: the query's items as a poster grid, with
-/// the raw response and headers a tab away. Clicking a poster selects it and
-/// opens its metadata in the inspector.
 struct MediaResultsView: View {
     let server: ConnectedServer?
 
@@ -24,9 +21,6 @@ struct MediaResultsView: View {
         requests.document?.tree?.children.map(MediaItem.init) ?? []
     }
 
-    /// The field the shown results are ordered by, from the request that
-    /// produced them — not the builder's current pick, which may have changed
-    /// since the query ran.
     private var sortKey: String? {
         requests.lastSent?.query.first { $0.enabled && $0.name == "sort" }?.value
             .split(separator: ",").first?
@@ -35,12 +29,8 @@ struct MediaResultsView: View {
     }
 
     var body: some View {
-        // Resting, error, and no-items states transition; results arrive
-        // without one — the grid runs its own entrance, and the body can't
-        // take one. Hidden, it draws nothing: sections share the workspace,
-        // so a hidden grid would lay out, and fetch art for, whatever another
-        // section just received, and a switch back swaps in Media's own
-        // response anyway.
+        // Hidden, it draws nothing: sections share the workspace, so a hidden
+        // grid would lay out, and fetch art for, another section's response.
         ZStack {
             if !isActive {
                 EmptyView()
@@ -148,10 +138,6 @@ struct MediaResultsView: View {
     }
 }
 
-/// The query's items as a poster grid. Cells rise and fade in with a short
-/// positional stagger so a fresh result set reads as arriving rather than
-/// blinking into place; the `.id(receivedAt)` in the parent remounts this so
-/// the entrance replays on each new query but not on scroll or section switch.
 private struct PosterGrid: View {
     let items: [MediaItem]
     let server: ConnectedServer?
@@ -163,9 +149,6 @@ private struct PosterGrid: View {
     @Environment(\.isCompactWidth) private var compact
     @State private var appeared = false
 
-    /// Columns stretch to fill the row: a capped column width leaves the
-    /// remainder empty at the trailing edge. A phone takes three across in
-    /// portrait.
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: compact ? 100 : 130), spacing: compact ? 12 : 16, alignment: .top)]
     }
@@ -245,8 +228,6 @@ private struct PosterButtonStyle: ButtonStyle {
 }
 
 private extension View {
-    /// The artwork the item sheet zooms out of, with its corners, so the
-    /// sheet grows from the poster's own shape.
     @ViewBuilder
     func zoomSource(id: some Hashable, in namespace: Namespace.ID?) -> some View {
         #if os(iOS)
@@ -261,9 +242,6 @@ private extension View {
     }
 }
 
-/// An item's artwork as the grid shows it: its column's width at the item's
-/// aspect, fetched a little wider than a column gets so a tile never
-/// upscales. A compact width's columns are narrower, so it fetches less.
 struct PosterArt: View {
     let item: MediaItem
     let server: ConnectedServer?
@@ -292,10 +270,6 @@ struct PosterArt: View {
     }
 }
 
-/// The tile that stands in for artwork. It breathes while the artwork is
-/// still coming, so a grid of them reads as loading rather than as posters
-/// with nothing on them, and holds still once there's nothing to wait for
-/// or under Reduce Motion.
 private struct PosterSkeleton: View {
     let loading: Bool
 

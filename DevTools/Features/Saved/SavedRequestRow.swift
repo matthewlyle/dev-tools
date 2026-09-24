@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// One saved request in the catalog: name over masked path. Click loads it
-/// into the request bar and sends it; right-click to rename or delete.
 struct SavedRequestRow: View {
     let item: SavedRequest
     let serverID: String
@@ -72,15 +70,11 @@ struct SavedRequestRow: View {
     }
 }
 
-/// The name for a saved request — new, renamed, or updated. Shows the
-/// request being kept so you can see what you're saving, not just its title.
 struct SaveRequestSheet: View {
     let title: String
     @State var name: String
-    /// Path + params being saved; nil when only renaming.
     var summary: String? = nil
     let action: String
-    /// An alternative commit, e.g. "Save as New" beside "Update".
     var secondary: (title: String, commit: (_ name: String) -> Void)? = nil
     let commit: (_ name: String) -> Void
 
@@ -117,8 +111,6 @@ struct SaveRequestSheet: View {
     }
 }
 
-/// Saves the request in the workspace: a new saved request, or, while it
-/// was loaded from one, an update with Save as New beside it.
 private struct SaveCurrentRequestSheet: View {
     let server: ConnectedServer
 
@@ -153,9 +145,6 @@ private struct SaveCurrentRequestSheet: View {
     }
 }
 
-/// Presents `SaveCurrentRequestSheet` from a request bar, and on Save
-/// Request… (⌘S). Only the visible section's bar answers the command: on a
-/// compact width every tab keeps its pushed bar alive.
 private struct SavesCurrentRequest: ViewModifier {
     @Binding var isPresented: Bool
     let server: ConnectedServer?

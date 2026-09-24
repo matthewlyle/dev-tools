@@ -1,7 +1,6 @@
 import Foundation
 
-/// Renders a request as a `curl` command. The token is never emitted, typed
-/// or not; `$PLEX_TOKEN` stands in, double-quoted so the shell expands it.
+/// `$PLEX_TOKEN` is double-quoted, unlike every other value, so the shell expands it.
 enum CurlExporter {
     static let tokenPlaceholder = "$PLEX_TOKEN"
 
@@ -20,7 +19,6 @@ enum CurlExporter {
         return lines.joined(separator: " \\\n  ")
     }
 
-    /// POSIX single-quoting: close, escaped quote, reopen.
     private static func quote(_ text: String) -> String {
         "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

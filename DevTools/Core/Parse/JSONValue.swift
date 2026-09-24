@@ -1,8 +1,6 @@
 import Foundation
 
-/// JSON parsed with member order intact. `JSONSerialization` returns
-/// unordered dictionaries, which would scramble child-element order relative
-/// to the XML form of the same response. Numbers keep their source text.
+/// Not `JSONSerialization`: its unordered dictionaries would scramble member order relative to the XML.
 indirect enum JSONValue: Sendable, Hashable {
     case object([(key: String, value: JSONValue)])
     case array([JSONValue])
@@ -233,9 +231,6 @@ indirect enum JSONValue: Sendable, Hashable {
 }
 
 extension JSONValue {
-    /// Re-serialized with member order and number text intact, two-space
-    /// indented — the response's own JSON for one node, not a lossy rebuild
-    /// from the parsed `Node` (whose attributes are sorted and typed away).
     func prettyPrinted() -> String {
         var out = ""
         write(into: &out, indent: 0)
@@ -297,9 +292,6 @@ extension JSONValue {
         }
     }
 
-    /// The first object anywhere in the tree with a scalar member `name`
-    /// equal to `value` — used to pull one item's object out of a response by
-    /// its `ratingKey`.
     func firstObject(scalar name: String, equals value: String) -> JSONValue? {
         switch self {
         case .object(let members):

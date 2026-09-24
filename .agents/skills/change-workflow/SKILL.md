@@ -44,9 +44,11 @@ Walk `git diff main...HEAD` (and `git diff` for anything uncommitted) against ev
 **Comments** — delete any that:
 - restate the code, name the type, or narrate steps;
 - are `// MARK:`, TODOs, or doc comments a signature already says;
+- describe what a view shows or how a feature behaves, or document wiring (`Published by…`, `Set by…`);
+- repeat AGENTS.md;
 - carry an anecdote: counts, timings, specific values met, "this showed up as", "we would have missed". The story goes in the commit message.
 
-Keep only an external constraint and what it forces, a deliberate policy that looks like an omission, or a non-obvious invariant. Comments on lines you touched that fail this bar go too.
+Keep only an external constraint and what it forces, a deliberate policy that looks like an omission, or a non-obvious invariant, in one or two sentences. Comments on lines you touched that fail this bar go too. The change shouldn't raise the app above about 20 comment lines per 1,000 lines of code.
 
 **Tokens** — nothing new shows, copies, logs, or URL-encodes a credential; `X-Plex-Token` travels only as a header; artwork goes through `ImageStore`.
 

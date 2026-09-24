@@ -1,22 +1,13 @@
 import Foundation
 
-/// Masks credentials in text a server sent, before anything shows, copies,
-/// or parses it; there is deliberately no way to reveal them. A value is a
-/// credential when it's filed under a token name (a JSON key, an XML
-/// attribute, an `X-Plex-Token` query item, the `PlexOnlineToken` setting)
-/// or is a token the app already holds. A credential long enough to be
-/// unambiguous is then masked everywhere, so it can't sit unlabelled in a
-/// URL further down.
 enum CredentialRedactor {
     static let mask = "••••••••"
 
     static let tokenNames = ["token", "authToken", "accessToken", "authenticationToken", "transientToken", "X-Plex-Token"]
 
-    /// Shorter values are masked only where they're labelled: replacing a
-    /// short string everywhere would eat unrelated text.
+    /// Masking a shorter value everywhere would eat unrelated text, so it's masked only where labelled.
     private static let globalMinimum = 8
 
-    /// Capture group 1 is the credential.
     private static let names = tokenNames.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|")
     private static let query = regex(#"(?i)\bX-Plex-Token=([^&"'\s<>]+)"#)
     private static let jsonKey = regex(#""(?:\#(names))"\s*:\s*"([^"\\]+)""#)
@@ -34,9 +25,7 @@ enum CredentialRedactor {
         try! NSRegularExpression(pattern: pattern)
     }
 
-    /// Each scan of a multi-MB body costs tens of milliseconds, so a JSON
-    /// body skips the XML patterns and the reverse; text that's neither
-    /// gets all of them.
+    /// Scanning a multi-MB body is slow, so a JSON body skips the XML patterns and the reverse.
     private static func patterns(for text: String) -> [NSRegularExpression] {
         let first = text.first { !$0.isWhitespace }
         let online = contains(text, "PlexOnlineToken")
@@ -52,8 +41,7 @@ enum CredentialRedactor {
         return patterns
     }
 
-    /// `String.contains` and Foundation's `range(of:)` both take hundreds of
-    /// milliseconds to miss on a multi-MB string; a byte search takes a few.
+    /// `String.contains` and `range(of:)` are far slower than a byte search to miss on a multi-MB string.
     private static func contains(_ text: String, _ needle: String) -> Bool {
         var text = text
         return text.withUTF8 { haystack in
@@ -93,7 +81,6 @@ enum CredentialRedactor {
         return result
     }
 
-    /// Bodies that aren't UTF-8 (images, binary) pass through untouched.
     static func redact(_ response: PlexResponse, known: [String]) -> PlexResponse {
         let text = String(data: response.body, encoding: .utf8)
         return PlexResponse(

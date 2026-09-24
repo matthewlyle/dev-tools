@@ -12,8 +12,6 @@ enum PlexHTTPError: Error, LocalizedError {
     }
 }
 
-/// Sends `PlexRequest`s. No caching: a dev tool must show what the server
-/// actually returned right now. Non-2xx is a response, not an error.
 final class PlexHTTP: Sendable {
     private let session: URLSession
     let identity: ClientIdentity

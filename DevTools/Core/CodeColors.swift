@@ -1,7 +1,5 @@
 import Foundation
 
-/// The code view's colours: system hues, built once because the renderer asks
-/// for a colour per token.
 struct CodeColors: Sendable {
     let background: PlatformColor
     let text: PlatformColor

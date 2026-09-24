@@ -5,8 +5,6 @@ import Testing
 struct MetadataTypeTests {
     private final class Marker {}
 
-    /// The rows of the spec's "List of Metadata Types", read from the bundled
-    /// document so a spec refresh that changes it fails here.
     private static func specTable() throws -> [String: Int] {
         let url = Bundle(for: Marker.self).url(forResource: "plex-openapi", withExtension: "json")
             ?? Bundle.main.url(forResource: "plex-openapi", withExtension: "json")!

@@ -28,8 +28,8 @@ struct ClientIdentity: Sendable, Hashable {
     @MainActor
     static func current() -> ClientIdentity {
         let defaults = UserDefaults.standard
-        // Not "clientIdentifier": plex.tv refuses legacy-token PINs for an
-        // identifier that registered a JWT key, which a past build did.
+        // Not "clientIdentifier": a past build registered a JWT key under it, and plex.tv
+        // refuses legacy-token PINs for such an identifier.
         let key = "plexClientIdentifier"
         let id: String
         if let stored = defaults.string(forKey: key) {

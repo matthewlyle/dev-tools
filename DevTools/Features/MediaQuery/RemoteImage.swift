@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// Server artwork fetched at `size` points for the screen's scale, loaded
-/// through `ImageStore` (token as a header). The caller frames it; it fills
-/// and crops by default, and `fit` letterboxes the whole image. Shows
-/// `placeholder` until it arrives or if it can't, told which: `loading` is
-/// false once there's nothing more to wait for (no art, or the fetch failed).
 struct RemoteImage<Placeholder: View>: View {
     let value: String?
     let server: ConnectedServer?
@@ -18,10 +13,8 @@ struct RemoteImage<Placeholder: View>: View {
     @State private var image: PlatformImage?
     @State private var loading = true
 
-    /// The clear base takes exactly the size offered and the image fills it
-    /// as an overlay: a scaled-to-fill image reports more than it was
-    /// offered, and a flexible frame around it would grow to match, so the
-    /// crop would land outside the tile.
+    /// A scaled-to-fill image reports more than it was offered, and a flexible
+    /// frame would grow to match, so it overlays a clear base of the offered size.
     var body: some View {
         Color.clear
             .overlay {

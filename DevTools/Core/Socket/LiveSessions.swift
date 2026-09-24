@@ -1,9 +1,5 @@
 import Foundation
 
-/// The playback and transcode sessions running on the server, in the order
-/// they were first seen: seeded from `/status/sessions`, then kept current by
-/// the notification stream. A playback ends when it reports `stopped`; a
-/// transcode on `transcodeSession.end`.
 struct LiveSessions: Equatable {
     typealias Session = NotificationEvent.Session
 
@@ -11,13 +7,11 @@ struct LiveSessions: Equatable {
         let session: Session
         var ratingKey: String?
         var state: String?
-        /// Milliseconds.
         var viewOffset: Int?
     }
 
     struct Transcode: Equatable {
         let session: Session
-        /// The video codec change where both are named, else the context.
         var subject: String?
         var progress: Double?
         var speed: Double?
@@ -59,8 +53,7 @@ struct LiveSessions: Equatable {
         }
     }
 
-    /// What `/status/sessions` says is running. A session the stream has
-    /// already reported keeps that report, which is at least as new.
+    /// A session the stream already reported keeps that report, which is at least as new.
     mutating func seed(statusSessions root: Node) {
         for item in root.children {
             guard let key = item["sessionKey"], !key.isEmpty else { continue }

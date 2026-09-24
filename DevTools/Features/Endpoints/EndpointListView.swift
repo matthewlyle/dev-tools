@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Every documented GET operation, grouped by tag, with the requests saved
-/// for this server pinned as the first group. One list, one filter.
 struct EndpointListView: View {
     let server: ConnectedServer?
     let serverID: String
@@ -89,9 +87,7 @@ struct EndpointListView: View {
     }
 }
 
-/// One catalog row. On a server you don't own, admin-only operations carry a
-/// lock and are dimmed with the reason, but stay clickable — seeing the 403 is
-/// part of exploring the API.
+/// Admin-only rows on a server you don't own stay clickable: seeing the 403 is part of exploring the API.
 private struct EndpointRow: View {
     let operation: SpecOperation
     let disabled: Bool

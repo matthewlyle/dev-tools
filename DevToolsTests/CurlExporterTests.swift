@@ -32,7 +32,6 @@ struct CurlExporterTests {
         let command = CurlExporter.command(for: request, base: base, identityHeaders: [:])!
 
         #expect(!command.contains("X-Skip"))
-        // The apostrophe is percent-encoded by URLComponents; if it weren't, it would be shell-escaped.
         #expect(command.contains("query=it") && (command.contains("it%27s") || command.contains("it'\\''s")))
     }
 }

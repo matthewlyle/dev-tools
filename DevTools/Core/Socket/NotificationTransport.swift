@@ -25,8 +25,6 @@ enum NotificationTransportError: Error, LocalizedError {
 enum NotificationTransport {
     static let log = Logger(subsystem: "mldgg.devtools", category: "activity")
 
-    /// PMS's own OpenAPI doc lists the singular `/:/websocket/…`, but the
-    /// server only routes the plural (see python-plexapi's AlertListener).
     static let path = "/:/websockets/notifications"
 
     static func request(server: ConnectedServer, identity: ClientIdentity) throws -> URLRequest {
@@ -103,7 +101,6 @@ enum NotificationTransport {
                 }
             }
 
-            // Keep NAT/proxies from dropping an idle socket.
             let pinger = Task {
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(30))

@@ -1,12 +1,6 @@
 import SwiftUI
 
-/// The request's own actions (its documentation, copy from it, save it) as
-/// toolbar items. On a regular width they're declared once over the detail,
-/// with stable ids, so moving between the sections that show a request
-/// leaves them where they are; a compact width's pushed request screen owns
-/// its bar, so each screen declares them there. They're declared outside the
-/// request block, which on the Response tab is hosted inside the text view,
-/// out of reach of the toolbar.
+/// Declared outside the request block: on the Response tab it's hosted inside the text view, out of reach of the toolbar.
 struct RequestToolbarItems: ToolbarContent {
     let server: ConnectedServer?
 
@@ -69,8 +63,6 @@ private struct CopyMenu: View {
     }
 }
 
-/// Presents through the visible bar's save sheet, the same path as Save
-/// Request… (⌘S).
 private struct SaveButton: View {
     let server: ConnectedServer?
 
@@ -92,10 +84,6 @@ private struct SaveButton: View {
     }
 }
 
-/// A request screen's share of the request actions: the Show Documentation
-/// command wherever it's the visible section, and on a compact width the
-/// toolbar items for its own bar. On a regular width the detail declares
-/// the items, so the screen adds no toolbar there at all.
 private struct RequestScreenActions: ViewModifier {
     let server: ConnectedServer?
 

@@ -1,7 +1,6 @@
 import Foundation
 
-/// Re-indents JSON without parsing it into a dictionary, so key order and
-/// number formatting come out exactly as the server sent them.
+/// Re-indents bytes instead of parsing, so key order and number text stay as the server sent them.
 enum JSONFormatter {
     private static let quote: UInt8 = 0x22
     private static let backslash: UInt8 = 0x5C

@@ -1,11 +1,7 @@
 import Foundation
 import Security
 
-/// Accessibility only applies where the data protection keychain is used,
-/// which is iOS here: on the Mac the item lives in the file-based keychain,
-/// because the data protection keychain needs an application-identifier
-/// entitlement that a Developer ID build without a provisioning profile
-/// doesn't carry.
+/// On the Mac the item lives in the file-based keychain, where `accessibility` doesn't apply.
 enum TokenStore {
     private static let service = "mldgg.devtools"
     private static let account = "plex.tv"
@@ -56,7 +52,6 @@ enum TokenStore {
         guard addStatus == errSecSuccess else { throw Failure.status(addStatus) }
     }
 
-    /// Whether no item is left behind.
     @discardableResult
     static func delete() -> Bool {
         let status = SecItemDelete(baseQuery as CFDictionary)

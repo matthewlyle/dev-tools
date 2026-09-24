@@ -1,8 +1,5 @@
 import Foundation
 
-/// URLSession carries every request header, `X-Plex-Token` included, to
-/// wherever a redirect points. A redirect that leaves the origin (scheme,
-/// host, or port) is refused, so the 3xx arrives as the response.
 final class SameOriginRedirects: NSObject, URLSessionTaskDelegate, Sendable {
     static func allows(from source: URL, to target: URL) -> Bool {
         guard let scheme = source.scheme?.lowercased(), scheme == target.scheme?.lowercased(),

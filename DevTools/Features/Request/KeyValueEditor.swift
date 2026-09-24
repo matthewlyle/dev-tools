@@ -24,8 +24,6 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
             ForEach(items) { item in
                 let bound = binding(for: item)
                 VStack(alignment: .leading, spacing: 4) {
-                    // A compact width can't fit a name and a value beside the
-                    // switch, so the value takes a line of its own.
                     if compact {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 8) {
@@ -145,18 +143,14 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
         .help("Remove")
     }
 
-    /// Animates only the user's own adds and removes. A section or server
-    /// switch replaces `items` wholesale (`switchWorkspace`, `reset`), which
-    /// must not play as a cascade of removals — so no animation keyed to the
-    /// array, and none attached to the row transition, which would run then.
+    /// A workspace switch replaces `items` wholesale and must not play as a cascade of removals, so only the
+    /// user's own edits animate: nothing keyed to the array, nothing attached to the row transition.
     private func edit(_ change: () -> Void) {
         withAnimation(reduceMotion ? nil : .snappy, change)
     }
 
-    /// Looked up by id on every access rather than captured by index:
-    /// a workspace swap empties the array while UIKit-backed controls
-    /// (the switch, the text fields) can still read their bindings during
-    /// the layout pass that removes them, and an index binding traps then.
+    /// Looked up by id, not index: a workspace swap empties the array while UIKit-backed controls can still
+    /// read their bindings in the layout pass that removes them, and an index binding traps then.
     private func binding(for item: Item) -> Binding<Item> {
         Binding(
             get: { items.first { $0.id == item.id } ?? item },
@@ -184,9 +178,7 @@ struct KeyValueEditor<Item: KeyValueItem>: View {
 
 }
 
-/// The Add-parameter popover: documented parameters with their descriptions
-/// as subtitles (a plain `Menu` forces one line and drops them), plus a
-/// Custom entry. Tapping one adds it and closes.
+/// A popover, not a `Menu`: a menu forces one line per item and drops the descriptions.
 private struct ParameterAddList: View {
     let parameters: [SpecParameter]
     let onPick: (SpecParameter) -> Void
@@ -240,8 +232,6 @@ private struct ParameterAddList: View {
             }
             .padding(.vertical, 4)
         }
-        // Ideal, not fixed: where the popover adapts to a sheet (an iPhone)
-        // it fills the sheet's width.
         .frame(idealWidth: 360, maxWidth: .infinity)
         .frame(maxHeight: 400)
         .presentationDetents([.medium, .large])

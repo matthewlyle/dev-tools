@@ -7,12 +7,6 @@ import AppKit
 import UIKit
 #endif
 
-/// Loads server artwork through `PlexHTTP`, so the token travels as a header
-/// and never appears in an image URL. Server-relative paths go through
-/// `/photo/:/transcode` at the requested pixel size; absolute URLs (public
-/// CDN art, plex.tv avatars) are fetched as-is without credentials, on a
-/// session with no URL cache: artwork is kept in memory only, per server,
-/// path, and size.
 @MainActor
 @Observable
 final class ImageStore {
@@ -27,8 +21,8 @@ final class ImageStore {
         let config = URLSessionConfiguration.ephemeral
         config.urlCache = nil
         publicSession = URLSession(configuration: config)
-        // Bounded by decoded bytes, not count: a 2× poster is ~400 KB, so a
-        // count limit alone lets a big library scroll into hundreds of MB.
+        // Bounded by decoded bytes, not count: a count limit alone lets a big
+        // library scroll into hundreds of MB.
         cache.totalCostLimit = 160 * 1024 * 1024
     }
 
@@ -43,9 +37,6 @@ final class ImageStore {
         cache.removeAllObjects()
     }
 
-    /// The decoded image if it's already in memory, without touching the
-    /// network. Lets a view show a cached hit instantly and reserve the fade
-    /// for a real decode.
     func cachedImage(for value: String, server: ConnectedServer, width: Int, height: Int) -> PlatformImage? {
         cache.object(forKey: cacheKey(value, server, width, height))
     }
@@ -69,7 +60,6 @@ final class ImageStore {
         }
     }
 
-    /// A public image not tied to a server, such as the account's avatar.
     func image(at url: URL, width: Int, height: Int) async -> PlatformImage? {
         await load(key: "public|\(url.absoluteString)|\(width)x\(height)" as NSString, cost: width * height * 4) { [publicSession] in
             try? await publicSession.data(from: url).0

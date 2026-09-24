@@ -1,13 +1,6 @@
 import SwiftUI
 
-/// A short-input sheet's frame. The Mac's is a fixed-width panel with the
-/// title on top and the buttons trailing along the bottom. iOS puts the
-/// title, Close, and the confirming action in a navigation bar over content
-/// that fills the sheet: an iPhone sheet is the screen's width, so a fixed
-/// width clips, and the HIG puts a sheet's actions in its bar there. The
-/// roles draw the system's ✕ and prominent ✓; the confirming action keeps
-/// its title for VoiceOver. It rests at half height with a grabber, as the
-/// HIG asks of an iPhone sheet whose content fits there.
+/// An iPhone sheet is the screen's width, so on iOS content fills it: a fixed width clips.
 struct SheetScaffold<Subtitle: View, Content: View>: View {
     let title: String
     let width: CGFloat

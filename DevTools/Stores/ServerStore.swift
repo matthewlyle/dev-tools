@@ -8,7 +8,6 @@ final class ServerStore {
         var id: String { resource.clientIdentifier }
         let resource: PlexResource
         var probes: [ProbeResult] = []
-        /// The probe whose answer is kept; an older one's is dropped.
         fileprivate var pendingProbe: Int?
 
         init(resource: PlexResource) {
@@ -37,8 +36,6 @@ final class ServerStore {
 
     private let plexTV: PlexTVClient
     private let prober: ConnectionProber
-    /// Bumped by whatever makes an in-flight refresh's answer stale: a newer
-    /// refresh, sign-out.
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var probeSequence = 0
 

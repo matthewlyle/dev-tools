@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// Fills an operation's `{placeholders}` before opening it. A placeholder
-/// gets the richest helper its value allows: a picker when the spec enumerates
-/// it or the server can list it (libraries, playlists, collections, tuner
-/// devices), a now/date helper for epoch seconds, and otherwise a field with
-/// values seen in earlier responses. Whatever you pick is remembered.
 struct PlaceholderSheet: View {
     let operation: SpecOperation
     let server: ConnectedServer?
@@ -154,8 +149,6 @@ struct PlaceholderSheet: View {
         }
     }
 
-    /// Values seen in earlier responses that fit `name`, grouped by where
-    /// they came from. Hidden when nothing fits.
     @ViewBuilder
     private func recentMenu(for name: String) -> some View {
         let candidates = Array((server.map { memory.candidates(for: name, serverID: $0.machineID) } ?? []).prefix(24))

@@ -17,7 +17,6 @@ struct OpenAPISpec: Decodable, Sendable {
         let description: String?
         let tags: [String]?
         let parameters: [ParameterOrRef]?
-        /// Security requirements; scheme name → scopes. `[[:]]` means none.
         let security: [[String: [String]]]?
     }
 
@@ -63,7 +62,6 @@ struct OpenAPISpec: Decodable, Sendable {
     let info: Info
     let paths: [String: PathItem]
     let components: Components?
-    /// Document-wide security requirement, inherited by operations that don't override it.
     let security: [[String: [String]]]?
 
     static func loadBundled() throws -> OpenAPISpec {
@@ -74,8 +72,6 @@ struct OpenAPISpec: Decodable, Sendable {
     }
 }
 
-/// A JSON scalar of any type, kept as its display string. Spec `enum`,
-/// `default`, and `example` values mix strings, numbers, and booleans.
 struct LossyScalar: Decodable, Sendable, Hashable {
     let text: String
 

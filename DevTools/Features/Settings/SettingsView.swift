@@ -62,7 +62,6 @@ struct SettingsView: View {
                 Text("Requests")
             }
 
-            // Only the Mac has an appearance setting.
             #if os(macOS)
             Section {
                 Toggle("Translucent background", isOn: $translucent)

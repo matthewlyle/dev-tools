@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// The event list under its connection control. The selected event's
-/// payload opens in the detail pane's inspector (`SectionInspector`); the
-/// list and the control are views of their own so only they redraw per
-/// incoming frame, and this body reads nothing but the selection.
+/// Anything that reads the events is its own view, so only it redraws per frame;
+/// this body reads nothing but the selection.
 struct ActivityEventsView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.sectionIsActive) private var isActive
@@ -11,10 +9,6 @@ struct ActivityEventsView: View {
     @Environment(\.connectionInTabBar) private var connectionInTabBar
 
     var body: some View {
-        // On a compact width the events are the tab's root and own its bar:
-        // the type filter (there's no list pane for it) and Clear. Elsewhere
-        // Clear is declared over the detail (`ActivityToolbarItems`), so the
-        // events add no toolbar there at all.
         Group {
             if compact {
                 events.sectionListToolbar(followsList: false) {
@@ -38,10 +32,6 @@ struct ActivityEventsView: View {
     private var events: some View {
         EventList()
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // The tab bar carries the control as its accessory on an
-                // upright phone (`MainSplitView`); elsewhere it floats over
-                // the events as a capsule, the one custom glass in the app: a
-                // control above content, which the HIG allows sparingly.
                 if !connectionInTabBar {
                     ActivityConnectionControl()
                         .padding(.horizontal, 16)
@@ -55,8 +45,6 @@ struct ActivityEventsView: View {
     }
 }
 
-/// Activity's item over the detail on a regular width, beside where the
-/// request sections put theirs.
 struct ActivityToolbarItems: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItem(id: "activity.clear", placement: .primaryAction) {
@@ -65,7 +53,6 @@ struct ActivityToolbarItems: ToolbarContent {
     }
 }
 
-/// Its own view so reading the events redraws only the button per frame.
 private struct ClearEventsButton: View {
     @Environment(ActivityStore.self) private var activity
 
@@ -80,9 +67,6 @@ private struct ClearEventsButton: View {
     }
 }
 
-/// The connection: status, count, and Connect or Disconnect. As the tab
-/// bar's accessory it's one line, and inline beside a minimized tab bar it
-/// keeps only the status and the button.
 struct ActivityConnectionControl: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(ServerStore.self) private var servers
@@ -131,8 +115,6 @@ struct ActivityConnectionControl: View {
                 }
             }
             .animation(reduceMotion ? nil : .smooth, value: activity.status)
-            // The accessory is one line tall; the error stays where there's
-            // room for it.
             if accessoryPlacement == nil, let error = activity.lastError, activity.status != .failed(error) {
                 Text("Last error: \(error)")
                     .font(.code(.caption))
@@ -180,7 +162,6 @@ private struct EventList: View {
     @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
-        // A compact width has no sidebar to pick or release a session in.
         let focused = compact ? nil : activity.focusedSession
         let visible = focused.map { session in activity.visibleEvents.filter { $0.session == session } } ?? activity.visibleEvents
 
@@ -213,11 +194,6 @@ private struct EventList: View {
         .focusedSceneValue(\.clearEvents, isActive && !activity.events.isEmpty ? ClearEventsAction { activity.clear() } : nil)
     }
 
-    /// A row tap on iPadOS runs the list's primary action — the platform's
-    /// "open this item" — while macOS runs it on double-click and keeps
-    /// native click and arrow-key selection; a tap gesture there would
-    /// swallow the table's own selection. On iPhone a tap neither selects
-    /// nor runs the primary action, so the rows are buttons that select.
     @ViewBuilder
     private func events(_ visible: [NotificationEvent]) -> some View {
         @Bindable var activity = activity
@@ -261,9 +237,6 @@ private struct EventList: View {
     }
 }
 
-/// One event: time, type, and what it's about on one line; on a compact
-/// width the type and time head a second line that holds the subject, so
-/// neither the badge nor the subject has to squeeze.
 private struct EventRow: View {
     let event: NotificationEvent
     let title: String?
@@ -318,9 +291,8 @@ struct EventInspector: View {
     @State private var built: Built?
     @State private var collapsed: Set<Int> = []
 
-    /// A payload document and the event it was built from. The text view is
-    /// only shown for a document that belongs to `event`, so its `version`
-    /// (the event's time) can never be paired with another event's text.
+    /// Shown only for its own event, so `version` (the event's time) is never paired
+    /// with another event's text.
     private struct Built {
         let eventID: NotificationEvent.ID
         let document: ResponseDocument

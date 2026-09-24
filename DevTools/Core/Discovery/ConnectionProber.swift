@@ -26,13 +26,8 @@ struct ConnectionProber: Sendable {
         self.timeout = timeout
     }
 
-    /// Probes go out without the token: a connection is an address the
-    /// server advertised from its own network, and off that network the
-    /// address can belong to anyone. `/identity` answers unauthenticated, and
-    /// the token is only sent once a connection proves it's this server.
-    /// Plain HTTP is never probed: the machine ID is public and an on-path
-    /// relay can pass the probe to the real server, so only TLS proves who
-    /// answered, and the token would cross the network in the clear.
+    /// Probes go out without the token: it only goes to a connection that answered with this server's ID.
+    /// Plain HTTP is never probed, since only TLS proves who answered.
     func probeAll(_ resource: PlexResource) async -> [ProbeResult] {
         guard resource.accessToken != nil else {
             return resource.connections.map {

@@ -127,9 +127,8 @@ struct HistoryListView: View {
         SectionColumnList {
             ForEach(rows) { entry in
                 Button {
-                    // Selecting replays. The selected row replays again only
-                    // if its response never landed: a section switch cancels
-                    // a replay in flight.
+                    // A re-selected row replays only if its response never landed: a section switch
+                    // cancels a replay in flight.
                     if selection == entry.id {
                         if requests.response == nil, !requests.isSending, let connected {
                             requests.replay(entry, on: connected)
@@ -191,9 +190,6 @@ struct HistoryListView: View {
         }
     }
 
-    /// Removes one entry. If it was the one being shown, the workspace is
-    /// cleared rather than left displaying a response that no longer has a
-    /// row; Clear History does the same.
     private func delete(_ id: HistoryEntry.ID) {
         let wasShowing = selection == id
         requests.deleteHistoryEntry(id)
