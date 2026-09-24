@@ -1,9 +1,10 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SignInView: View {
     @Environment(AccountStore.self) private var account
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.openURL) private var openURL
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
     private var isAwaitingApproval: Bool {
         if case .awaitingApproval = account.state { return true }
@@ -36,8 +37,31 @@ struct SignInView: View {
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { WellBackground() }
-        .onChange(of: account.approvalURL) { _, url in
-            if let url { openURL(url) }
+        .task(id: account.approvalURL) {
+            guard let url = account.approvalURL else { return }
+            await approve(at: url)
+        }
+    }
+
+    /// Plex's approval page in the system sign-in sheet. Polling finishes
+    /// sign-in, which tears this task down and so dismisses the sheet;
+    /// closing it by hand cancels. Nothing ever calls back on the scheme:
+    /// Plex refuses a `forwardUrl` that isn't its own or the PIN's origin,
+    /// and fails the approval instead.
+    private func approve(at url: URL) async {
+        do {
+            _ = try await webAuthenticationSession.authenticate(
+                using: url,
+                callback: .customScheme("mldgg-devtools"),
+                preferredBrowserSession: .shared,
+                additionalHeaderFields: [:]
+            )
+        } catch {
+            guard !Task.isCancelled, account.approvalURL == url else { return }
+            account.cancelSignIn()
+            if (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin {
+                account.errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -55,19 +79,14 @@ struct SignInView: View {
 
     private var approval: some View {
         VStack(spacing: 16) {
-            Text("Approve this sign-in in your browser.")
+            Text("Approve this sign-in with Plex.")
                 .foregroundStyle(.secondary)
 
             ProgressView()
                 .controlSize(.small)
 
-            HStack {
-                Button("Cancel", role: .cancel) { account.cancelSignIn() }
-                Button("Open plex.tv Again") {
-                    if let url = account.approvalURL { openURL(url) }
-                }
-            }
-            .controlSize(.regular)
+            Button("Cancel", role: .cancel) { account.cancelSignIn() }
+                .controlSize(.regular)
         }
     }
 }
