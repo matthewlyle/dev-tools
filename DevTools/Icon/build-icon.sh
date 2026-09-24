@@ -23,5 +23,9 @@ for spec in 16:icon_16 32:icon_16@2x 32:icon_32 64:icon_32@2x \
     sips -z "${spec%%:*}" "${spec%%:*}" "$MASTER" --out "$SET/${spec##*:}.png" >/dev/null
 done
 
+# App Store Connect rejects an iOS icon with an alpha channel, even a fully
+# opaque one, and sips can't drop the channel losslessly.
+magick "$MASTER" -alpha off "$SET/icon_ios_1024.png"
+
 rm -rf "$WORK"
 echo "Wrote PNG set to $SET"
