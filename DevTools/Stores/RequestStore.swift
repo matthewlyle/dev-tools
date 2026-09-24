@@ -32,6 +32,12 @@ final class RequestStore {
     /// screen yet: a compact width pushes it after the request.
     var pathFocusPending = false
 
+    /// Which request bar's path field has focus. A send moves the response
+    /// through states that each build their own bar with fresh focus, so the
+    /// next bar takes focus up from here. An outgoing bar can still be on
+    /// screen as the next one takes focus, so only the holder clears it.
+    var pathFocusHolder: UUID?
+
     /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
 
@@ -381,6 +387,7 @@ final class RequestStore {
         editingSavedID = workspace.editingSavedID
         showingDocs = false
         pathFocusPending = false
+        pathFocusHolder = nil
     }
 
     func requestPathFocus() {
