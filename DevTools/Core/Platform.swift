@@ -163,3 +163,38 @@ extension EnvironmentValues {
         #endif
     }
 }
+
+extension View {
+    /// Closes the Mac window hosting this view when `condition` turns true;
+    /// already true when it appears doesn't count. SwiftUI's `dismiss` can't
+    /// close the `Settings` scene's window. On iOS it does nothing: there a
+    /// view lives in a sheet that its presenter tears down.
+    func platformClosesWindow(when condition: Bool) -> some View {
+        #if os(macOS)
+        background(WindowCloser(condition: condition))
+        #else
+        self
+        #endif
+    }
+}
+
+#if os(macOS)
+private struct WindowCloser: NSViewRepresentable {
+    let condition: Bool
+
+    final class Coordinator {
+        var wasTrue: Bool
+        init(_ wasTrue: Bool) { self.wasTrue = wasTrue }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(condition) }
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        defer { context.coordinator.wasTrue = condition }
+        guard condition, !context.coordinator.wasTrue else { return }
+        Task { @MainActor in view.window?.close() }
+    }
+}
+#endif
