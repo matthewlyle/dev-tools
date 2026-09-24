@@ -14,13 +14,10 @@ final class AccountStore {
     private(set) var state: State = .restoring
     private(set) var token: String?
     var errorMessage: String?
-    /// Set by the Sign Out… menu command; the root view owns the confirmation.
     var isConfirmingSignOut = false
 
     private let plexTV: PlexTVClient
     private var pollTask: Task<Void, Never>?
-    /// Bumped by sign-out and cancel, so a restore or approval still in
-    /// flight can't sign back in the account just left.
     private var session = 0
 
     init(plexTV: PlexTVClient) {
@@ -66,7 +63,6 @@ final class AccountStore {
         }
     }
 
-    /// Where the pending sign-in is approved; the view opens it.
     var approvalURL: URL? {
         guard case .awaitingApproval(let pin) = state else { return nil }
         return plexTV.approvalURL(for: pin)

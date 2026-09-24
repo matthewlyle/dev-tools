@@ -1,13 +1,5 @@
 import SwiftUI
 
-/// The Activity list pane: what's running on the server and which event
-/// types the events show. Like every section's list it only narrows what's
-/// on the right — to a session's own events, types on and off; the
-/// connection and its controls are the events' footer. While connected it
-/// waits for the running sessions and then arrives whole, rather than types
-/// first and sessions seconds later. Until events arrive it's blank: the
-/// events pane's own zero state says what to do, and a second one here would
-/// compete with it.
 struct ActivityFiltersView: View {
     @Environment(ActivityStore.self) private var activity
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -86,8 +78,6 @@ struct ActivityFiltersView: View {
         .sectionListStyle()
     }
 
-    /// One row of the focus choice: All Events (`nil`) or a session, which
-    /// narrows the events to its own. Exactly one is always chosen.
     private func focusRow(_ session: NotificationEvent.Session?, @ViewBuilder label: () -> some View) -> some View {
         let chosen = activity.focusedSession == session
         return Button {
@@ -104,8 +94,6 @@ struct ActivityFiltersView: View {
     }
 }
 
-/// A playback: the item's name, then its state and position, which move in
-/// place as the session reports.
 private struct PlaybackRow: View {
     let playback: LiveSessions.Playback
     let title: String?
@@ -135,7 +123,6 @@ private struct PlaybackRow: View {
     }
 }
 
-/// A transcode: what it converts, then its progress and speed.
 private struct TranscodeRow: View {
     let transcode: LiveSessions.Transcode
 
@@ -173,8 +160,6 @@ private struct TranscodeRow: View {
     }
 }
 
-/// The same filter as a toolbar menu, where there's no list pane beside the
-/// events: a compact width, whose Activity tab roots the events themselves.
 struct ActivityTypeMenu: View {
     @Environment(ActivityStore.self) private var activity
 

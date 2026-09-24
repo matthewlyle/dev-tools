@@ -34,9 +34,7 @@ struct PlexResource: Sendable, Codable, Hashable, Identifiable {
         [device, platform].compactMap { $0 }.first { !$0.isEmpty }
     }
 
-    /// Never encodes `accessToken`: an encoded resource is what lands on
-    /// disk, and no credential is written outside the Keychain. The token
-    /// comes back with the next `/api/v2/resources` refresh.
+    /// Never encodes `accessToken`: this is what lands on disk, and each refresh brings the token back.
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(name, forKey: .name)
@@ -105,8 +103,6 @@ struct Connection: Sendable, Codable, Hashable, Identifiable {
         return local ? .local : .remote
     }
 
-    /// Local first; relay trails direct HTTPS for its bandwidth cap. Plain
-    /// HTTP, never probed, sorts after all of them.
     var rank: Int {
         switch (isHTTPS, relay, local) {
         case (true, false, true): 0

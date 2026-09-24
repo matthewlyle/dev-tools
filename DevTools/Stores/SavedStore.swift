@@ -19,7 +19,6 @@ final class SavedStore {
         if saved != loaded { persist() }
     }
 
-    /// Newest first, for one server.
     func items(for serverID: String) -> [SavedRequest] {
         saved.filter { $0.serverID == serverID }.sorted { $0.createdAt > $1.createdAt }
     }

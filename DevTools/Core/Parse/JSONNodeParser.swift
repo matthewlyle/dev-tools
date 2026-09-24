@@ -1,10 +1,5 @@
 import Foundation
 
-/// Builds a `Node` tree from Plex JSON. A top-level object with a single
-/// object value (`{"MediaContainer": {…}}`) becomes the root node; members
-/// that are arrays of objects become repeated child nodes named by the member
-/// key, in source order; scalar members become attributes, sorted by name to
-/// match the XML parser (whose attribute order is not recoverable).
 enum JSONNodeParser {
     static func parse(_ data: Data) -> Node? {
         guard let value = JSONValue.parse(data) else { return nil }

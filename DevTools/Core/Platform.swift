@@ -54,10 +54,6 @@ extension PlatformColor {
         #endif
     }
 
-    /// On iOS the code draws straight over the well, whose wash otherwise
-    /// stops at the text view's edge and leaves the body screen black against
-    /// the lists around it. The well is the system background under a faint
-    /// wash, so the code hues' contrast holds.
     static var codeBackground: PlatformColor {
         #if os(macOS)
         .textBackgroundColor
@@ -79,9 +75,6 @@ extension PlatformColor {
     static let codeOrange = raisedInLight(.systemOrange)
     static let codeBlue = raisedInLight(.systemBlue)
 
-    /// The system hue as-is in dark appearances, and its Increase Contrast
-    /// variant in light ones: the code surface is white, where the standard
-    /// hues fall under 4.5:1.
     private static func raisedInLight(_ hue: PlatformColor) -> PlatformColor {
         #if os(macOS)
         NSColor(name: nil) { appearance in
@@ -100,9 +93,8 @@ extension PlatformColor {
     }
 
     #if os(macOS)
-    /// `NSAppearance(named: .accessibilityHighContrastAqua)` silently returns
-    /// plain Aqua; the high-contrast light appearance only loads by its
-    /// catalog name from the system appearance bundle.
+    /// `NSAppearance(named: .accessibilityHighContrastAqua)` silently returns plain Aqua;
+    /// the high-contrast appearance only loads by its catalog name from the system bundle.
     private nonisolated(unsafe) static let highContrastAqua = NSAppearance(
         appearanceNamed: NSAppearance.Name("AquaAX"),
         bundle: Bundle(path: "/System/Library/CoreServices/SystemAppearance.bundle")
@@ -131,8 +123,7 @@ enum Clipboard {
 }
 
 extension Font.TextStyle {
-    /// The code face sets larger on iPad than on the Mac at the same style,
-    /// so list rows step down there to sit level with their neighbours.
+    /// The code face sets larger on iPad than on the Mac at the same style.
     static var codeListRow: Font.TextStyle {
         #if os(macOS)
         .callout
@@ -141,8 +132,6 @@ extension Font.TextStyle {
         #endif
     }
 
-    /// The same step for a detail's name/value rows (response headers):
-    /// iOS's body size sets the code face far larger than the Mac's.
     static var codeDetailRow: Font.TextStyle {
         #if os(macOS)
         .body
@@ -153,8 +142,6 @@ extension Font.TextStyle {
 }
 
 extension EnvironmentValues {
-    /// A horizontally compact layout: an iPhone, or an iPad in Slide Over or
-    /// a narrow split. The Mac has no size classes and is never compact.
     var isCompactWidth: Bool {
         #if os(macOS)
         false
@@ -165,10 +152,7 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// Closes the Mac window hosting this view when `condition` turns true;
-    /// already true when it appears doesn't count. SwiftUI's `dismiss` can't
-    /// close the `Settings` scene's window. On iOS it does nothing: there a
-    /// view lives in a sheet that its presenter tears down.
+    /// SwiftUI's `dismiss` can't close the `Settings` scene's window.
     func platformClosesWindow(when condition: Bool) -> some View {
         #if os(macOS)
         background(WindowCloser(condition: condition))

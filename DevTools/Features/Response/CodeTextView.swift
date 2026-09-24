@@ -6,10 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-/// The response body. `header` rides inside the text view's scroll — pinned
-/// above the text by a top content inset — so it scrolls away with the body
-/// while the body keeps viewport layout (a page-level scroll view would lay
-/// the whole document out).
 struct CodeTextView {
     let text: String
     let tokens: [Token]
@@ -17,9 +13,8 @@ struct CodeTextView {
     @Binding var collapsed: Set<Int>
     let wrap: Bool
     let version: Date
-    /// None means no hosted view and no inset: an empty SwiftUI view measured
-    /// by `NSHostingController` takes the whole height offered, which is
-    /// unbounded here.
+    /// Nil means no hosted view and no inset: `NSHostingController` sizes an empty SwiftUI view to the whole
+    /// height offered, which is unbounded here.
     var header: AnyView? = nil
 
     @MainActor final class Coordinator: NSObject {
@@ -30,9 +25,8 @@ struct CodeTextView {
         var renderTask: Task<Void, Never>?
         var headerHeight: CGFloat = 0
         var headerWidth: CGFloat?
-        /// Re-lays the header out after its content changed height from
-        /// inside the hosted tree (a parameter row added or removed), which
-        /// the representable's update never sees.
+        /// A height change inside the hosted tree never reaches the representable's update, so it re-lays
+        /// the header out through this.
         var relayoutHeader: (() -> Void)?
         #if os(macOS)
         var headerHost: NSHostingController<AnyView>?
@@ -42,8 +36,6 @@ struct CodeTextView {
         #endif
     }
 
-    /// The header as hosted: environment handed over (the hosted tree is
-    /// outside SwiftUI's hierarchy) and its height watched.
     private func hostedHeader(_ header: AnyView, _ coordinator: Coordinator, environment: EnvironmentValues) -> AnyView {
         AnyView(
             header
@@ -56,8 +48,6 @@ struct CodeTextView {
         )
     }
 
-    /// Carries the built string back from the render thread. Attributed
-    /// strings are safe to build in isolation and hand over once.
     private struct Rendered: @unchecked Sendable {
         let string: NSAttributedString
     }
@@ -175,9 +165,6 @@ extension CodeTextView: NSViewRepresentable {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.linkTextAttributes = [.cursor: NSCursor.pointingHand]
 
-        // contentInsets inset the clip view's frame, so a header placed above
-        // the document sits outside the clip view's bounds: it still draws
-        // (views don't clip subviews) but the default hit test ignores it.
         scrollView.automaticallyAdjustsContentInsets = false
         let clipView = HeaderClipView()
         clipView.drawsBackground = false
@@ -206,8 +193,6 @@ extension CodeTextView: NSViewRepresentable {
         if let observer = coordinator.frameObserver { NotificationCenter.default.removeObserver(observer) }
     }
 
-    /// Header width follows the clip view; its height is what SwiftUI wants
-    /// at that width, and the document is inset by exactly that.
     @MainActor private static func layoutHeader(in scrollView: NSScrollView, coordinator: Coordinator, force: Bool = false) {
         guard let host = coordinator.headerHost else { return }
         let width = scrollView.contentView.bounds.width
@@ -231,8 +216,6 @@ extension CodeTextView: NSViewRepresentable {
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
-        // The hosted header is outside SwiftUI's tree, so it gets the
-        // environment (stores, styles) handed over explicitly.
         if let header {
             coordinator.headerHost?.rootView = hostedHeader(header, coordinator, environment: context.environment)
         }
@@ -292,8 +275,8 @@ extension CodeTextView: NSViewRepresentable {
     }
 }
 
-/// Routes clicks to the header hosted above the document, which lies
-/// outside the clip view's bounds once `contentInsets` push the frame down.
+/// Once `contentInsets` push the frame down, the header lies outside the clip view's bounds: it still draws,
+/// but the default hit test ignores it.
 final class HeaderClipView: NSClipView {
     weak var header: NSView?
 
@@ -317,11 +300,6 @@ extension CodeTextView.Coordinator: UITextViewDelegate {
     }
 }
 
-/// Positions the hosted header above the text and keeps the top inset equal
-/// to its height, re-measuring when the width changes. The view reaches under
-/// the bottom bars (its callers ignore the bottom safe area), so the text
-/// runs on behind a tab bar that minimizes; the bottom inset follows the live
-/// safe area so the last lines still scroll clear of it.
 final class HeaderedTextView: UITextView {
     var headerView: UIView?
     var measureHeader: ((CGFloat) -> CGFloat)?
@@ -397,8 +375,6 @@ extension CodeTextView: UIViewRepresentable {
         coordinator.toggle = { id in
             if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
         }
-        // The hosted header is outside SwiftUI's tree, so it gets the
-        // environment (stores, styles) handed over explicitly.
         if let header {
             coordinator.headerHost?.rootView = hostedHeader(header, coordinator, environment: context.environment)
         }
@@ -438,8 +414,6 @@ extension CodeTextView: UIViewRepresentable {
             container.widthTracksTextView = true
             container.size = CGSize(width: textView.bounds.width, height: CGFloat.greatestFiniteMagnitude)
         } else {
-            // Unbounded width lays the code on one line; the text view scrolls
-            // horizontally to reach it.
             container.widthTracksTextView = false
             container.size = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }

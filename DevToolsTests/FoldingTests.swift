@@ -12,7 +12,6 @@ struct FoldingTests {
         let text = JSONFormatter.pretty(Data(#"{"MediaContainer":{"size":2,"Metadata":[{"a":1},{"b":[1,2,3]}],"empty":{},"list":[]}}"#.utf8))
         let regions = Folding.jsonRegions(text: text, tokens: Highlighter.json(text))
 
-        // root, MediaContainer, Metadata, {a}, {b}, b's array — no regions for {} or [].
         #expect(regions.count == 6)
         let root = regions[0]
         #expect(root.depth == 0 && root.count == 1)

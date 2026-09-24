@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-/// One entry in the lightbox: a server image path and what Plex calls it.
 struct LightboxItem: Identifiable, Hashable, Sendable {
     let url: String
     let title: String
@@ -9,18 +8,15 @@ struct LightboxItem: Identifiable, Hashable, Sendable {
     var id: String { url }
 }
 
-/// What the lightbox is showing and where it came from, so the root overlay
-/// can grow the image out of its thumbnail and shrink it back.
 @MainActor
 @Observable
 final class LightboxStore {
     struct Presentation {
         let item: LightboxItem
         let server: ConnectedServer
-        /// The thumbnail's frame in window coordinates.
         let sourceFrame: CGRect
-        /// The pixel size the thumbnail was fetched at, so the lightbox's first
-        /// frame is a cache hit on the same pixels.
+        /// Must match the thumbnail's fetch size so the lightbox's first frame
+        /// is a cache hit on the same pixels.
         let previewPixelSize: CGSize
     }
 

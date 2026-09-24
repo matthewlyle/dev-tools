@@ -6,30 +6,20 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     let type: String
     let raw: String
     let node: Node?
-    /// The library item the payload is about (`ratingKey`, a timeline's
-    /// `itemID`, or a `/library/metadata/<n>` key); digits only.
     let ratingKey: String?
     let state: String?
-    /// Playback position in milliseconds.
     let viewOffset: Int?
-    /// The running session the event reports on, if any.
     let session: Session?
-    /// The row's line from the payload alone: its own title when it has one,
-    /// otherwise an identifying key.
     let summary: String
     private let line: Line
     private let titled: Bool
-    /// The payload itself: the container's first child.
     let payload: Node?
 
     enum Session: Hashable, Sendable {
-        /// A `playing` event's `sessionKey`.
         case playback(String)
-        /// A transcode's id, the last component of its
-        /// `/transcode/sessions/…` key.
         case transcode(String)
 
-        /// Matched on the id alone, whichever form of the key a source sends.
+        /// Sources send the transcode key in different forms; match on its last component.
         static func transcode(key: String) -> Session {
             .transcode(key.split(separator: "/").last.map(String.init) ?? key)
         }
@@ -39,24 +29,19 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
         }
     }
 
-    /// `2:53`, or `1:02:07` from an hour on.
     static func position(milliseconds ms: Int) -> String {
         Duration.milliseconds(ms).formatted(.time(pattern: ms >= 3_600_000 ? .hourMinuteSecond : .minuteSecond))
     }
 
-    /// The item to look a title up for: set only when the payload names it
-    /// by key alone, as a playing session or an untitled timeline entry does.
+    /// Playing sessions and untitled timeline entries name the item by key alone.
     var titleKey: String? { titled ? nil : ratingKey }
 
-    /// The row's line with a looked-up item title in place of the key.
     func summary(title: String) -> String {
         var line = line
         line.subject = title
         return line.text
     }
 
-    /// Builds an event from a raw JSON frame; the payload is wrapped in
-    /// `NotificationContainer`, whose `type` names the event.
     static func make(raw: String, receivedAt: Date = .now) -> NotificationEvent {
         let node = JSONNodeParser.parse(Data(raw.utf8))
         let container = node.flatMap { root in
@@ -81,15 +66,10 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
         )
     }
 
-    /// A library item's name as a person says it, from its
-    /// `/library/metadata/<ratingKey>` response: an episode as
-    /// `Show — S2 E3 · Title`, a movie as `Title (1995)`, a track as
-    /// `Artist — Title`, anything else by its title.
     static func itemTitle(metadata root: Node) -> String? {
         (root.children.first(where: { $0.name == "Metadata" }) ?? root.children.first).flatMap(itemTitle(item:))
     }
 
-    /// The same, from the item's own node (a `/status/sessions` entry).
     static func itemTitle(item: Node) -> String? {
         guard let title = nonEmpty(item["title"])
         else { return nil }
@@ -117,7 +97,6 @@ struct NotificationEvent: Identifiable, Sendable, Hashable {
     }
 }
 
-/// `state · subject · progress · position`, each part only when present.
 private struct Line: Sendable, Hashable {
     var lead: String?
     var subject: String?
@@ -129,7 +108,6 @@ private struct Line: Sendable, Hashable {
     }
 }
 
-/// What a notification payload says about itself.
 private struct Facts {
     var state: String?
     var viewOffset: Int?
@@ -138,8 +116,6 @@ private struct Facts {
     var titled = false
     var line = Line()
 
-    /// Identifying values for a payload with nothing human to show, most
-    /// telling first; bare ids carry their name.
     private static let identifiers = ["key", "ratingKey", "itemID", "queueID", "reachability", "identifier", "clientIdentifier"]
     private static let namedIdentifiers: Set<String> = ["ratingKey", "itemID", "queueID"]
 
@@ -191,7 +167,6 @@ private struct Facts {
         line.offset = viewOffset.map(NotificationEvent.position(milliseconds:))
     }
 
-    /// `/library/metadata/28282/children` → `28282`.
     private static func metadataKey(_ key: String) -> String? {
         let prefix = "/library/metadata/"
         guard key.hasPrefix(prefix) else { return nil }

@@ -1,15 +1,10 @@
 import Foundation
 
-/// Paging state of a response, per the API's pagination contract: the
-/// `X-Plex-Container-Start` / `X-Plex-Container-Total-Size` headers, falling
-/// back to `offset` / `size` / `totalSize` on the `MediaContainer`.
 struct PaginationInfo: Hashable, Sendable {
     let start: Int
     let size: Int
     let total: Int
 
-    /// The page a listing asks for when none is set: a Media run, and a
-    /// media-query endpoint opened from the catalog.
     static let defaultPageSize = 100
 
     init?(response: PlexResponse, root: Node?) {
@@ -35,9 +30,6 @@ struct PaginationInfo: Hashable, Sendable {
 }
 
 extension PlexRequest {
-    /// Starts the request on its first page, or with no paging at all.
-    /// Either way paging left from an earlier request goes: it would
-    /// otherwise quietly page whatever is opened next.
     mutating func resetPaging(firstPage: Bool) {
         let names: Set<String> = ["x-plex-container-start", "x-plex-container-size", "x-plex-container-focus-key"]
         headers.removeAll { names.contains($0.name.lowercased()) }

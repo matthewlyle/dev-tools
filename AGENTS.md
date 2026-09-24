@@ -15,10 +15,15 @@ Never:
 - Restate the code, name the type, or narrate steps (`// Set the title`, `// { [`).
 - `// MARK:` — the files are short; organise with types instead.
 - Doc comments on things whose signature already says it all.
+- Describe what a view shows or how a feature behaves for the user. That's what the code and the running app are for.
+- Document wiring (`Published by…`, `Set by…`, `Called when…`).
+- Repeat this file. A decision recorded here carries no comment in the code.
 - TODOs. Do it or drop it.
 - Anecdotes. State the constraint, never the encounter: no "this showed up as", "we would have missed", "the X case", counts, timings, or specific values met along the way. A rule must stand without its origin story; the story belongs in the commit message.
 
-A `///` on a type or function is fine when it meets the bar above; most don't. When you touch a file, delete comments that fail the bar. Commit messages carry the narrative, not the source.
+A comment is one or two sentences. A *why* that needs more is a design decision: it belongs in this file or the commit message. A `///` on a type or function is fine when it meets the bar above; most don't. When you touch a file, delete comments that fail the bar. Commit messages carry the narrative, not the source.
+
+Expect about 20 comment lines per 1,000 lines of code. A file or change well above that means the bar slipped: cut until it doesn't.
 
 ## Load-bearing decisions
 

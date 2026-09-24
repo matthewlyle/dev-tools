@@ -1,9 +1,7 @@
 import Foundation
 
-/// The field types of the spec's media query language. Operators are
-/// defined per type; the characters before an operator's trailing `=` are
-/// appended to the field name in the query string (`year>>=2000`), which
-/// the spec notes must be URI-encoded on the key side.
+/// An operator's characters before its trailing `=` go on the field name
+/// (`year>>=2000`), and the spec says that key side must be URI-encoded.
 enum MediaFieldType: Hashable, Sendable {
     case integer, boolean, tag, string, date, language
     case other(String)
@@ -79,25 +77,18 @@ struct MediaSortField: Hashable, Sendable, Identifiable {
     let title: String
 }
 
-/// A field whose values the server can list: the spec's `Filter` element,
-/// whose `key` is the endpoint returning the possible values.
 struct MediaFilter: Hashable, Sendable, Identifiable {
     var id: String { filter }
-    /// The query key; matches the `MediaField.key` it enumerates.
     let filter: String
     let title: String
-    /// Endpoint listing the values (`/library/sections/1/studio?type=1`).
     let valuesKey: String
 }
 
-/// One possible value of a filter. `key` is what the query takes (a tag id
-/// for tag fields, the value itself otherwise); `title` is what people read.
 struct MediaFilterValue: Hashable, Sendable, Identifiable {
     var id: String { key }
     let key: String
     let title: String
 
-    /// Values from a filter endpoint's `Directory` items.
     static func parse(root: Node) -> [MediaFilterValue] {
         root.children.compactMap { item in
             guard let key = item["key"], !key.isEmpty else { return nil }
@@ -105,8 +96,6 @@ struct MediaFilterValue: Hashable, Sendable, Identifiable {
         }
     }
 
-    /// When every key is its own title the field takes the text directly
-    /// (studio, year); otherwise the keys are ids and a value must be picked.
     static func keysAreValues(_ values: [MediaFilterValue]) -> Bool {
         !values.isEmpty && values.allSatisfy { $0.key == $0.title }
     }
@@ -121,16 +110,13 @@ struct MediaType: Hashable, Sendable, Identifiable {
     let sorts: [MediaSortField]
     let filters: [MediaFilter]
 
-    /// The filter enumerating `fieldKey`'s values, if the server lists them.
     func filter(for fieldKey: String) -> MediaFilter? {
         filters.first { $0.filter == fieldKey }
     }
 }
 
-/// The types, fields, sorts, and filters a library section supports, from
-/// `/library/sections/{id}?includeDetails=1`. The spec documents the query
-/// language but not these elements, so parsing is tolerant: anything missing
-/// yields an empty list rather than a failure.
+/// The spec doesn't document these elements, so parsing is tolerant: anything
+/// missing yields an empty list rather than a failure.
 struct SectionDetails: Hashable, Sendable {
     let types: [MediaType]
 
@@ -158,8 +144,6 @@ struct SectionDetails: Hashable, Sendable {
     }
 }
 
-/// A query under construction. `request()` emits it in the documented
-/// querystring language against `/library/sections/{section}/all`.
 struct MediaQuery: Hashable, Sendable {
     struct Term: Hashable, Sendable, Identifiable {
         var id = UUID()
@@ -167,8 +151,6 @@ struct MediaQuery: Hashable, Sendable {
         var fieldType: MediaFieldType
         var operatorKey: String
         var value: String
-        /// What the picked value is called, when `value` is an id the user
-        /// never typed. Display only; never emitted.
         var label = ""
 
         init(field: MediaField) {
@@ -178,7 +160,6 @@ struct MediaQuery: Hashable, Sendable {
             self.value = field.type == .boolean ? "1" : ""
         }
 
-        /// Booleans are always live; everything else needs a value.
         var isActive: Bool {
             fieldType == .boolean || !value.trimmingCharacters(in: .whitespaces).isEmpty
         }
@@ -200,8 +181,6 @@ struct MediaQuery: Hashable, Sendable {
         var token: String { descending ? "\(key):desc" : key }
     }
 
-    /// One node of the filter tree: a leaf condition or a parenthesized
-    /// subgroup. Subgroups emit `push=1` … `pop=1` around their contents.
     enum Node: Hashable, Sendable, Identifiable {
         case term(Term)
         case group(Group)
@@ -214,8 +193,6 @@ struct MediaQuery: Hashable, Sendable {
         }
     }
 
-    /// A parenthesized set of nodes. `matchAny` joins them with `or=1`;
-    /// otherwise they AND together.
     struct Group: Hashable, Sendable, Identifiable {
         var id = UUID()
         var matchAny = false
@@ -250,9 +227,8 @@ struct MediaQuery: Hashable, Sendable {
         return params
     }
 
-    /// Walks a group in order: active terms emit their param, non-empty
-    /// subgroups emit `push=1` … `pop=1`, and `or=1` precedes every sibling
-    /// after the first when the group matches any.
+    /// Plex's grammar is positional: a subgroup is bracketed by `push=1` …
+    /// `pop=1`, and `or=1` goes between the siblings of a match-any group.
     private func clauseParams(_ clause: Group) -> [QueryParam] {
         var params: [QueryParam] = []
         var emitted = 0
@@ -290,8 +266,8 @@ struct MediaQuery: Hashable, Sendable {
         }
     }
 
-    /// A run asks for one page, so a query as broad as every episode in a TV
-    /// library returns rather than timing out; the results header pages on.
+    /// One page per run, so a query as broad as every episode in a TV library
+    /// returns rather than timing out.
     func request() -> PlexRequest {
         var request = PlexRequest(path: path)
         request.query = queryParams

@@ -18,25 +18,13 @@ enum ServerSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// Whether the section-list column is showing. Its toolbar items act on that
-/// list, so they leave the window's toolbar with it — on macOS a collapsed
-/// column's view stays alive and would otherwise keep contributing them.
 extension EnvironmentValues {
+    /// On macOS a collapsed column's view stays alive, so toolbar items over
+    /// the list gate on this or they'd outlive it.
     @Entry var sectionListVisible = true
-    /// Whether this section is the one the switcher shows. Every section stays
-    /// mounted so switching is instant; an inactive one must not publish
-    /// toolbar items or focused commands, or Send/Delete would act on a
-    /// section that isn't on screen.
     @Entry var sectionIsActive = true
-    /// Brings the section's detail on screen after its list acts. Set only
-    /// where the detail isn't already beside the list: a compact width, which
-    /// pushes it.
     @Entry var showSectionDetail: ShowSectionDetailAction? = nil
-    /// Where Media's posters register as zoom sources, so the item sheet
-    /// grows out of the one tapped. Set by `SectionInspector` on iOS.
     @Entry var posterZoom: Namespace.ID? = nil
-    /// Whether Activity's connection control rides the tab bar as its
-    /// accessory, so the events don't also float their capsule.
     @Entry var connectionInTabBar = false
 }
 
@@ -46,10 +34,6 @@ struct ShowSectionDetailAction {
     func callAsFunction() { run() }
 }
 
-/// A section list's text filter. A compact width takes the system search
-/// field. Wider layouts pin a field atop the list instead: on macOS the
-/// system field is a toolbar item, so entering the section reconfigured the
-/// window toolbar and reflowed the section switcher mid-animation.
 private struct ListFilter<Actions: View>: ViewModifier {
     @Binding var text: String
     let prompt: String
@@ -57,9 +41,6 @@ private struct ListFilter<Actions: View>: ViewModifier {
 
     @Environment(\.isCompactWidth) private var compact
 
-    /// A regular-width iPad has one bar spanning both panes, which would put
-    /// the list's own actions at its far end over the detail, so there they
-    /// sit beside the field; everywhere else they're in the bar over the list.
     private var actionsBesideField: Bool {
         #if os(iOS)
         !compact
@@ -147,8 +128,6 @@ private struct ActionsInBar<Actions: View>: ViewModifier {
 }
 
 extension View {
-    /// Filters a section list by `text`; `actions` are the list's own sort
-    /// and clear controls, placed per platform.
     func listFilter<Actions: View>(text: Binding<String>, prompt: String, @ViewBuilder actions: () -> Actions) -> some View {
         modifier(ListFilter(text: text, prompt: prompt, actions: actions()))
     }
@@ -161,16 +140,12 @@ extension View {
 private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     @Environment(\.sectionListVisible) private var visible
     @Environment(\.sectionIsActive) private var active
-    /// Items over the list leave with it when the sidebar collapses; items
-    /// over the detail (Activity's Clear Events) act on what's still showing.
     let followsList: Bool
     let items: Items
 
-    /// The toolbar stays attached whatever the section, with the items coming
-    /// and going inside it: branching around `.toolbar` gives the wrapped
-    /// view a new identity on every switch. Not `ToolbarContent.hidden`: on
-    /// macOS a hidden item still holds its slot while the sidebar is
-    /// collapsed, pushing the sidebar button away from the window controls.
+    /// Branch inside `.toolbar`, not around it: branching around it gives the
+    /// view a new identity on every switch. Not `ToolbarContent.hidden`: on macOS
+    /// a hidden item still holds its slot, pushing the sidebar button away.
     func body(content: Content) -> some View {
         let shown = active && (visible || !followsList)
         content.toolbar {
@@ -179,22 +154,15 @@ private struct SectionListToolbar<Items: ToolbarContent>: ViewModifier {
     }
 }
 
-/// Keeps a section's views mounted while another is showing, so switching
-/// never rebuilds them. The hidden section is transparent, untouchable, out
-/// of the accessibility tree, and disabled so nothing in it can take
-/// keyboard focus.
 private struct SectionResident: ViewModifier {
     let active: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        // Only the incoming section moves. The outgoing one leaves at once:
-        // the toolbar's edge effect already belongs to the new section, so a
-        // fading-out section shows through the toolbar unblurred. The
-        // body-scoped animation touches only the opacity, because the section
-        // flag flows into toolbar items and focused values, which must swap
-        // in the same frame.
+        // The outgoing section leaves at once: fading, it shows unblurred through
+        // the toolbar's edge effect. Only opacity animates, since the section flag
+        // reaches toolbar items and focused values, which must swap in one frame.
         content
             .animation(active && !reduceMotion ? .smooth(duration: 0.12) : nil) {
                 $0.opacity(active ? 1 : 0)
@@ -208,7 +176,7 @@ private struct SectionResident: ViewModifier {
                 }
             }
             .allowsHitTesting(active)
-            .disabled(!active)
+            .disabled(!active) // Hit testing alone leaves its controls reachable by keyboard focus.
             .accessibilityHidden(!active)
             .environment(\.sectionIsActive, active)
     }
@@ -221,22 +189,13 @@ extension View {
 }
 
 extension View {
-    /// `followsList: false` for items over the detail rather than the list.
     func sectionListToolbar<Items: ToolbarContent>(followsList: Bool = true, @ToolbarContentBuilder items: () -> Items) -> some View {
         modifier(SectionListToolbar(followsList: followsList, items: items()))
     }
 }
 
-/// The detail pane's one inspector, showing whatever the visible section has
-/// open: an Activity event's payload or a Media item's info. Sections are
-/// resident siblings, and two `.inspector` modifiers in one column compete
-/// for the same presentation, so a section's own would present or fill from
-/// whichever sibling SwiftUI read last. On a compact width each tab's detail
-/// hosts its own, and only the active tab's presents. On iOS a Media item
-/// opens in a sheet that zooms out of its poster wherever the detail is
-/// compact or taller than wide: a side panel there squeezes the poster grid,
-/// and an inspector can't zoom. Only the side inspector lets another poster
-/// be tapped past it; a sheet closes back into its poster first.
+/// On iOS a Media item opens in a sheet wherever the detail is compact or
+/// taller than wide: an inspector there squeezes the poster grid and can't zoom.
 private struct SectionInspector: ViewModifier {
     let section: ServerSection
     let server: ConnectedServer?
@@ -248,9 +207,6 @@ private struct SectionInspector: ViewModifier {
     @Environment(\.isCompactWidth) private var compact
     @State private var tall = false
     @Namespace private var posterZoom
-    /// Where the event and item sheets rest. Each opens at half height and
-    /// is dragged taller from there; an event sheet keeps its height while
-    /// another event is picked behind it. Both start at half again next time.
     @State private var eventDetent: PresentationDetent = .medium
     @State private var itemDetent: PresentationDetent = .medium
 
@@ -259,8 +215,7 @@ private struct SectionInspector: ViewModifier {
         case item(MediaItem)
     }
 
-    // Resolved in the body, not in the binding or content closures, so
-    // Observation ties this view to exactly the state it presents.
+    // Read here, not in the binding or content closures, so Observation tracks exactly what's presented.
     private var shown: Shown? {
         guard isActive else { return nil }
         switch section {
@@ -322,8 +277,7 @@ private struct SectionInspector: ViewModifier {
                 }
             }
             #if os(iOS)
-            // The window's lightbox is drawn under a sheet; the sheet needs
-            // its own.
+            // The window's lightbox draws under a sheet, so the sheet needs its own.
             .sheet(isPresented: Binding(get: { sheetItem != nil }, set: { if !$0, isActive, itemInSheet { dismiss() } })) {
                 if let sheetItem {
                     mediaInfo(sheetItem, showsPoster: true)
@@ -333,8 +287,6 @@ private struct SectionInspector: ViewModifier {
                         .navigationTransition(.zoom(sourceID: sheetItem.id, in: posterZoom))
                 }
             }
-            // Half height leaves the list in view and live behind it, so
-            // another tap re-targets the sheet instead of first dismissing it.
             .sheet(isPresented: Binding(get: { sheetEvent != nil }, set: { if !$0, isActive, eventInSheet { dismiss() } })) {
                 if let sheetEvent {
                     EventInspector(event: sheetEvent)
@@ -367,17 +319,12 @@ private struct SectionInspector: ViewModifier {
 }
 
 extension View {
-    /// Every section's list in the column: inset rows over the column's own
-    /// background, never an opaque list background of its own — on macOS the
-    /// column is a sidebar and its material should show through.
     func sectionListStyle() -> some View {
         listStyle(.inset)
             .scrollContentBackground(.hidden)
     }
 
-    /// A row of a `sectionListStyle` list. iOS gives inset rows an opaque
-    /// cell background, which covers the well; the Mac's are already clear.
-    /// A selected row keeps an accent tint, as `sectionColumnRow` draws it.
+    /// iOS gives inset rows an opaque cell background that covers the well.
     @ViewBuilder
     func sectionListRow(selected: Bool = false) -> some View {
         #if os(iOS)
@@ -391,9 +338,6 @@ extension View {
         #endif
     }
 
-    /// A row that's a button rather than the list's selection (Activity's
-    /// sessions), so it tints itself when chosen on the Mac too, where no
-    /// list selection draws it.
     func sectionListButtonRow(selected: Bool) -> some View {
         listRowBackground(
             RoundedRectangle(cornerRadius: 8)
@@ -404,15 +348,6 @@ extension View {
     }
 }
 
-/// The column for a long section (the endpoint catalog, a deep history).
-/// `List` on macOS hosts every row in its own `NSHostingView` and measures
-/// them all when the list appears, so hundreds of rows stall each section
-/// switch; iPadOS's list is lazy and never did. A `LazyVStack` realizes only
-/// what's on screen on both. Short columns (Activity, Media) keep `List`.
-/// A compact width is always iOS, so it takes the lazy `List`: rows swipe
-/// there, and a stack can't. Scrolling ends the filter field's editing at
-/// once, so a field left focused with its keyboard hidden can't hold on to
-/// the drag.
 struct SectionColumnList<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -457,8 +392,6 @@ struct SectionColumnHeader: View {
 }
 
 extension View {
-    /// Inset-list row metrics for a `SectionColumnList` row, with the
-    /// selected row tinted the way an inset list highlights it.
     func sectionColumnRow(selected: Bool = false) -> some View {
         padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -471,10 +404,8 @@ struct SectionPicker: View {
     @Binding var section: ServerSection
 
     var body: some View {
-        // Segmented while it fits the toolbar; a labelled pop-up when the
-        // window is too narrow, so a collapsed switcher still shows the
-        // current section and every choice (a segmented control renders
-        // unusably in the toolbar overflow menu).
+        // A segmented control renders unusably in the toolbar overflow menu, so
+        // a narrow window gets a pop-up.
         ViewThatFits(in: .horizontal) {
             segmented
             menu
@@ -517,7 +448,6 @@ struct MainSplitView: View {
     @AppStorage("sectionListVisible") private var sectionListVisible = true
     @Environment(\.isCompactWidth) private var compact
     @Environment(\.verticalSizeClass) private var verticalSizeClass
-    /// The sections whose detail is pushed over their list on a compact width.
     @State private var pushed: Set<ServerSection> = []
     #endif
 
@@ -525,30 +455,20 @@ struct MainSplitView: View {
         servers.selected.flatMap { servers.connectedServer(for: $0) }
     }
 
-    /// Discovery or probing still in flight before any server has connected.
     private var stillConnecting: Bool {
         servers.isRefreshing || servers.entries.contains { $0.isProbing || $0.probes.isEmpty }
     }
 
-    /// Before the first connection this session there's nothing to list,
-    /// switch, or name, so the window is only the status — no sidebar, no
-    /// switcher — the HIG alternative to a splash. Once connected, per-server
-    /// states take over and a later switch never falls back here.
     private var isInitialLoad: Bool { !hasConnected && connected == nil }
 
-    /// Empty while the first discovery runs: the selection is remembered
-    /// from last time, and its name would claim a server before one's found.
     private var title: String {
         if isInitialLoad, servers.isRefreshing { return "" }
         return servers.selected?.resource.name ?? "Servers"
     }
 
-    /// A section change swaps in that section's own workspace *before* its
-    /// view is built — not reactively after. Otherwise the incoming
-    /// Endpoints/History detail builds `ResponseView`/`CodeTextView` for the
-    /// outgoing section's response (an `NSTextView` on macOS) only to tear it
-    /// down when the swap lands, stalling the switch. Each section keeps its
-    /// request and response, so a compact width's pushed details stay pushed.
+    /// Swaps the workspace before the incoming section builds, not reactively
+    /// after: otherwise its detail builds a text view for the outgoing response
+    /// only to tear it down, stalling the switch.
     private var sectionBinding: Binding<ServerSection> {
         Binding(
             get: { section },
@@ -640,10 +560,6 @@ struct MainSplitView: View {
 
     #if os(iOS)
 
-    /// iPad has no window-wide toolbar over split columns, so the list and
-    /// detail are two panes under one navigation bar. The `.editor` role is
-    /// what keeps the title leading with `.secondaryAction` in the centre,
-    /// matching the Mac toolbar.
     private var regularSplit: some View {
         NavigationStack {
             Group {
@@ -674,19 +590,10 @@ struct MainSplitView: View {
         }
     }
 
-    /// Activity's list pane only lists what arrived. Empty, it would be blank
-    /// space with no divider to mark it (the panes share one well), leaving
-    /// the events' zero state and connection control off centre; it slides
-    /// in with the first event.
     private var listPaneEmpty: Bool {
         section == .activity && activity.typeCounts.isEmpty && activity.live.isEmpty
     }
 
-    /// A compact width (an iPhone, a narrow iPad split) can't hold the list
-    /// beside its detail, or the switcher beside the title, so each section
-    /// is a tab: its list at the root, its detail pushed. The tabs replace
-    /// the switcher, not the title — the server is still the title menu in
-    /// every tab.
     @ViewBuilder
     private var compactSplit: some View {
         if servers.selected == nil {
@@ -713,11 +620,6 @@ struct MainSplitView: View {
                 }
             }
             .tabBarMinimizeBehavior(.onScrollDown)
-            // Activity's connection rides the tab bar as its accessory: the
-            // system's glass at the bar's width, inline beside it when the
-            // bar minimizes on scroll. Not in landscape, where the accessory
-            // spans the whole screen above a short, centred tab bar; there the
-            // events float the capsule they use on iPad instead.
             .tabViewBottomAccessory(isEnabled: section == .activity && connectionInTabBar) {
                 ActivityConnectionControl()
                     .padding(.horizontal, 16)
@@ -735,9 +637,6 @@ struct MainSplitView: View {
                 switch item {
                 case .endpoints: EndpointListView(server: connected, serverID: entry.id)
                 case .history: HistoryListView(serverID: entry.id)
-                // The list pane only filters the events, which a toolbar menu
-                // does here, so the events are the tab's root and nothing
-                // is pushed.
                 case .activity:
                     ActivityEventsView()
                         .modifier(SectionInspector(section: .activity, server: connected))
@@ -752,8 +651,6 @@ struct MainSplitView: View {
         .modifier(Header(title: title, entry: servers.selected, section: nil))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // The request bar is pushed, so a path can be typed without
-            // picking an endpoint first. Same action as Focus Path (⌘L).
             if item == .endpoints {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -799,19 +696,11 @@ struct MainSplitView: View {
     }
     #endif
 
-    /// Title leading (the server, with its menu), section switcher centre.
-    /// Server Info… is a menu item, so its popover drops from the title area.
-    /// iPad's title menu shows its chevron permanently; macOS's only on hover,
-    /// so there the title is an explicit pull-down and the plain toolbar
-    /// title is removed (the window keeps its title for Mission Control and
-    /// the Window menu). iPadOS has no Settings scene, so Settings… presents
-    /// a sheet from here, reached from the title menu or the menu bar. On a
-    /// compact width every tab's root carries one, without the switcher, and
-    /// only the active tab's publishes its commands.
+    /// macOS shows the title menu's chevron only on hover, so there the title is
+    /// an explicit pull-down and the plain toolbar title is removed.
     private struct Header: ViewModifier {
         let title: String
         let entry: ServerStore.Entry?
-        /// The section switcher; nil where tabs switch sections instead.
         let section: Binding<ServerSection>?
         @State private var showInfo = false
         @Environment(\.sectionIsActive) private var isActive
@@ -857,8 +746,6 @@ struct MainSplitView: View {
                         #endif
                     }
                 }
-                // A compact bar centres its title, so the popover points at
-                // the middle rather than the leading title.
                 .popover(
                     isPresented: $showInfo,
                     attachmentAnchor: compact ? .point(.top) : .rect(.rect(CGRect(x: 48, y: 0, width: 1, height: 1))),
@@ -901,13 +788,8 @@ struct MainSplitView: View {
         )
     }
 
-    /// Soft edge on both panes: `.automatic` can resolve to the hard style,
-    /// which fills the toolbar while the pointer is over the scroll view even
-    /// with nothing scrolled beneath it. Soft only blurs what actually passes
-    /// under the bar. The detail's toolbar items are declared here, not in
-    /// the sections: an item declared from inside a section's content fills
-    /// the toolbar behind it as the hard style does, and declared once, the
-    /// request actions stay in place across the sections that show a request.
+    /// `.automatic` can resolve to the hard edge style, which fills the toolbar while the pointer is over the scroll view.
+    /// Toolbar items declared from inside a section's content fill the toolbar the same way, so the detail declares them here.
     private var detailPane: some View {
         ZStack {
             WorkspaceView(editable: section == .endpoints)
@@ -929,8 +811,6 @@ struct MainSplitView: View {
         .wellBackground()
     }
 
-    /// The shell's content before the first connection: a spinner while
-    /// discovery/probing runs, then a resolvable empty state.
     @ViewBuilder
     private var connectionStatus: some View {
         if stillConnecting {
@@ -971,12 +851,6 @@ struct MainSplitView: View {
 }
 
 #if os(iOS)
-/// iPad's section list and detail side by side under the one navigation bar.
-/// There is no split view column to resize, so the divider is the drag
-/// handle `NavigationSplitView` gives macOS. The kept width re-clamps to the
-/// window on every layout, so rotation or Split View never squeezes the
-/// detail below its minimum. One well spans both panes, so the list sits on
-/// the same backdrop as the detail with no seam where they meet.
 private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
     let showsList: Bool
     @ViewBuilder let list: ListPane
@@ -1010,9 +884,8 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
         }
     }
 
-    /// Wider than the hairline so it's easy to hit, but no wider than the
-    /// rows' trailing padding, so it doesn't cover list or detail content.
-    /// The drag reads global translation because the handle moves with it.
+    /// No wider than the rows' trailing padding, so it covers no content. The
+    /// drag reads global translation because the handle moves with it.
     private func handle(resting: CGFloat, width: CGFloat, range: ClosedRange<CGFloat>, container: CGFloat) -> some View {
         Color.clear
             .frame(width: 20)
@@ -1039,8 +912,6 @@ private struct ListDetailPanes<ListPane: View, DetailPane: View>: View {
             }
     }
 
-    /// The list's minimum (never wider than the window), macOS's column
-    /// maximum, and whatever leaves the detail its own minimum.
     private static func widthRange(in container: CGFloat) -> ClosedRange<CGFloat> {
         let lower = min(260, container)
         return lower...max(lower, min(800, container - 360))

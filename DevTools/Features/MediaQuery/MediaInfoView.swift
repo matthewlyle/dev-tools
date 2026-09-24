@@ -1,21 +1,14 @@
 import SwiftUI
 
-/// An item's metadata, read top-down: its title and one-line summary,
-/// tagline and synopsis, tag groups as sentences, then every attribute with
-/// units decoded, and nested elements collapsed. `Image` elements render as
-/// thumbnails that open in a lightbox; `UltraBlurColors` as a palette.
 struct MediaInfoView: View {
     let item: MediaItem
     let server: ConnectedServer?
-    /// Where the view zooms out of the tapped poster (a sheet), it leads with
-    /// that artwork so the poster lands somewhere instead of vanishing.
     var showsPoster = false
     let dismiss: () -> Void
 
     @Environment(RequestStore.self) private var requests
     @State private var itemJSON: String?
 
-    /// Attributes already surfaced above the details grid.
     private static let surfaced: Set<String> = ["title", "summary", "tagline"]
 
     private var details: [Attribute] {
@@ -157,9 +150,6 @@ struct MediaInfoView: View {
     }
 }
 
-/// Name → value rows. Names are secondary system text; values are primary,
-/// in the code face, decoded where the name gives away a unit (the raw value
-/// is the tooltip).
 private struct AttributeTable: View {
     let attributes: [Attribute]
 
@@ -194,8 +184,6 @@ private struct AttributeTable: View {
     }
 }
 
-/// A nested element (Media, Part, Stream…) as its attributes plus its own
-/// children, recursively.
 private struct ElementDetail: View {
     let node: Node
 
@@ -215,9 +203,6 @@ private struct ElementDetail: View {
     }
 }
 
-/// `Image` elements as thumbnails with their type underneath. Clicking one
-/// opens it in the window lightbox, which grows the image out of the
-/// thumbnail's frame.
 private struct ImageStrip: View {
     let nodes: [Node]
     let server: ConnectedServer?
@@ -264,11 +249,8 @@ private struct ImageStrip: View {
 
         private static let width: CGFloat = 130
         private static let maxHeight: CGFloat = 195
-        /// What the thumbnail fetches at (2×); the lightbox opens from the same pixels.
         static let requestPixelSize = CGSize(width: width * 2, height: maxHeight * 2)
 
-        /// The image's own aspect at a fixed width, so the corners hug the
-        /// picture; a 16:9 placeholder until it loads.
         private var size: CGSize {
             guard let image, image.size.width > 0 else { return CGSize(width: Self.width, height: Self.width * 9 / 16) }
             let height = Self.width * image.size.height / image.size.width
@@ -309,8 +291,6 @@ private struct ImageStrip: View {
     }
 }
 
-/// `UltraBlurColors` as swatches: the four corners Plex derives for its
-/// blurred backgrounds, each with its hex.
 private struct Palette: View {
     let nodes: [Node]
 
@@ -346,7 +326,6 @@ private struct Palette: View {
 }
 
 extension Color {
-    /// Plex sends UltraBlur colours as bare `RRGGBB` hex.
     init?(plexHex: String) {
         let digits = plexHex.hasPrefix("#") ? String(plexHex.dropFirst()) : plexHex
         guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }

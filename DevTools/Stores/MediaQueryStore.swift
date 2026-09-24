@@ -4,27 +4,18 @@ import Observation
 @MainActor
 @Observable
 final class MediaQueryStore {
-    /// The query being built. Kept here rather than in the view so it
-    /// survives switching sections and servers.
     var query = MediaQuery()
 
-    /// The server the current query belongs to. Section keys are only
-    /// meaningful per server, so details are cached per server too and the
-    /// query starts over when the server changes.
+    /// Section keys mean something only per server, so details are cached per
+    /// server and the query starts over when the server changes.
     private(set) var serverID = ""
     private(set) var detailsByServer: [String: [String: SectionDetails]] = [:]
     private(set) var loadingKey: String?
     private(set) var errorMessage: String?
 
-    /// Possible values per filter endpoint, keyed by server then the
-    /// filter's `valuesKey` (which already carries the type). `nil` while
-    /// unloaded; an empty list is a real answer.
     private(set) var valuesByServer: [String: [String: [MediaFilterValue]]] = [:]
     private(set) var loadingValues: Set<String> = []
 
-    /// The poster selected in the results, and whether its inspector is
-    /// open. Here rather than in the results view because the detail pane
-    /// hosts one inspector for every section.
     var selectedItemID: Int?
     var showsItemInfo = false
 
@@ -51,8 +42,6 @@ final class MediaQueryStore {
         query.hasSection && loadingKey == "\(serverID)/\(query.sectionKey)"
     }
 
-    /// Called when the builder is shown for a server: a different server
-    /// gets a fresh query, since its section keys mean something else.
     func serverChanged(to id: String) {
         guard id != serverID else { return }
         serverID = id
@@ -73,10 +62,6 @@ final class MediaQueryStore {
         showsItemInfo = false
     }
 
-    /// Called after `query.sectionKey` changes: start over for that library,
-    /// defaulting to its first type when the details are already known. The
-    /// replacement is built whole and assigned once so observers see one
-    /// change.
     func sectionChanged() {
         var fresh = MediaQuery()
         fresh.sectionKey = query.sectionKey
@@ -84,8 +69,6 @@ final class MediaQueryStore {
         query = fresh
     }
 
-    /// Called after `query.type` changes: drop filters, sorts, and grouping
-    /// that belong to another type so every picker keeps a valid selection.
     func typeChanged() {
         guard let type = currentType else { return }
         let fields = Set(type.fields.map(\.key))
@@ -97,8 +80,6 @@ final class MediaQueryStore {
         if pruned != query { query = pruned }
     }
 
-    /// Fetches a section's types, fields, and sorts once; a failed fetch is
-    /// not cached so it retries next time.
     func loadDetails(section sectionKey: String, on server: ConnectedServer) async {
         let machineID = server.machineID
         let generation = generation
@@ -149,8 +130,6 @@ final class MediaQueryStore {
         loadingValues.contains("\(serverID)/\(filter.valuesKey)")
     }
 
-    /// Fetches a filter's possible values once per server; a failed fetch is
-    /// not cached so it retries next time.
     func loadValues(for filter: MediaFilter, on server: ConnectedServer) async {
         let machineID = server.machineID
         let generation = generation

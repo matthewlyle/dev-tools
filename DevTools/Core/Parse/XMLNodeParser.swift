@@ -1,8 +1,6 @@
 import Foundation
 
-/// Builds a `Node` tree from XML with `XMLParser`. Attributes are sorted by
-/// name because `XMLParser` hands them over unordered; the JSON parser does
-/// the same, so both formats yield identical trees.
+/// Attributes are sorted because `XMLParser` hands them over unordered; `JSONNodeParser` sorts to match.
 final class XMLNodeParser: NSObject, XMLParserDelegate {
     private struct Frame {
         let id: Int

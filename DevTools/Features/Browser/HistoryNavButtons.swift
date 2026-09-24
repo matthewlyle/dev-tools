@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Back/forward through sent requests. Sits at the head of the URL line,
-/// since it navigates between requests.
 struct HistoryNavButtons: View {
     let server: ConnectedServer?
 

@@ -85,9 +85,7 @@ struct PlexTVClient: Sendable {
         return try await decode([PlexResource].self, from: request)
     }
 
-    /// Avatars of people who share with the account, keyed by their numeric
-    /// id (which matches `PlexResource.ownerId`). Uses the legacy XML
-    /// `/api/users` endpoint; `/api/v2/friends` has been retired.
+    /// Uses the legacy XML `/api/users`: `/api/v2/friends` has been retired.
     func friendAvatars(token: String) async throws -> [Int: URL] {
         var request = makeRequest(Self.host.appending(path: "api/users"), token: token)
         request.setValue("application/xml", forHTTPHeaderField: "Accept")

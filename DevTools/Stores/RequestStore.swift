@@ -10,8 +10,6 @@ final class RequestStore {
     private(set) var errorMessage: String?
     private(set) var isSending = false
     private(set) var history: [HistoryEntry] = []
-    /// The documentation popover on Endpoints' ⓘ toolbar item, also opened by
-    /// Request ▸ Show Documentation.
     var showingDocs = false
 
     var acceptFormat: AcceptFormat {
@@ -23,22 +21,17 @@ final class RequestStore {
 
     private static let acceptKey = "acceptFormat"
 
-    /// A request's path + params for display, credentials masked.
     func redactedSummary(of request: PlexRequest, token: String?) -> String {
         CredentialRedactor.redact(request.summary, known: token.map { [$0] } ?? [])
     }
 
-    /// Set by Focus Path and consumed by the request bar, which may not be on
-    /// screen yet: a compact width pushes it after the request.
+    /// The request bar may not be on screen yet to take focus: a compact width pushes it after the request.
     var pathFocusPending = false
 
-    /// Which request bar's path field has focus. A send moves the response
-    /// through states that each build their own bar with fresh focus, so the
-    /// next bar takes focus up from here. An outgoing bar can still be on
-    /// screen as the next one takes focus, so only the holder clears it.
+    /// Each response state builds its own bar, so focus passes between bars through here. An outgoing bar
+    /// can still be on screen as the next takes focus, so only the holder clears it.
     var pathFocusHolder: UUID?
 
-    /// Bumped by ⌘S; the request bar presents the save sheet.
     private(set) var saveRequestToken = 0
 
     func requestSave() {
@@ -79,12 +72,9 @@ final class RequestStore {
         return headers
     }
 
-    /// Off in Media: its results come from the builder's form, and going back
-    /// would show a query the form no longer holds.
+    /// Off in Media: going back would show a query the builder's form no longer holds.
     var recordsNavigation = true
 
-    /// The path as the path field edits it. Paging belongs to the listing it
-    /// was set for, so a different path drops it.
     var editedPath: String {
         get { current.path }
         set {
@@ -103,18 +93,12 @@ final class RequestStore {
         perform(request, on: server)
     }
 
-    /// Re-runs a request chosen from history: shows the response without
-    /// recording a new history entry for the replay.
     func replay(_ entry: HistoryEntry, on server: ConnectedServer) {
         load(entry)
         perform(current, on: server, recordHistory: false)
     }
 
-    /// Loads the operation's required parameters, and starts a media-query
-    /// listing on its first page: those are the library listings that run to
-    /// megabytes, and they report their total, so the pager shows what's left.
-    /// Sends only when every required parameter has a value; otherwise the
-    /// request waits in the always-visible editor.
+    /// Media-query listings open on their first page: unpaged, a library listing runs to megabytes.
     func open(_ operation: SpecOperation, path: String, on server: ConnectedServer) {
         editingSavedID = nil
         current.path = path
@@ -161,9 +145,8 @@ final class RequestStore {
                 guard !Task.isCancelled else { return }
                 response = result
                 if recordHistory { record(request, server: server, status: result.status, duration: result.duration, error: nil) }
-                // The last body stays until this one is parsed: dropping it
-                // first put the response view in a parsing state for a
-                // moment, a flash on every page. Sending lasts until then.
+                // Keep the last body until this one is parsed: dropping it first flashes a parsing
+                // state on every page.
                 let parsed = await ResponseDocument.make(from: result)
                 guard !Task.isCancelled else { return }
                 document = parsed
@@ -221,17 +204,13 @@ final class RequestStore {
         let type: String
     }
 
-    /// A value a placeholder can take, listed from the server.
     struct PlaceholderOption: Identifiable, Hashable, Sendable {
         var id: String { key }
         let key: String
         let title: String
-        /// Set when options span several sources (a collection's library).
         var group: String? = nil
     }
 
-    /// Placeholders whose values the server can list, so the placeholder
-    /// sheet offers a picker instead of asking for an id from memory.
     nonisolated static let listablePlaceholders: [String] = ["sectionId", "playlistId", "collectionId", "deviceId"]
 
     private(set) var sectionsByServer: [String: [SectionOption]] = [:]
@@ -257,8 +236,7 @@ final class RequestStore {
         return optionsByServer[server.machineID]?[placeholder] ?? []
     }
 
-    /// Warm every listable placeholder for a server so the sheet's pickers
-    /// fill without a fetch. Sections first: collections are listed per section.
+    /// Sections first: collections are listed per section.
     func preloadOptions(on server: ConnectedServer) async {
         await preloadSections(on: server)
         await withTaskGroup(of: Void.self) { group in
@@ -268,8 +246,6 @@ final class RequestStore {
         }
     }
 
-    /// A miss fetches; a completed fetch (even empty) is kept unless `force`;
-    /// a failed fetch is not recorded, so it retries next time.
     func preloadOptions(for placeholder: String, on server: ConnectedServer, force: Bool = false) async {
         if placeholder == "sectionId" {
             await preloadSections(on: server, force: force)
@@ -283,8 +259,6 @@ final class RequestStore {
         loadedOptions[machineID, default: []].insert(placeholder)
     }
 
-    /// Warm the section cache. A miss fetches; an existing cache is kept
-    /// unless `force`. A failed fetch returns empty and is never cached.
     func preloadSections(on server: ConnectedServer, force: Bool = false) async {
         if !force, sectionsByServer[server.machineID]?.isEmpty == false { return }
         let generation = cacheGeneration
@@ -301,7 +275,6 @@ final class RequestStore {
         }
     }
 
-    /// `nil` means the request failed; an empty array means the server has none.
     private func fetchOptions(for placeholder: String, on server: ConnectedServer) async -> [PlaceholderOption]? {
         switch placeholder {
         case "playlistId":
@@ -333,7 +306,6 @@ final class RequestStore {
         }
     }
 
-    /// Library items (playlists, collections): `ratingKey` is the id.
     nonisolated static func itemOptions(from root: Node, group: String? = nil) -> [PlaceholderOption] {
         root.children.compactMap { item in
             guard let key = item["ratingKey"] else { return nil }
@@ -341,8 +313,7 @@ final class RequestStore {
         }
     }
 
-    /// Tuner devices: the id attribute and a display name vary by grabber, so
-    /// fall back through the names Plex uses.
+    /// The id attribute and display name vary by tuner grabber, so fall back through the names Plex uses.
     nonisolated static func deviceOptions(from root: Node) -> [PlaceholderOption] {
         root.children.compactMap { device in
             guard let key = device["key"] ?? device["uuid"] ?? device["id"] else { return nil }
@@ -365,15 +336,11 @@ final class RequestStore {
         isSending = false
     }
 
-    /// Returns the workspace to a clean request: default path, no response,
-    /// no navigation history.
     func reset() {
         cancel()
         apply(Workspace())
     }
 
-    /// One section's request and what it produced, kept while another
-    /// section has the workspace.
     private struct Workspace {
         var current = PlexRequest(path: "/")
         var response: PlexResponse?
@@ -387,11 +354,7 @@ final class RequestStore {
 
     private var parked: [String: Workspace] = [:]
 
-    /// Sections share this one workspace, so a switch parks the outgoing
-    /// section's and restores the incoming one's: each keeps its last
-    /// request and response, and a pushed detail still has it on return.
-    /// A send in flight is cancelled; its result would land in the wrong
-    /// section.
+    /// A send in flight is cancelled: its result would land in the wrong section.
     func switchWorkspace(from outgoing: String, to incoming: String) {
         cancel()
         parked[outgoing] = Workspace(
@@ -401,7 +364,6 @@ final class RequestStore {
         apply(parked.removeValue(forKey: incoming) ?? Workspace())
     }
 
-    /// Every section's workspace, gone: they belong to the server they ran on.
     func resetAllWorkspaces() {
         parked.removeAll()
         reset()
@@ -432,20 +394,14 @@ final class RequestStore {
         return CredentialRedactor.redact(url.absoluteString, known: [server.accessToken])
     }
 
-    /// The current request's URL, safe to paste anywhere: the token travels
-    /// as a header, and one typed into the request is dropped.
     func shareableURL(for server: ConnectedServer) -> String? {
         current.withoutCredentials.url(base: server.baseURL)?.absoluteString
     }
 
-    /// The current request as a `curl` command with `$PLEX_TOKEN` in place
-    /// of the credential.
     func curl(for server: ConnectedServer) -> String? {
         CurlExporter.command(for: current, base: server.baseURL, identityHeaders: http.identity.headers)
     }
 
-    /// Restores the path, params, and headers; the response format follows
-    /// the app-wide setting, not what the request was last sent with.
     func load(_ request: PlexRequest) {
         editingSavedID = nil
         current = request
@@ -453,9 +409,6 @@ final class RequestStore {
         discardResponse(unlessFor: current)
     }
 
-    /// Opening a different request drops the last one's response, which
-    /// would otherwise show under it until the send lands. Re-running the
-    /// same request keeps it readable.
     private func discardResponse(unlessFor request: PlexRequest) {
         guard request.summary != lastSent?.summary else { return }
         cancel()
@@ -464,8 +417,6 @@ final class RequestStore {
         errorMessage = nil
     }
 
-    /// The saved request the bar was loaded from, if any. Edits keep it;
-    /// navigating anywhere else ends it. ⌘S offers Update while it's set.
     private(set) var editingSavedID: UUID?
 
     func load(saved item: SavedRequest) {

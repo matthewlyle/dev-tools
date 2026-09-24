@@ -17,9 +17,7 @@ struct ResponseView<RequestBar: View>: View {
     @AppStorage("responseTab") private var tab: ResponseTab = .raw
     @State private var collapsed: Set<Int> = []
 
-    /// Documented query parameters for the current route when the server
-    /// rejected the request — the spec often omits `required`, so a 400 is
-    /// the first hint that one of these matters.
+    /// The spec often omits `required`, so a 400 offers every documented parameter not sent.
     private var missingParameterHint: [SpecParameter]? {
         guard let response = requests.response, response.status == 400,
               let operation = spec.operation(matching: requests.current.path)
@@ -29,8 +27,6 @@ struct ResponseView<RequestBar: View>: View {
         return candidates.isEmpty ? nil : candidates
     }
 
-    /// A 403 on an admin-only operation against a server you don't own has
-    /// one explanation; say it rather than leave a bare status code.
     private var adminOnlyHint: SpecOperation? {
         guard let response = requests.response, response.status == 403, server?.owned == false,
               let operation = spec.operation(matching: requests.current.path), operation.access == .admin
@@ -39,8 +35,7 @@ struct ResponseView<RequestBar: View>: View {
     }
 
     var body: some View {
-        // Only the resting and error states transition; the body arrives
-        // instantly because a transition on the text view forces a
+        // Only the resting and error states transition: a transition on the text view forces a
         // full-document layout.
         ZStack {
             if let response = requests.response, let document = requests.document {
@@ -58,9 +53,6 @@ struct ResponseView<RequestBar: View>: View {
                 }
                 .transition(.identity)
             } else if !editable && requests.lastSent == nil {
-                // Nothing picked from History: the bar would show the
-                // workspace's placeholder request, and the list says what
-                // belongs there.
                 FillingScrollView { EmptyView() }
                     .restingStateTransition()
                     .zIndex(1)
@@ -96,9 +88,6 @@ struct ResponseView<RequestBar: View>: View {
         }
     }
 
-    /// The request and everything that describes its response, as one block.
-    /// Scrolls with the body where the body can host it (the text view, the
-    /// poster grid); sits above it otherwise.
     @ViewBuilder
     private var headerBlock: some View {
         VStack(spacing: 0) {
@@ -139,14 +128,9 @@ struct ResponseView<RequestBar: View>: View {
     }
 }
 
-/// A scroll view whose content is at least the viewport tall. Static states
-/// (empty, loading) go through it so the detail is always a scroll surface:
-/// on macOS the toolbar draws its backdrop over static content and turns
-/// transparent only over a scroll view, and every section should look the
-/// same at rest. The content is pinned to the top: a scroll view proposes no
-/// height, so while the viewport changes size (the keyboard rising) the
-/// content can briefly be shorter than the minimum, and a centred frame
-/// would float the request bar down the screen.
+/// On macOS the toolbar turns transparent only over a scroll view, so static states go through one too.
+/// Content pins to the top: while the viewport resizes it can briefly be shorter than the minimum, and a
+/// centred frame would float the request bar down the screen.
 struct FillingScrollView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -162,8 +146,6 @@ struct FillingScrollView<Content: View>: View {
     }
 }
 
-/// The detail's resting state: one muted sentence, centred. No icon or
-/// heading — the section switcher already says where you are.
 struct ZeroState<Action: View>: View {
     let text: String
     @ViewBuilder let action: () -> Action
@@ -188,10 +170,6 @@ extension ZeroState where Action == EmptyView {
 }
 
 extension View {
-    /// How a resting, empty, or error state swaps with content: it arrives
-    /// over a beat and leaves at once, so content never waits on it. `rising`
-    /// adds a small lift on arrival, for states that don't carry the request
-    /// bar — the bar must not move.
     func restingStateTransition(rising: Bool = false) -> some View {
         modifier(RestingStateTransition(rising: rising))
     }
@@ -269,11 +247,6 @@ private struct AccessHint: View {
     }
 }
 
-/// The status row under the request: status, paging, any notice, the body's
-/// controls, and the view tabs. A compact width can't hold all of them on
-/// one line, so the tabs share the first with the status and paging and any
-/// notice drop to a second, shown only when it has something in it; copying
-/// the body is in the screen's navigation bar there (`requestScreenActions`).
 struct ResponseInfoRow<Tabs: View>: View {
     let response: PlexResponse
     let pagination: PaginationInfo?
@@ -341,8 +314,6 @@ struct PaginationControls: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Action { case previous, next, all }
-    /// The page being fetched, so its button shows the progress: Send's
-    /// spinner is across the window from the button that was pressed.
     @State private var pending: Action?
 
     var body: some View {
@@ -388,13 +359,11 @@ struct PaginationControls: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
         .animation(reduceMotion ? nil : .snappy, value: pagination)
     }
 
-    /// The pressed button stays enabled so its spinner isn't dimmed; a second
-    /// press is ignored in `run` instead.
+    /// The pressed button stays enabled so its spinner isn't dimmed; `run` ignores a second press.
     private func unavailable(for action: Action) -> Bool {
         server == nil || (requests.isSending && pending != action)
     }
@@ -405,7 +374,6 @@ struct PaginationControls: View {
         fetch(server)
     }
 
-    /// Swaps in a spinner at the content's own size, so nothing shifts.
     private func progress(for action: Action, @ViewBuilder _ content: () -> some View) -> some View {
         content()
             .opacity(pending == action ? 0 : 1)
@@ -417,10 +385,6 @@ struct PaginationControls: View {
     }
 }
 
-/// Every segment is unsplittable: when the row runs short the pill sheds
-/// detail — content type to its subtype, then gone, then the measurements —
-/// rather than wrap. It outranks its row siblings for width so it only sheds
-/// once the row is genuinely full.
 struct ResponseStatusBar: View {
     let response: PlexResponse
 
@@ -454,7 +418,6 @@ struct ResponseStatusBar: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
         .keyframeAnimator(initialValue: 1.0, trigger: response.receivedAt) { view, scale in
             view.scaleEffect(settles ? scale : 1)
@@ -497,8 +460,6 @@ struct ResponseStatusBar: View {
         return type.isEmpty ? nil : type
     }
 
-    /// `application/json` → `json`; a structured suffix wins, so
-    /// `application/vnd.api+json` → `json`.
     nonisolated static func subtype(of contentType: String) -> String? {
         guard let type = mediaType(contentType), let slash = type.firstIndex(of: "/") else { return nil }
         let token = type[type.index(after: slash)...].split(separator: "+").last.map(String.init)
@@ -506,18 +467,13 @@ struct ResponseStatusBar: View {
     }
 }
 
-/// The status pill's row: status, duration, size, then the content type or
-/// its subtype, shedding from the end instead of wrapping. A shed segment
-/// is placed outside the clipped bounds rather than removed, so every
-/// segment stays the same view and its number rolls; `ViewThatFits` makes
-/// the same choice but draws it without content transitions.
+/// A shed segment is placed outside the clipped bounds, not removed, so it stays the same view and its
+/// number rolls; `ViewThatFits` draws the same choice without content transitions.
 private struct SheddingRow: Layout {
     let spacing: CGFloat
     let hasType: Bool
     let hasSubtype: Bool
 
-    /// Subview indices per level, richest first: 0 status, 1 duration,
-    /// 2 size, then the type and the subtype when present.
     private var levels: [[Int]] {
         var levels = [hasType ? [0, 1, 2, 3] : [0, 1, 2]]
         if hasSubtype { levels.append([0, 1, 2, 4]) }

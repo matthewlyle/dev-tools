@@ -20,8 +20,6 @@ struct SpecParameter: Sendable, Hashable, Identifiable {
         defaultValue ?? example ?? enumValues.first ?? ""
     }
 
-    /// Values to pick from, labelled: the schema's enum, or for a query
-    /// `type` the metadata types, which the spec lists only in prose.
     var valueOptions: [(value: String, label: String)] {
         if !enumValues.isEmpty { return enumValues.map { ($0, $0) } }
         if location == .query, name == "type" {
@@ -40,19 +38,13 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
     let summary: String
     let description: String?
     let parameters: [SpecParameter]
-    /// Accepts the media-query filtering language (`#/components/parameters/mediaQuery`).
     let supportsMediaQuery: Bool
     let access: Access
 
-    /// Split once at build time so path matching never re-splits the
-    /// template or re-parses placeholders on the hot path (it runs several
-    /// times per frame while the section switcher animates).
+    /// Pre-split: path matching runs several times per frame while the section switcher animates.
     let templateSegments: [Substring]
     let placeholders: [String]
 
-    /// Who the spec says may call this, from the `user_token` scopes: the
-    /// document default is `shared user` + `admin`; some operations narrow
-    /// to `admin`; `/identity` needs no token at all.
     enum Access: Sendable, Hashable {
         case open
         case anyUser
@@ -98,9 +90,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
         return result
     }
 
-    /// developer.plex.tv is a stock Redoc site, whose deep links are
-    /// `#tag/<tag>/operation/<operationId>` — both fields the spec already
-    /// carries, so links are derived, never authored.
     static let docsBase = URL(string: "https://developer.plex.tv/pms/")!
 
     var docsURL: URL? {
@@ -122,9 +111,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
         return result
     }
 
-    /// Whether `path` (no query) is an instance of this template. Compared
-    /// segment by segment; placeholders match any non-empty run within a
-    /// segment, and `.*` (the transcoder's `start.*`) matches any suffix.
     func matches(_ pathSegments: [Substring]) -> Bool {
         guard templateSegments.count == pathSegments.count else { return false }
         return zip(templateSegments, pathSegments).allSatisfy { Self.segmentMatches($0, $1) }
@@ -136,8 +122,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
         }
         guard template.contains("{") else { return template == segment }
 
-        // Split into the literal pieces between placeholders, e.g.
-        // "tv.plex.providers.epg.{identifier}:{deviceId}" → ["tv.plex.providers.epg.", ":", ""].
         var literals: [Substring] = []
         var rest = template
         while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
@@ -149,7 +133,6 @@ struct SpecOperation: Sendable, Hashable, Identifiable {
         guard segment.hasPrefix(literals[0]) else { return false }
         var cursor = segment.index(segment.startIndex, offsetBy: literals[0].count)
         for literal in literals.dropFirst() {
-            // The placeholder before this literal must consume at least one character.
             guard cursor < segment.endIndex else { return false }
             let searchStart = segment.index(after: cursor)
             if literal.isEmpty {
@@ -255,8 +238,6 @@ struct SpecCatalog: Sendable {
         }
     }
 
-    /// Operations whose path takes `placeholder`, most specific first (fewest
-    /// other placeholders), then by template.
     func operations(taking placeholder: String) -> [SpecOperation] {
         operations
             .filter { $0.placeholders.contains(placeholder) }

@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Signing out can't be undone without a fresh plex.tv approval, so every
-/// entry point (Settings, the App menu) confirms through this one dialog,
-/// which is also the one place the session is torn down: the views that
-/// would otherwise stop the stream and drop state are gone once signed out.
 private struct SignOutConfirmation: ViewModifier {
     @Binding var isPresented: Bool
     let onSignOut: () -> Void

@@ -26,8 +26,6 @@ struct NodeParserTests {
     ]}}
     """
 
-    /// Strip IDs and element names (XML uses Video/Directory, JSON uses
-    /// Metadata) so the structural comparison is about attributes and shape.
     private func shape(_ node: Node) -> String {
         let attrs = node.attributes.map { "\($0.name)=\($0.value)" }.joined(separator: " ")
         let kids = node.children.map(shape).joined(separator: ",")

@@ -7,8 +7,6 @@ struct ClearHistoryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.serverID == rhs.serverID }
 }
 
-/// Published by the Media Query builder while it can run; Send (⌘↩) runs the
-/// built query instead of the request bar's request.
 struct RunMediaQueryAction: Equatable {
     let summary: String
     let run: () -> Void
@@ -16,7 +14,6 @@ struct RunMediaQueryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.summary == rhs.summary }
 }
 
-/// Published by the History list while a row is selected.
 struct DeleteHistoryEntryAction: Equatable {
     let id: HistoryEntry.ID
     let run: () -> Void
@@ -24,15 +21,12 @@ struct DeleteHistoryEntryAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
-/// Published by the Activity event list while it has events.
 struct ClearEventsAction: Equatable {
     let run: () -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
-/// Published by the Media results grid while a poster is selected, and by the
-/// Activity event list while an event is (its inspector only ever hides).
 struct ShowMediaInfoAction: Equatable {
     let visible: Bool
     let run: () -> Void
@@ -40,14 +34,12 @@ struct ShowMediaInfoAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.visible == rhs.visible }
 }
 
-/// Published by the window header while a server is selected.
 struct ShowServerInfoAction: Equatable {
     let run: () -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
-/// Published by the visible request screen while its path is documented.
 struct ShowDocumentationAction: Equatable {
     let path: String
     let run: () -> Void
@@ -56,8 +48,6 @@ struct ShowDocumentationAction: Equatable {
 }
 
 #if os(iOS)
-/// Published by the iPad window header. iPadOS has no Settings scene, so the
-/// App menu's Settings… presents the header's sheet in the focused window.
 struct ShowSettingsAction: Equatable {
     let run: () -> Void
 

@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct WorkspaceView: View {
-    /// Endpoints edit the request; History replays it read-only, starting
-    /// from the URL rather than an editable path and parameter form.
     let editable: Bool
 
     @Environment(ServerStore.self) private var servers
@@ -24,9 +22,6 @@ struct WorkspaceView: View {
     }
 }
 
-/// The request as a read-only URL: History replays past requests without
-/// exposing the path or parameter editors, and selecting an entry runs it,
-/// so there is nothing to send here. It saves from the toolbar.
 struct RequestSummaryBar: View {
     let server: ConnectedServer?
 

@@ -1,11 +1,6 @@
 import Foundation
 import Observation
 
-/// Identifiers seen in responses, per server, so placeholders like
-/// `{metadataId}` or `{deviceId}` can be filled from what you've already
-/// looked at instead of retyped. The spec gives no machine-readable link
-/// from a placeholder to its source, so this is the automatic alternative
-/// to a hand-kept table.
 @MainActor
 @Observable
 final class ValueMemory {
@@ -29,9 +24,6 @@ final class ValueMemory {
         lastUsed = AppSupportStore.load([String: [String: String]].self, name: Self.lastUsedFile) ?? [:]
     }
 
-    /// Records every id-like attribute in `root`'s tree: `ratingKey`, `id`,
-    /// `*ID`/`*Id`, and a numeric `key` (library sections). Newest first,
-    /// de-duplicated, capped.
     func record(root: Node, serverID: String) {
         var fresh: [Seen] = []
         let now = Date.now
@@ -65,14 +57,11 @@ final class ValueMemory {
         return name == "key" && value.allSatisfy(\.isNumber)
     }
 
-    /// Values that plausibly fill `placeholder`, newest first. Only matches:
-    /// an unrelated identifier is noise, not a fallback.
     func candidates(for placeholder: String, serverID: String) -> [Seen] {
         let stem = Self.stem(of: placeholder)
         return (seen[serverID] ?? []).filter { Self.matches($0, stem: stem) }
     }
 
-    /// `metadataId` → `metadata`, `ids` → `id`, `playQueueId` → `playqueue`.
     static func stem(of placeholder: String) -> String {
         var s = placeholder.lowercased()
         for suffix in ["ids", "id", "s"] where s.hasSuffix(suffix) && s.count > suffix.count {

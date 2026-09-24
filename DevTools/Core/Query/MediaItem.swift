@@ -1,7 +1,5 @@
 import Foundation
 
-/// One item of a media container as a person reads it: title, artwork,
-/// aspect, and a one-line summary of the metadata that matters for its type.
 struct MediaItem: Identifiable, Hashable, Sendable {
     enum Shape: Sendable { case poster, square, wide }
 
@@ -52,10 +50,6 @@ struct MediaItem: Identifiable, Hashable, Sendable {
         return present.isEmpty ? nil : present.joined(separator: " · ")
     }
 
-    /// The one line under a poster: the value the results are sorted by, so
-    /// a grid sorted by duration reads as durations and one sorted by title
-    /// as titles. Falls back to the title when the sort has nothing to show
-    /// (`random`, or a field the item lacks).
     func caption(sortedBy key: String?) -> String {
         guard let key, key != "title", key != "titleSort", let resolved = sortValue(key) else { return title }
         switch resolved.name {
@@ -85,7 +79,6 @@ struct MediaItem: Identifiable, Hashable, Sendable {
         return "Episode \(episode)"
     }
 
-    /// Child groups whose members are all tags (`Genre`, `Director`, `Role`…).
     var tagGroups: [(name: String, tags: [String])] {
         childGroups.compactMap { group in
             let tags = group.nodes.compactMap { $0["tag"] }
@@ -93,7 +86,6 @@ struct MediaItem: Identifiable, Hashable, Sendable {
         }
     }
 
-    /// Remaining child groups (`Media`, `Guid`, `Image`…), shown as details.
     var elementGroups: [(name: String, nodes: [Node])] {
         childGroups.filter { group in
             !group.nodes.allSatisfy { $0["tag"] != nil } || group.nodes.isEmpty
@@ -111,7 +103,6 @@ struct MediaItem: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Human formatting for attribute values whose names give away their unit.
 enum MediaValue {
     static func display(name: String, value: String) -> String? {
         if name == "type" || name == "metadataType", let label = MetadataType.label(value) {

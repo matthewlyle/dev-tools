@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Window-wide lightbox. The image grows out of the thumbnail it was clicked
-/// from and shrinks back on close — the continuity that makes it read as the
-/// same picture. Starts from the cached thumbnail pixels, then swaps in the
-/// full-size image. Under Reduce Motion nothing moves; it appears in place.
 struct LightboxOverlay: View {
     @Environment(LightboxStore.self) private var lightbox
     @Environment(ImageStore.self) private var images
@@ -43,7 +39,6 @@ struct LightboxOverlay: View {
                     .shadow(color: .black.opacity(expanded ? 0.4 : 0), radius: 24, y: 8)
                     .position(x: rect.midX, y: rect.midY)
                     .accessibilityLabel(presentation.item.title)
-                    // Movement is the part Reduce Motion removes; opacity elsewhere still fades.
                     .animation(reduceMotion ? nil : .smooth, value: expanded)
 
                     caption(for: presentation.item)
@@ -97,8 +92,6 @@ struct LightboxOverlay: View {
         return fallback.height > 0 ? fallback.width / fallback.height : 1.5
     }
 
-    /// The largest rect of `aspect` that fits inside `size` with margins and
-    /// room for the caption, centred.
     private func targetRect(in size: CGSize, aspect: CGFloat) -> CGRect {
         let available = CGSize(
             width: max(size.width - Self.margin * 2, 200),
@@ -118,8 +111,8 @@ struct LightboxOverlay: View {
         )
     }
 
-    /// Always animated: the backdrop and caption fade regardless, and the
-    /// image subtree opts out of movement itself under Reduce Motion.
+    /// Always animated: the backdrop and caption should fade regardless, and
+    /// the image subtree opts out of movement itself under Reduce Motion.
     private func close() {
         withAnimation(.smooth) {
             expanded = false

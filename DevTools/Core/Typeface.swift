@@ -6,9 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-/// Commit Mono, declared to the system in `Info.plist` (`UIAppFonts` /
-/// `ATSApplicationFontsPath`). Two faces are bundled, so weight resolves to
-/// a face here rather than letting each platform's matcher pick.
 enum Typeface {
     static let family = "CommitMono"
 

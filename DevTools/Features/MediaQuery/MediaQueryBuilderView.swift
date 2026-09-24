@@ -1,12 +1,8 @@
 import SwiftUI
 
-/// Builds a media query visually and runs it against
-/// `/library/sections/{id}/all`; the result lands in the read-only workspace.
-///
-/// Pickers bind straight to the model and every one always has a tag for its
-/// current value; dependent resets happen in `onChange`, after the update.
-/// A picker whose selection has no tag, or whose setter rewrites the model,
-/// makes SwiftUI re-assert the selection every render and the view hangs.
+/// Every picker binds straight to the model with a tag for its current value,
+/// and dependent resets run in `onChange`: an untagged selection or a setter
+/// that rewrites the model makes SwiftUI re-assert it every render and hang.
 struct MediaQueryBuilderView: View {
     let server: ConnectedServer?
 
@@ -90,8 +86,6 @@ struct MediaQueryBuilderView: View {
                         } header: {
                             Text("Filters")
                         } footer: {
-                            // Beneath the card, not a row of it, so an empty
-                            // builder is a line rather than a card of actions.
                             FilterAddButtons(clause: $store.query.root, type: type)
                         }
 
@@ -230,8 +224,6 @@ struct MediaQueryBuilderView: View {
     }
 }
 
-/// A line of small add buttons: an action beside the rows it adds to, not a
-/// row of its own.
 private struct CompactAddRow<Buttons: View>: View {
     @ViewBuilder let buttons: Buttons
 
@@ -282,9 +274,6 @@ private struct FilterAddButtons: View {
     }
 }
 
-/// Edits one group of the filter tree. The root's parts are rows of the
-/// Filters section; nested groups draw a box with their own match toggle,
-/// a remove button, and their add buttons.
 /// Bindings are keyed by node id, not index: an index-backed
 /// `ForEach($array)` shifts on removal and hangs the view.
 private struct GroupEditor: View {
@@ -294,9 +283,6 @@ private struct GroupEditor: View {
     let isRoot: Bool
     let remove: (() -> Void)?
 
-    /// The group's join, as Finder's Smart Folders put it: "Match All/Any".
-    /// Shown as soon as the group has a filter so the join is visible while
-    /// the group is being built, not only once a second filter exists.
     private var matchPicker: some View {
         Picker("Match", selection: $clause.matchAny) {
             Text("All").tag(false)
@@ -343,7 +329,6 @@ private struct GroupEditor: View {
             nodeView(node)
         }
 
-        // The root's buttons sit in its section's footer.
         if !isRoot {
             FilterAddButtons(clause: $clause, type: type)
         }
@@ -399,11 +384,8 @@ private struct GroupEditor: View {
 }
 
 private extension View {
-    /// Gives buttons inside a nested group the look of a Form row button.
-    /// macOS draws those as push buttons wherever they sit. iOS styles a
-    /// default button as the row itself, and every default button in one row
-    /// fires on any tap in it, so inside a box they go borderless, which is
-    /// the same accent-tinted label without the row.
+    /// On iOS every default button in a Form row fires on any tap in it, so
+    /// inside a box they go borderless.
     @ViewBuilder
     func nestedFormButtonStyle() -> some View {
         #if os(macOS)
@@ -495,10 +477,6 @@ private struct TermRow: View {
     }
 }
 
-/// A value editor backed by the server's list of possible values for the
-/// field. Few values → a menu. Many → a typeahead over their titles. Tag
-/// fields store the picked id and show its name; fields whose values are
-/// their own titles accept typed text directly.
 private struct FilterValueField: View {
     @Binding var term: MediaQuery.Term
     let filter: MediaFilter
@@ -606,8 +584,6 @@ private struct FilterValueField: View {
         return typedIsValue ? "text, or type to search" : "type to search"
     }
 
-    /// Suggestions show while the field is focused and holds a search that
-    /// isn't already the picked value's name.
     private var showSuggestions: Bool {
         focused && !search.isEmpty && search != term.label && !matches.isEmpty
     }
@@ -641,8 +617,7 @@ private struct SortRow: View {
                 Text("Descending").tag(true)
             }
             .labelsHidden()
-            // iOS menu pickers share an HStack's width with the Spacer and
-            // truncate early; the direction's two short words always fit.
+            // iOS menu pickers beside a Spacer truncate early.
             .fixedSize()
 
             Spacer(minLength: 0)

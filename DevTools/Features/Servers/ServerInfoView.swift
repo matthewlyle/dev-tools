@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The ⓘ popover beside the server title: host, version, and the connection
-/// in use. Reference, so a popover; the column stays for the section list.
 struct ServerInfoView: View {
     let entry: ServerStore.Entry
 

@@ -11,7 +11,6 @@ struct SignInView: View {
         return false
     }
 
-    /// The app's name and the one thing to do: no card, icon, or intro.
     var body: some View {
         VStack(spacing: 24) {
             Text("Dev Tools for Plex")
@@ -43,11 +42,8 @@ struct SignInView: View {
         }
     }
 
-    /// Plex's approval page in the system sign-in sheet. Polling finishes
-    /// sign-in, which tears this task down and so dismisses the sheet;
-    /// closing it by hand cancels. Nothing ever calls back on the scheme:
-    /// Plex refuses a `forwardUrl` that isn't its own or the PIN's origin,
-    /// and fails the approval instead.
+    /// Nothing calls back on the scheme: Plex fails the approval for a `forwardUrl` that isn't its own
+    /// or the PIN's origin, so polling finishes sign-in and tearing down this task dismisses the sheet.
     private func approve(at url: URL) async {
         do {
             _ = try await webAuthenticationSession.authenticate(

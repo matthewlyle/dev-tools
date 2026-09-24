@@ -45,9 +45,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return path + joiner + enabled.map { "\($0.name)=\($0.value)" }.joined(separator: "&")
     }
 
-    /// Resolves against `base`, merging any query already embedded in `path`
-    /// with the enabled `query` params. The token never goes in the URL —
-    /// `PlexHTTP` sends it as a header, so it stays out of logs and copies.
     func url(base: URL) -> URL? {
         let (purePath, embedded) = Self.splitPath(path)
 
@@ -60,10 +57,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return components.url
     }
 
-    /// The request minus any `X-Plex-Token` typed into its path, params, or
-    /// headers: the form that's saved, copied, or exported, since a typed
-    /// credential would otherwise sit in plain JSON on disk. Sending it falls
-    /// back to the server's own token.
     var withoutCredentials: PlexRequest {
         var copy = self
         copy.headers.removeAll { Self.isCredential($0.name) }
@@ -72,8 +65,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return copy
     }
 
-    /// A path, or anything shaped like one (a saved request's name defaults
-    /// to its path), minus any `X-Plex-Token` in its query.
     static func withoutCredentials(_ path: String) -> String {
         let (purePath, embedded) = splitPath(path)
         guard embedded.contains(where: { isCredential($0.name) }) else { return path }
@@ -94,9 +85,6 @@ struct PlexRequest: Hashable, Codable, Sendable {
         return (path, URLComponents(string: "?" + query)?.queryItems ?? [])
     }
 
-    /// Typed and server-sent paths aren't always validly encoded, and
-    /// `URLComponents`' percent-encoded setters trap on invalid input: valid
-    /// `%XX` escapes are kept and anything else a query can't hold is encoded.
     private static func validlyEncoded(_ query: Substring) -> String {
         let scalars = Array(query.unicodeScalars)
         var out = ""

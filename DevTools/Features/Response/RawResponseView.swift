@@ -25,14 +25,11 @@ struct RawResponseView<Header: View>: View {
                 version: document.version,
                 header: AnyView(header())
             )
-            // The text view insets itself by the bottom safe area, so it can
-            // run under the tab bar and fill the space the bar gives up.
             .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 }
 
-/// An image response shown as the image, never upscaled, with its pixel size.
 private struct ImageBody: View {
     let response: PlexResponse
 
@@ -71,15 +68,10 @@ private struct ImageBody: View {
     }
 }
 
-/// Copy for the body. Rides the response header row rather than a row of its own.
 struct BodyControls: View {
     let document: ResponseDocument
     let response: PlexResponse
 
-    /// Unwrapped text needs an infinite-width container, which defeats
-    /// TextKit's viewport layout: the whole body is laid out on the main
-    /// thread, in time proportional to its size. Wrapped, layout stays
-    /// proportional to what's on screen, so big bodies are always wrapped.
     static let wrapForcedAbove = 256 * 1024
 
     static func wrapForced(for document: ResponseDocument) -> Bool {
@@ -101,8 +93,6 @@ struct BodyControls: View {
         document.format == .image ? "Copy Image" : "Copy Body"
     }
 
-    /// The body as shown: the image for an image response, otherwise the
-    /// displayed text (pretty-printed where it was), or the raw text.
     static func copy(document: ResponseDocument, response: PlexResponse) {
         if document.format == .image {
             if let image = PlatformImage(data: response.body) { Clipboard.copy(image) }
