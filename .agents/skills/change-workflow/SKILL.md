@@ -95,6 +95,6 @@ GIT_TERMINAL_PROMPT=0 git push -q origin main
 git status -sb | sed -n 1p        # expect ## main...origin/main
 ```
 
-The merge subject is a release-note line. `Tools/release.sh` builds a tag's notes from the subjects on `main`'s first-parent line since the previous tag, strips `Merge: ` and capitalizes the first letter, so write it as a user-facing summary of the change.
+The merge subject of a change to the app is a release-note line. `Tools/release.sh` builds a tag's notes from the merges on `main`'s first-parent line since the previous tag that touched `DevTools/`, strips `Merge: ` and capitalizes the first letter, so write it as a user-facing summary of the change.
 
 A merged change isn't in the live DMG until a release (`release-workflow`); say so when it matters.
