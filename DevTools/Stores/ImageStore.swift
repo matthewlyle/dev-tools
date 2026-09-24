@@ -35,6 +35,12 @@ final class ImageStore {
         "\(server.machineID)|\(value)|\(width)x\(height)" as NSString
     }
 
+    func removeAll() {
+        inFlight.values.forEach { $0.cancel() }
+        inFlight.removeAll()
+        cache.removeAllObjects()
+    }
+
     /// The decoded image if it's already in memory, without touching the
     /// network. Lets a view show a cached hit instantly and reserve the fade
     /// for a real decode.

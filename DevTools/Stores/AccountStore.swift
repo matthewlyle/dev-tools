@@ -19,6 +19,9 @@ final class AccountStore {
 
     private let plexTV: PlexTVClient
     private var pollTask: Task<Void, Never>?
+    /// Bumped by sign-out and cancel, so a restore or approval still in
+    /// flight can't sign back in the account just left.
+    private var session = 0
 
     init(plexTV: PlexTVClient) {
         self.plexTV = plexTV
@@ -30,18 +33,22 @@ final class AccountStore {
     }
 
     func restore() async {
+        let session = session
         guard let saved = TokenStore.load() else {
             state = .signedOut
             return
         }
         do {
             let user = try await plexTV.currentUser(token: saved)
+            guard session == self.session else { return }
             token = saved
             state = .signedIn(user)
         } catch PlexTVError.status(401) {
+            guard session == self.session else { return }
             TokenStore.delete()
             state = .signedOut
         } catch {
+            guard session == self.session else { return }
             errorMessage = error.localizedDescription
             state = .signedOut
         }
@@ -66,21 +73,26 @@ final class AccountStore {
     }
 
     func cancelSignIn() {
+        session += 1
         pollTask?.cancel()
         pollTask = nil
         state = .signedOut
     }
 
     func signOut() {
+        session += 1
         pollTask?.cancel()
         pollTask = nil
-        TokenStore.delete()
+        if !TokenStore.delete() {
+            errorMessage = "Couldn't remove your sign-in from the Keychain, so the app may sign you back in when it next opens. Sign in and out again to retry."
+        }
         token = nil
         state = .signedOut
     }
 
     private func startPolling(_ pin: PlexPIN) {
         pollTask?.cancel()
+        let session = session
         pollTask = Task { [plexTV] in
             // Strong PINs live ~30 minutes; stop a little short of that.
             for _ in 0..<800 {
@@ -88,7 +100,7 @@ final class AccountStore {
                 if Task.isCancelled { return }
                 guard let polled = try? await plexTV.pollPIN(id: pin.id) else { continue }
                 guard let authToken = polled.authToken, !authToken.isEmpty else { continue }
-                await completeSignIn(token: authToken)
+                await completeSignIn(token: authToken, session: session)
                 return
             }
             errorMessage = "The sign-in code expired. Try again."
@@ -96,13 +108,15 @@ final class AccountStore {
         }
     }
 
-    private func completeSignIn(token: String) async {
+    private func completeSignIn(token: String, session: Int) async {
         do {
             let user = try await plexTV.currentUser(token: token)
+            guard session == self.session else { return }
             try TokenStore.save(token)
             self.token = token
             state = .signedIn(user)
         } catch {
+            guard session == self.session else { return }
             errorMessage = error.localizedDescription
             state = .signedOut
         }

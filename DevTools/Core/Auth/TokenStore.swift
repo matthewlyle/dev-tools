@@ -56,7 +56,10 @@ enum TokenStore {
         guard addStatus == errSecSuccess else { throw Failure.status(addStatus) }
     }
 
-    static func delete() {
-        SecItemDelete(baseQuery as CFDictionary)
+    /// Whether no item is left behind.
+    @discardableResult
+    static func delete() -> Bool {
+        let status = SecItemDelete(baseQuery as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 }

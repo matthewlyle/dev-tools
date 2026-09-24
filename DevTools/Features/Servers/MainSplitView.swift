@@ -573,6 +573,12 @@ struct MainSplitView: View {
             .onChange(of: connected?.machineID, initial: true) { _, id in
                 if id != nil { hasConnected = true }
             }
+            .onChange(of: connected) { _, connected in
+                guard let listening = activity.server, activity.status.isActive,
+                      listening.machineID == servers.selectedID, connected != listening
+                else { return }
+                if let connected { activity.connect(to: connected) } else { activity.disconnect() }
+            }
             .onChange(of: section, initial: true) { _, section in
                 requests.recordsNavigation = section != .mediaQuery
             }
@@ -924,11 +930,19 @@ struct MainSplitView: View {
             } actions: {
                 Button("Refresh Servers") { refreshServers() }
             }
+        } else if let entry = servers.selected, !entry.resource.connections.contains(where: \.isHTTPS) {
+            ContentUnavailableView {
+                Label("No Secure Connection", systemImage: "lock.slash")
+            } description: {
+                Text("\(entry.resource.name) doesn't offer encrypted connections, which the app requires. In its Network settings, set Secure connections to Preferred, then refresh.")
+            } actions: {
+                Button("Refresh Servers") { refreshServers() }
+            }
         } else {
             ContentUnavailableView {
                 Label("Can't Reach Your Servers", systemImage: "wifi.exclamationmark")
             } description: {
-                Text("None of your servers answered. Check they're online and on the same network, then try again.")
+                Text("None of your servers answered over a secure connection. Check they're online. On a server's own network, your router may be blocking plex.direct addresses: allow them in its DNS rebinding protection.")
             } actions: {
                 Button("Refresh Servers") { refreshServers() }
             }

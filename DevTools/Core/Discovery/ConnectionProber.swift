@@ -30,6 +30,9 @@ struct ConnectionProber: Sendable {
     /// server advertised from its own network, and off that network the
     /// address can belong to anyone. `/identity` answers unauthenticated, and
     /// the token is only sent once a connection proves it's this server.
+    /// Plain HTTP is never probed: the machine ID is public and an on-path
+    /// relay can pass the probe to the real server, so only TLS proves who
+    /// answered, and the token would cross the network in the clear.
     func probeAll(_ resource: PlexResource) async -> [ProbeResult] {
         guard resource.accessToken != nil else {
             return resource.connections.map {
@@ -39,8 +42,8 @@ struct ConnectionProber: Sendable {
 
         let results = await withTaskGroup(of: ProbeResult.self) { group in
             for connection in resource.connections {
-                if resource.httpsRequired == true, !connection.isHTTPS {
-                    group.addTask { ProbeResult(connection: connection, outcome: .failed("Server requires HTTPS")) }
+                guard connection.isHTTPS else {
+                    group.addTask { ProbeResult(connection: connection, outcome: .failed("Not encrypted")) }
                     continue
                 }
                 group.addTask {

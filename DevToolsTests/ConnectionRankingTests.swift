@@ -53,4 +53,13 @@ struct ConnectionRankingTests {
         #expect(connection(protocol: "https", local: false, relay: false).kind == .remote)
         #expect(connection(protocol: "https", local: false, relay: true).kind == .relay)
     }
+
+    @Test func securityFollowsTheDialledSchemeNotTheProtocolField() {
+        let mislabelled = Connection(
+            protocol: "https", address: "10.0.0.1", port: 32400,
+            uri: "http://10.0.0.1:32400", local: true, relay: false, IPv6: false
+        )
+        #expect(!mislabelled.isHTTPS)
+        #expect(mislabelled.rank > connection(protocol: "https", local: false, relay: true).rank)
+    }
 }

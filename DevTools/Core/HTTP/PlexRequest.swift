@@ -68,14 +68,19 @@ struct PlexRequest: Hashable, Codable, Sendable {
         var copy = self
         copy.headers.removeAll { Self.isCredential($0.name) }
         copy.query.removeAll { Self.isCredential($0.name) }
-        let (purePath, embedded) = Self.splitPath(path)
-        if embedded.contains(where: { Self.isCredential($0.name) }) {
-            var components = URLComponents()
-            components.queryItems = embedded.filter { !Self.isCredential($0.name) }
-            let query = components.percentEncodedQuery ?? ""
-            copy.path = query.isEmpty ? purePath : purePath + "?" + query
-        }
+        copy.path = Self.withoutCredentials(path)
         return copy
+    }
+
+    /// A path, or anything shaped like one (a saved request's name defaults
+    /// to its path), minus any `X-Plex-Token` in its query.
+    static func withoutCredentials(_ path: String) -> String {
+        let (purePath, embedded) = splitPath(path)
+        guard embedded.contains(where: { isCredential($0.name) }) else { return path }
+        var components = URLComponents()
+        components.queryItems = embedded.filter { !isCredential($0.name) }
+        let query = components.percentEncodedQuery ?? ""
+        return query.isEmpty ? purePath : purePath + "?" + query
     }
 
     private static func isCredential(_ name: String) -> Bool {
@@ -85,8 +90,32 @@ struct PlexRequest: Hashable, Codable, Sendable {
     static func splitPath(_ raw: String) -> (path: String, query: [URLQueryItem]) {
         guard let qIndex = raw.firstIndex(of: "?") else { return (raw, []) }
         let path = String(raw[..<qIndex])
-        var components = URLComponents()
-        components.percentEncodedQuery = String(raw[raw.index(after: qIndex)...])
-        return (path, components.queryItems ?? [])
+        let query = validlyEncoded(raw[raw.index(after: qIndex)...])
+        return (path, URLComponents(string: "?" + query)?.queryItems ?? [])
+    }
+
+    /// Typed and server-sent paths aren't always validly encoded, and
+    /// `URLComponents`' percent-encoded setters trap on invalid input: valid
+    /// `%XX` escapes are kept and anything else a query can't hold is encoded.
+    private static func validlyEncoded(_ query: Substring) -> String {
+        let scalars = Array(query.unicodeScalars)
+        var out = ""
+        var index = 0
+        while index < scalars.count {
+            let scalar = scalars[index]
+            if scalar == "%", index + 2 < scalars.count,
+               scalars[index + 1].properties.isASCIIHexDigit, scalars[index + 2].properties.isASCIIHexDigit {
+                out.unicodeScalars.append(contentsOf: scalars[index...index + 2])
+                index += 3
+                continue
+            }
+            if CharacterSet.urlQueryAllowed.contains(scalar) {
+                out.unicodeScalars.append(scalar)
+            } else {
+                out += String(scalar).addingPercentEncoding(withAllowedCharacters: CharacterSet()) ?? ""
+            }
+            index += 1
+        }
+        return out
     }
 }

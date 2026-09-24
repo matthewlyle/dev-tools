@@ -21,10 +21,10 @@
     <p>The app connects only to:</p>
     <ul>
       <li><strong>plex.tv</strong>, to sign you in with your Plex account and list the servers that account can reach.</li>
-      <li><strong>Your Plex Media Servers</strong>, to send the requests you make and receive their responses and live notifications.</li>
+      <li><strong>Your Plex Media Servers</strong>, to send the requests you make and receive their responses and live notifications. The app only uses encrypted (HTTPS) connections to your servers.</li>
       <li><strong>Image hosts your server points to</strong>, when a server’s response links artwork stored on a public host. These requests carry no credentials.</li>
     </ul>
-    <p>What Plex does with those requests is covered by <a href="https://www.plex.tv/about/privacy-legal/">Plex’s privacy policy</a>. Like every Plex app, Dev Tools identifies itself to Plex with a random identifier it creates the first time it runs, plus its name, version, and device name.</p>
+    <p>What Plex does with those requests is covered by <a href="https://www.plex.tv/about/privacy-legal/">Plex’s privacy policy</a>. Like every Plex app, Dev Tools identifies itself to plex.tv and your servers with a random identifier it creates the first time it runs, plus its name and version, the kind of device, the device’s name, and the name and version of its operating system.</p>
 
     <h2>What stays on your device</h2>
     <ul>
@@ -37,7 +37,9 @@
     <p>The app asks for local network access so it can reach Plex Media Servers on your network. It uses that access for nothing else.</p>
 
     <h2>Removing your data</h2>
-    <p>Sign Out removes your token from the Keychain. Clear History removes your request history, and saved requests can be deleted individually. Deleting the app from Applications leaves its storage behind: to remove everything, sign out first, then delete the folder <code>~/Library/Containers/mldgg.devtools</code>.</p>
+    <p>Sign Out removes your token from the Keychain and your server list from the app’s storage. Clear History removes your request history, and saved requests can be deleted individually.</p>
+    <p>On a Mac, deleting the app from Applications leaves its storage behind: to remove everything, sign out first, then delete the folder <code>~/Library/Containers/mldgg.devtools</code>.</p>
+    <p>On iPhone and iPad, deleting the app removes its storage, but the Keychain can keep your token after the app is gone: sign out first to remove it.</p>
 
     <h2>Changes</h2>
     <p>If this policy changes, the new version will be posted on this page with a new effective date.</p>

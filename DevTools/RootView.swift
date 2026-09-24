@@ -33,7 +33,8 @@ struct RootView: View {
             case .background: wasInBackground = true
             case .active where wasInBackground:
                 wasInBackground = false
-                activity.resumeAfterBackground()
+                let listening = activity.server.flatMap { servers.entry(id: $0.machineID) }
+                activity.resume(on: listening.flatMap(servers.connectedServer))
             default: break
             }
         }

@@ -55,6 +55,8 @@ struct DevToolsApp: App {
                 .environment(account)
                 .environment(servers)
                 .environment(images)
+                .environment(activity)
+                .environment(mediaQuery)
         }
         #endif
     }
