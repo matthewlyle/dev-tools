@@ -39,6 +39,7 @@ final class ServerStore {
             entries = snapshot.resources.map { Entry(resource: $0) }
             selectedID = snapshot.selectedID
             ownerAvatars = Dictionary(uniqueKeysWithValues: (snapshot.ownerAvatars ?? [:]).compactMap { key, url in Int(key).map { ($0, url) } })
+            if snapshot.resources.contains(where: { $0.accessToken != nil }) { persist() }
         }
     }
 

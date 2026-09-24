@@ -33,7 +33,6 @@ enum NotificationTransport {
         var components = URLComponents(url: server.baseURL, resolvingAgainstBaseURL: false)!
         components.scheme = components.scheme == "https" ? "wss" : "ws"
         components.path = path
-        components.queryItems = [URLQueryItem(name: "X-Plex-Token", value: server.accessToken)]
         guard let url = components.url else { throw NotificationTransportError.badURL }
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
@@ -64,7 +63,7 @@ enum NotificationTransport {
             }
             log.info("websocket connecting to \(request.url?.host() ?? "?", privacy: .public)")
 
-            let session = URLSession(configuration: .ephemeral)
+            let session = URLSession(configuration: .ephemeral, delegate: SameOriginRedirects(), delegateQueue: nil)
             let task = session.webSocketTask(with: request)
             task.resume()
 

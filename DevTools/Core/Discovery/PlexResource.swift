@@ -34,6 +34,29 @@ struct PlexResource: Sendable, Codable, Hashable, Identifiable {
         [device, platform].compactMap { $0 }.first { !$0.isEmpty }
     }
 
+    /// Never encodes `accessToken`: an encoded resource is what lands on
+    /// disk, and no credential is written outside the Keychain. The token
+    /// comes back with the next `/api/v2/resources` refresh.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(product, forKey: .product)
+        try container.encodeIfPresent(productVersion, forKey: .productVersion)
+        try container.encodeIfPresent(platform, forKey: .platform)
+        try container.encodeIfPresent(platformVersion, forKey: .platformVersion)
+        try container.encodeIfPresent(device, forKey: .device)
+        try container.encode(clientIdentifier, forKey: .clientIdentifier)
+        try container.encode(provides, forKey: .provides)
+        try container.encode(owned, forKey: .owned)
+        try container.encodeIfPresent(ownerId, forKey: .ownerId)
+        try container.encodeIfPresent(publicAddress, forKey: .publicAddress)
+        try container.encodeIfPresent(httpsRequired, forKey: .httpsRequired)
+        try container.encodeIfPresent(relay, forKey: .relay)
+        try container.encodeIfPresent(presence, forKey: .presence)
+        try container.encodeIfPresent(sourceTitle, forKey: .sourceTitle)
+        try container.encode(connections, forKey: .connections)
+    }
+
     enum HostMark: Sendable, Hashable {
         case symbol(String)
         case asset(String)
@@ -81,13 +104,16 @@ struct Connection: Sendable, Codable, Hashable, Identifiable {
         return local ? .local : .remote
     }
 
+    /// Every HTTPS connection before any plain HTTP one, relay included:
+    /// over HTTP the token crosses the network in the clear. Within each,
+    /// local first; relay trails direct HTTPS for its bandwidth cap.
     var rank: Int {
-        switch (relay, local, isHTTPS) {
-        case (true, _, _): 4
-        case (false, true, true): 0
-        case (false, true, false): 1
-        case (false, false, true): 2
-        case (false, false, false): 3
+        switch (isHTTPS, relay, local) {
+        case (true, false, true): 0
+        case (true, false, false): 1
+        case (true, true, _): 2
+        case (false, _, true): 3
+        case (false, _, false): 4
         }
     }
 }

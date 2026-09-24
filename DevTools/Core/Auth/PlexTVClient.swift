@@ -39,7 +39,7 @@ struct PlexTVClient: Sendable {
         let config = URLSessionConfiguration.ephemeral
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 20
-        self.session = URLSession(configuration: config)
+        self.session = URLSession(configuration: config, delegate: SameOriginRedirects(), delegateQueue: nil)
         self.identity = identity
     }
 

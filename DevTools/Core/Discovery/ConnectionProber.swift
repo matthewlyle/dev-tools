@@ -26,8 +26,12 @@ struct ConnectionProber: Sendable {
         self.timeout = timeout
     }
 
+    /// Probes go out without the token: a connection is an address the
+    /// server advertised from its own network, and off that network the
+    /// address can belong to anyone. `/identity` answers unauthenticated, and
+    /// the token is only sent once a connection proves it's this server.
     func probeAll(_ resource: PlexResource) async -> [ProbeResult] {
-        guard let token = resource.accessToken else {
+        guard resource.accessToken != nil else {
             return resource.connections.map {
                 ProbeResult(connection: $0, outcome: .failed("No access token for this resource"))
             }
@@ -35,8 +39,12 @@ struct ConnectionProber: Sendable {
 
         let results = await withTaskGroup(of: ProbeResult.self) { group in
             for connection in resource.connections {
+                if resource.httpsRequired == true, !connection.isHTTPS {
+                    group.addTask { ProbeResult(connection: connection, outcome: .failed("Server requires HTTPS")) }
+                    continue
+                }
                 group.addTask {
-                    await probe(connection, expecting: resource.clientIdentifier, token: token)
+                    await probe(connection, expecting: resource.clientIdentifier)
                 }
             }
             var collected: [ProbeResult] = []
@@ -51,7 +59,7 @@ struct ConnectionProber: Sendable {
         }
     }
 
-    private func probe(_ connection: Connection, expecting machineID: String, token: String) async -> ProbeResult {
+    private func probe(_ connection: Connection, expecting machineID: String) async -> ProbeResult {
         guard let base = connection.url else {
             return ProbeResult(connection: connection, outcome: .failed("Malformed URI"))
         }
@@ -59,7 +67,7 @@ struct ConnectionProber: Sendable {
         let request = PlexRequest(path: "/identity")
 
         do {
-            let response = try await http.send(request, baseURL: base, token: token, timeout: timeout)
+            let response = try await http.send(request, baseURL: base, token: nil, timeout: timeout)
             guard response.status == 200 else {
                 return ProbeResult(connection: connection, outcome: .failed("HTTP \(response.status)"))
             }

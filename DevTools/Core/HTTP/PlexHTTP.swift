@@ -24,7 +24,7 @@ final class PlexHTTP: Sendable {
         config.urlCache = nil
         config.timeoutIntervalForRequest = 30
         config.httpAdditionalHeaders = nil
-        self.session = URLSession(configuration: config)
+        self.session = URLSession(configuration: config, delegate: SameOriginRedirects(), delegateQueue: nil)
         self.identity = identity
     }
 
