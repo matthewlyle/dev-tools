@@ -1,0 +1,493 @@
+:root {
+  color-scheme: light dark;
+  --background: #fff;
+  --label: #000;
+  --secondary-label: rgb(60 60 67 / 0.6);
+  --tertiary-label: rgb(60 60 67 / 0.3);
+  --fill: rgb(118 118 128 / 0.12);
+  --separator: rgb(60 60 67 / 0.29);
+  --accent: #007aff;
+  --mesh-indigo: rgb(97 85 245 / 0.08);
+  --mesh-blue: rgb(0 136 255 / 0.1);
+  --mesh-teal: rgb(0 195 208 / 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #000;
+    --label: #fff;
+    --secondary-label: rgb(235 235 245 / 0.6);
+    --tertiary-label: rgb(235 235 245 / 0.3);
+    --fill: rgb(118 118 128 / 0.24);
+    --separator: rgb(84 84 88 / 0.6);
+    --accent: #0a84ff;
+    --mesh-indigo: rgb(109 124 255 / 0.16);
+    --mesh-blue: rgb(0 145 255 / 0.2);
+    --mesh-teal: rgb(0 210 224 / 0.14);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("fonts/CommitMono-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("fonts/CommitMono-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: block;
+}
+
+/* Keeps body's overflow from propagating to the viewport, so body can clip
+   the title's glow without stopping the page from scrolling. */
+html {
+  overflow: auto;
+  background: var(--background);
+  color: var(--label);
+  font: 17px/1.5 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  position: relative;
+  overflow: clip;
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The iOS app's well (TopWash in WellBackground.swift), gathered around the
+   title instead of the top edge: the accent behind it, indigo up to its
+   leading side, teal up to its trailing side. CSS has no mesh gradient, so
+   it's three overlapping radial glows, each its own layer so each can drift
+   on a transform. Each falls off along a smoothstep: a linear ramp to
+   transparent stops with a crease that reads as a band. */
+.title {
+  position: relative;
+}
+
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: clamp(700px, 100vw, 1400px);
+  aspect-ratio: 5 / 4;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.glow span {
+  position: absolute;
+  inset: 0;
+}
+
+.glow .blue {
+  background: radial-gradient(
+    ellipse 36% 42% at 50% 50%,
+    var(--mesh-blue),
+    color-mix(in srgb, var(--mesh-blue) 90%, transparent) 20%,
+    color-mix(in srgb, var(--mesh-blue) 65%, transparent) 40%,
+    color-mix(in srgb, var(--mesh-blue) 35%, transparent) 60%,
+    color-mix(in srgb, var(--mesh-blue) 10%, transparent) 80%,
+    transparent
+  );
+}
+
+.glow .indigo {
+  background: radial-gradient(
+    ellipse 28% 32% at 30% 36%,
+    var(--mesh-indigo),
+    color-mix(in srgb, var(--mesh-indigo) 90%, transparent) 20%,
+    color-mix(in srgb, var(--mesh-indigo) 65%, transparent) 40%,
+    color-mix(in srgb, var(--mesh-indigo) 35%, transparent) 60%,
+    color-mix(in srgb, var(--mesh-indigo) 10%, transparent) 80%,
+    transparent
+  );
+}
+
+.glow .teal {
+  background: radial-gradient(
+    ellipse 28% 32% at 70% 36%,
+    var(--mesh-teal),
+    color-mix(in srgb, var(--mesh-teal) 90%, transparent) 20%,
+    color-mix(in srgb, var(--mesh-teal) 65%, transparent) 40%,
+    color-mix(in srgb, var(--mesh-teal) 35%, transparent) 60%,
+    color-mix(in srgb, var(--mesh-teal) 10%, transparent) 80%,
+    transparent
+  );
+}
+
+/* Grain over the glow: fine single-octave noise, so it reads as texture
+   rather than blotches. Overlay leaves pure white and black untouched, so
+   it only shows where there's colour. */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2' intercept='-0.5'/%3E%3CfeFuncG type='linear' slope='2' intercept='-0.5'/%3E%3CfeFuncB type='linear' slope='2' intercept='-0.5'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.2;
+}
+
+@media (prefers-contrast: more) {
+  .glow {
+    display: none;
+  }
+
+  body::after {
+    content: none;
+  }
+}
+
+a {
+  color: var(--accent);
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.landing {
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  padding-block: 72px 48px;
+}
+
+.landing .title {
+  max-width: 24rem;
+  text-align: center;
+}
+
+/* The page opens like a terminal: the glow blooms, a caret blinks, the
+   title types itself out, and the rest rises in once it's done. Every delay
+   below counts from load against that timeline. */
+.landing .glow {
+  animation: glow-bloom 1800ms cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+
+/* Each glow wanders on its own period, so the mesh never repeats. */
+.landing .glow span {
+  animation: drift var(--period) ease-in-out infinite alternate;
+}
+
+.landing .glow .blue {
+  --period: 17s;
+  --to: 4% -5%;
+  --grow: 1.08;
+}
+
+.landing .glow .indigo {
+  --period: 23s;
+  --to: 8% 6%;
+  --grow: 1.14;
+}
+
+.landing .glow .teal {
+  --period: 19s;
+  --to: -8% 5%;
+  --grow: 1.1;
+}
+
+@keyframes glow-bloom {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+
+@keyframes drift {
+  to {
+    translate: var(--to);
+    scale: var(--grow);
+  }
+}
+
+.landing h1 {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  font: 700 1.25rem/1.2 "Commit Mono", ui-monospace, monospace;
+}
+
+/* Revealed one character at a time: in a monospace face each step of the
+   clip is exactly one glyph, so the step count must equal the title's
+   length. */
+.typed {
+  display: inline-block;
+  animation: type 900ms steps(18, jump-end) 600ms both;
+}
+
+.landing h1::after {
+  content: "";
+  position: absolute;
+  top: 0.05em;
+  left: 0;
+  width: 1ch;
+  height: 1.1em;
+  background: var(--accent);
+  opacity: 0;
+  animation:
+    caret-follow 900ms steps(18, jump-end) 600ms both,
+    caret-blink 2600ms step-end both;
+}
+
+@keyframes type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes caret-follow {
+  from {
+    translate: 0;
+  }
+  to {
+    translate: 18ch;
+  }
+}
+
+/* One blink while it waits, solid while it types, two blinks, then gone. */
+@keyframes caret-blink {
+  0% { opacity: 1; }
+  12% { opacity: 0; }
+  20% { opacity: 1; }
+  62% { opacity: 0; }
+  72% { opacity: 1; }
+  82% { opacity: 0; }
+  90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.subtitle {
+  margin: 12px 0 0;
+  text-wrap: balance;
+  color: var(--secondary-label);
+  font: 400 0.875rem/1.5 "Commit Mono", ui-monospace, monospace;
+  animation: rise-in 800ms cubic-bezier(0.19, 1, 0.22, 1) 1500ms both;
+}
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 10px 20px 10px 16px;
+  border-radius: 999px;
+  /* Apple's button blue: white on it clears 4.5:1, which system blue doesn't. */
+  background: #0071e3;
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 150ms ease;
+  /* Backwards only: a filled animation would override the press and hover
+     transitions on transform and filter once it ends. */
+  animation: rise-in 800ms cubic-bezier(0.19, 1, 0.22, 1) 1580ms backwards;
+}
+
+.download svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .download:hover {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+  }
+}
+
+.download:active {
+  transform: scale(0.97);
+}
+
+.download:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.version {
+  margin: 10px 0 0;
+  color: var(--secondary-label);
+  font-size: 0.75rem;
+  animation: rise-in 800ms cubic-bezier(0.19, 1, 0.22, 1) 1660ms both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes video-in {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+    scale: 0.97;
+  }
+}
+
+/* Reduced motion keeps the page's arrival as a fade: nothing moves, types,
+   blinks, or drifts. */
+@media (prefers-reduced-motion: reduce) {
+  .landing .glow {
+    animation: fade-in 800ms ease both;
+  }
+
+  .landing .glow span {
+    animation: none;
+  }
+
+  .typed {
+    animation: none;
+  }
+
+  .landing h1::after {
+    display: none;
+  }
+
+  .subtitle,
+  .version,
+  .video {
+    animation: fade-in 400ms ease 100ms both;
+  }
+
+  .download {
+    animation: fade-in 400ms ease 100ms backwards;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing {
+    max-width: 1180px;
+    flex-direction: row;
+    gap: 104px;
+  }
+
+  /* Sized by its text, not a fixed basis: a fixed column in rem wraps the
+     monospace subtitle to three short lines. */
+  .landing .title {
+    flex: none;
+    text-align: left;
+  }
+
+  .landing h1 {
+    font-size: 1.5rem;
+  }
+
+  .subtitle {
+    max-width: 34ch;
+    margin-top: 16px;
+    font-size: 0.9375rem;
+  }
+
+  .video {
+    flex: 0 1 720px;
+    min-width: 0;
+  }
+}
+
+.video {
+  animation: video-in 1000ms cubic-bezier(0.19, 1, 0.22, 1) 1700ms both;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--fill);
+  box-shadow: 0 0 0 0.5px var(--separator);
+}
+
+.video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+footer {
+  padding: 20px 24px;
+  text-align: center;
+  font-size: 11px;
+}
+
+footer a {
+  color: var(--tertiary-label);
+  text-decoration: none;
+}
+
+footer a:hover,
+footer a:focus-visible {
+  text-decoration: underline;
+}
+
+.document {
+  max-width: 40rem;
+  padding-block: 48px 72px;
+}
+
+.document .home {
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.document h1 {
+  margin: 24px 0 4px;
+  font-size: 2.125rem;
+  line-height: 1.15;
+}
+
+.document .updated {
+  margin: 0 0 32px;
+  color: var(--secondary-label);
+  font-size: 15px;
+}
+
+.document h2 {
+  margin: 36px 0 8px;
+  font-size: 1.25rem;
+}
+
+.document p,
+.document li {
+  margin: 0 0 12px;
+}
+
+.document ul {
+  padding-left: 1.25em;
+}
+
+.document code {
+  font: 400 0.875em "Commit Mono", ui-monospace, monospace;
+}
