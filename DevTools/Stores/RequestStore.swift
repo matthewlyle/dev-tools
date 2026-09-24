@@ -55,7 +55,13 @@ final class RequestStore {
         self.memory = memory
         acceptFormat = UserDefaults.standard.string(forKey: Self.acceptKey).flatMap(AcceptFormat.init(rawValue:)) ?? .json
         current.accept = acceptFormat
-        history = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
+        let loaded = AppSupportStore.load([HistoryEntry].self, name: Self.historyFile) ?? []
+        history = loaded.map { entry in
+            var entry = entry
+            entry.request = entry.request.withoutCredentials
+            return entry
+        }
+        if history != loaded { AppSupportStore.save(history, name: Self.historyFile) }
     }
 
     func implicitHeaders(for server: ConnectedServer?) -> [(name: String, value: String)] {
@@ -383,13 +389,14 @@ final class RequestStore {
 
     func previewURL(for server: ConnectedServer?) -> String {
         guard let server else { return "No server selected" }
-        return current.url(base: server.baseURL)?.absoluteString ?? "Invalid URL"
+        guard let url = current.url(base: server.baseURL) else { return "Invalid URL" }
+        return CredentialRedactor.redact(url.absoluteString, known: [server.accessToken])
     }
 
     /// The current request's URL, safe to paste anywhere: the token travels
-    /// as a header, never in it.
+    /// as a header, and one typed into the request is dropped.
     func shareableURL(for server: ConnectedServer) -> String? {
-        current.url(base: server.baseURL)?.absoluteString
+        current.withoutCredentials.url(base: server.baseURL)?.absoluteString
     }
 
     /// The current request as a `curl` command with `$PLEX_TOKEN` in place
@@ -443,7 +450,7 @@ final class RequestStore {
     private func record(_ request: PlexRequest, server: ConnectedServer, status: Int?, duration: Duration?, error: String?) {
         let entry = HistoryEntry(
             id: UUID(),
-            request: request,
+            request: request.withoutCredentials,
             serverID: server.machineID,
             serverName: server.name,
             status: status,

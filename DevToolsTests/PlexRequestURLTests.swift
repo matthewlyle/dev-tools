@@ -42,6 +42,20 @@ struct PlexRequestURLTests {
         #expect(request.url(base: base)?.query == "X-Plex-Token=typed")
     }
 
+    @Test func withoutCredentialsDropsTypedTokensAndKeepsTheRest() {
+        var request = PlexRequest(path: "/library/sections?x-plex-token=typed&type=1")
+        request.query = [QueryParam(name: "X-Plex-Token", value: "typed"), QueryParam(name: "sort", value: "title")]
+        request.headers = [HeaderField(name: "x-plex-token", value: "typed"), HeaderField(name: "X-Plex-Container-Size", value: "50")]
+
+        let stripped = request.withoutCredentials
+        #expect(stripped.path == "/library/sections?type=1")
+        #expect(stripped.query.map(\.name) == ["sort"])
+        #expect(stripped.headers.map(\.name) == ["X-Plex-Container-Size"])
+        #expect(!(stripped.url(base: base)?.absoluteString.contains("typed") ?? true))
+
+        #expect(PlexRequest(path: "/x?X-Plex-Token=typed").withoutCredentials.path == "/x")
+    }
+
     @Test func splitPathKeepsPercentEncodedQuery() {
         let (path, items) = PlexRequest.splitPath("/hubs/search?query=hello%20world")
         #expect(path == "/hubs/search")
