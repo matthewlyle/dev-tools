@@ -4,12 +4,10 @@ struct SettingsView: View {
     @Environment(RequestStore.self) private var requests
     @Environment(AccountStore.self) private var account
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("rawWrapLines") private var wrapLines = true
     #if os(macOS)
     @AppStorage("translucentBackground") private var translucent = true
     #endif
-    @AppStorage(CodeTheme.storageKey) private var codeTheme: CodeTheme = .system
     @State private var confirmingClear = false
     @State private var confirmingSignOut = false
 
@@ -67,28 +65,21 @@ struct SettingsView: View {
                     ForEach(AcceptFormat.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Toggle("Wrap long lines in the Response view", isOn: $wrapLines)
+                Toggle("Wrap long lines", isOn: $wrapLines)
             } header: {
                 Text("Requests")
             }
 
+            // Only the Mac has an appearance setting.
+            #if os(macOS)
             Section {
-                Picker("Code theme", selection: $codeTheme) {
-                    ForEach(CodeTheme.allCases) { Text($0.title).tag($0) }
-                }
-                #if os(macOS)
                 Toggle("Translucent background", isOn: $translucent)
-                #endif
             } header: {
                 Text("Appearance")
             }
+            #endif
 
             Section {
-                LabeledContent("Recorded requests") {
-                    Text(requests.history.count.formatted())
-                        .contentTransition(.numericText(value: Double(requests.history.count)))
-                        .animation(reduceMotion ? nil : .snappy, value: requests.history.count)
-                }
                 Button("Clear All History…", role: .destructive) {
                     confirmingClear = true
                 }
