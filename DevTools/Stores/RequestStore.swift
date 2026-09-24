@@ -21,30 +21,11 @@ final class RequestStore {
         }
     }
 
-    /// Tokens are never shown: not in URLs, copies, history, headers, or
-    /// token-like response values. There is deliberately no way to reveal them.
-    static let mask = "••••••••"
     private static let acceptKey = "acceptFormat"
 
-    /// Attribute names whose values are credentials in Plex payloads.
-    static let tokenAttributeNames: Set<String> = [
-        "token", "authToken", "accessToken", "authenticationToken", "transientToken", "X-Plex-Token",
-    ]
-
-    func redacted(_ value: String, token: String?) -> String {
-        guard let token, !token.isEmpty else { return value }
-        return value.replacingOccurrences(of: token, with: Self.mask)
-    }
-
-    /// A request's path + params for display: the server's token masked
-    /// wherever it appears, plus any `X-Plex-Token=…` typed into the path.
+    /// A request's path + params for display, credentials masked.
     func redactedSummary(of request: PlexRequest, token: String?) -> String {
-        redacted(request.summary, token: token)
-            .replacing(/X-Plex-Token=[^&\s]+/) { _ in "X-Plex-Token=\(Self.mask)" }
-    }
-
-    func shouldMask(attributeNamed name: String) -> Bool {
-        Self.tokenAttributeNames.contains(name)
+        CredentialRedactor.redact(request.summary, known: token.map { [$0] } ?? [])
     }
 
     /// Set by Focus Path and consumed by the request bar, which may not be on
@@ -81,7 +62,7 @@ final class RequestStore {
         var headers = http.identity.headers.sorted { $0.key < $1.key }.map { (name: $0.key, value: $0.value) }
         headers.insert((name: "Accept", value: current.accept.rawValue), at: 0)
         if server != nil {
-            headers.append((name: "X-Plex-Token", value: Self.mask))
+            headers.append((name: "X-Plex-Token", value: CredentialRedactor.mask))
         }
         return headers
     }
@@ -147,7 +128,9 @@ final class RequestStore {
 
         sendTask = Task { [http] in
             do {
-                let result = try await http.send(request, to: server)
+                let sent = try await http.send(request, to: server)
+                let token = server.accessToken
+                let result = await Task.detached(priority: .userInitiated) { CredentialRedactor.redact(sent, known: [token]) }.value
                 guard !Task.isCancelled else { return }
                 response = result
                 document = nil

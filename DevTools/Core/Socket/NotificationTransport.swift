@@ -85,10 +85,10 @@ enum NotificationTransport {
                         switch message {
                         case .string(let text):
                             log.debug("websocket frame \(text.count) chars")
-                            continuation.yield(.message(NotificationEvent.make(raw: text)))
+                            continuation.yield(.message(NotificationEvent.make(raw: CredentialRedactor.redact(text, known: [server.accessToken]))))
                         case .data(let data):
                             log.debug("websocket binary frame \(data.count) bytes")
-                            continuation.yield(.message(NotificationEvent.make(raw: String(decoding: data, as: UTF8.self))))
+                            continuation.yield(.message(NotificationEvent.make(raw: CredentialRedactor.redact(String(decoding: data, as: UTF8.self), known: [server.accessToken]))))
                         @unknown default:
                             continue
                         }
