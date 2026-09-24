@@ -20,6 +20,7 @@ final class ImageStore {
     private let publicSession: URLSession
     private let cache = NSCache<NSString, PlatformImage>()
     private var inFlight: [String: Task<Data?, Never>] = [:]
+    @ObservationIgnored private var generation = 0
 
     init(http: PlexHTTP) {
         self.http = http
@@ -36,6 +37,7 @@ final class ImageStore {
     }
 
     func removeAll() {
+        generation += 1
         inFlight.values.forEach { $0.cancel() }
         inFlight.removeAll()
         cache.removeAllObjects()
@@ -77,9 +79,11 @@ final class ImageStore {
     private func load(key: NSString, cost: Int, fetch: @escaping @Sendable () async -> Data?) async -> PlatformImage? {
         if let cached = cache.object(forKey: key) { return cached }
 
+        let generation = generation
         let task = inFlight[key as String] ?? Task<Data?, Never> { await fetch() }
         inFlight[key as String] = task
         let data = await task.value
+        guard generation == self.generation else { return nil }
         inFlight[key as String] = nil
 
         guard let data, let image = PlatformImage(data: data) else { return nil }

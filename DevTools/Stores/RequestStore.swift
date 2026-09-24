@@ -237,6 +237,14 @@ final class RequestStore {
     private(set) var sectionsByServer: [String: [SectionOption]] = [:]
     private(set) var optionsByServer: [String: [String: [PlaceholderOption]]] = [:]
     private(set) var loadedOptions: [String: Set<String>] = [:]
+    @ObservationIgnored private var cacheGeneration = 0
+
+    func resetServerCaches() {
+        cacheGeneration += 1
+        sectionsByServer = [:]
+        optionsByServer = [:]
+        loadedOptions = [:]
+    }
 
     func sections(for server: ConnectedServer) -> [SectionOption] {
         sectionsByServer[server.machineID] ?? []
@@ -269,7 +277,8 @@ final class RequestStore {
         }
         let machineID = server.machineID
         if !force, loadedOptions[machineID]?.contains(placeholder) == true { return }
-        guard let fetched = await fetchOptions(for: placeholder, on: server) else { return }
+        let generation = cacheGeneration
+        guard let fetched = await fetchOptions(for: placeholder, on: server), generation == cacheGeneration else { return }
         optionsByServer[machineID, default: [:]][placeholder] = fetched
         loadedOptions[machineID, default: []].insert(placeholder)
     }
@@ -278,8 +287,9 @@ final class RequestStore {
     /// unless `force`. A failed fetch returns empty and is never cached.
     func preloadSections(on server: ConnectedServer, force: Bool = false) async {
         if !force, sectionsByServer[server.machineID]?.isEmpty == false { return }
+        let generation = cacheGeneration
         let fetched = await fetchSections(on: server)
-        guard !fetched.isEmpty else { return }
+        guard !fetched.isEmpty, generation == cacheGeneration else { return }
         sectionsByServer[server.machineID] = fetched
     }
 

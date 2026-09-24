@@ -44,6 +44,21 @@ struct CredentialLeakTests {
         #expect(SameOriginRedirects.allows(from: URL(string: "https://plex.tv/api")!, to: URL(string: "https://plex.tv:443/api/v2")!))
     }
 
+    @Test func notificationSocketIsEncryptedOrRefused() throws {
+        let identity = ClientIdentity(clientIdentifier: "id", product: "p", version: "1", platform: "macOS", platformVersion: "26.0", device: "Mac", deviceName: "Mac")
+        func server(_ uri: String) -> ConnectedServer {
+            let url = URL(string: uri)!
+            let connection = Connection(protocol: url.scheme!, address: "10.0.0.1", port: 32400, uri: uri, local: true, relay: false, IPv6: false)
+            return ConnectedServer(machineID: "abc", name: "Basement", baseURL: url, accessToken: "SECRET", connection: connection, owned: true)
+        }
+
+        let secure = try NotificationTransport.request(server: server("HTTPS://10-0-0-1.abc.plex.direct:32400"), identity: identity)
+        #expect(secure.url?.scheme == "wss")
+        #expect(throws: NotificationTransportError.self) {
+            try NotificationTransport.request(server: server("http://10.0.0.1:32400"), identity: identity)
+        }
+    }
+
     private func redact(_ text: String, known: [String] = []) -> String {
         CredentialRedactor.redact(text, known: known)
     }

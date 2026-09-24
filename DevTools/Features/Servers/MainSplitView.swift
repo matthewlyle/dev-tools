@@ -574,10 +574,10 @@ struct MainSplitView: View {
                 if id != nil { hasConnected = true }
             }
             .onChange(of: connected) { _, connected in
-                guard let listening = activity.server, activity.status.isActive,
-                      listening.machineID == servers.selectedID, connected != listening
+                guard let connected, let listening = activity.server, activity.status.isActive,
+                      listening.machineID == connected.machineID, connected != listening
                 else { return }
-                if let connected { activity.connect(to: connected) } else { activity.disconnect() }
+                activity.connect(to: connected)
             }
             .onChange(of: section, initial: true) { _, section in
                 requests.recordsNavigation = section != .mediaQuery

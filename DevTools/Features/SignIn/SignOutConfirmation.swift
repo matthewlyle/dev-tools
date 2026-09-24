@@ -14,6 +14,8 @@ private struct SignOutConfirmation: ViewModifier {
     @Environment(RequestStore.self) private var requests
     @Environment(MediaQueryStore.self) private var mediaQuery
     @Environment(ImageStore.self) private var images
+    @Environment(LightboxStore.self) private var lightbox
+    @Environment(ValueMemory.self) private var memory
 
     func body(content: Content) -> some View {
         content.confirmationDialog(
@@ -22,8 +24,11 @@ private struct SignOutConfirmation: ViewModifier {
             titleVisibility: .visible
         ) {
             Button("Sign Out", role: .destructive) {
+                lightbox.close()
                 activity.endSession()
                 requests.resetAllWorkspaces()
+                requests.resetServerCaches()
+                memory.forgetSeen()
                 mediaQuery.reset()
                 images.removeAll()
                 account.signOut()

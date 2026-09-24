@@ -29,6 +29,7 @@ final class MediaQueryStore {
     var showsItemInfo = false
 
     private let http: PlexHTTP
+    @ObservationIgnored private var generation = 0
 
     init(http: PlexHTTP) {
         self.http = http
@@ -60,6 +61,7 @@ final class MediaQueryStore {
     }
 
     func reset() {
+        generation += 1
         serverID = ""
         query = MediaQuery()
         detailsByServer = [:]
@@ -99,6 +101,7 @@ final class MediaQueryStore {
     /// not cached so it retries next time.
     func loadDetails(section sectionKey: String, on server: ConnectedServer) async {
         let machineID = server.machineID
+        let generation = generation
         guard details(server: machineID, section: sectionKey) == nil else {
             ensureValidType()
             return
@@ -112,6 +115,7 @@ final class MediaQueryStore {
         request.accept = .json
         do {
             let response = try await http.send(request, to: server)
+            guard generation == self.generation else { return }
             guard response.status == 200 else {
                 errorMessage = "The server answered HTTP \(response.status) for this library's details."
                 return
@@ -120,6 +124,7 @@ final class MediaQueryStore {
             let details = await Task.detached(priority: .userInitiated) {
                 JSONNodeParser.parse(body).map(SectionDetails.init(root:))
             }.value
+            guard generation == self.generation else { return }
             guard let details else {
                 errorMessage = "The library details weren't valid JSON."
                 return
@@ -131,6 +136,7 @@ final class MediaQueryStore {
         } catch let error as URLError where error.code == .cancelled {
             return
         } catch {
+            guard generation == self.generation else { return }
             errorMessage = (error as? URLError)?.shortDescription ?? error.localizedDescription
         }
     }
@@ -147,6 +153,7 @@ final class MediaQueryStore {
     /// not cached so it retries next time.
     func loadValues(for filter: MediaFilter, on server: ConnectedServer) async {
         let machineID = server.machineID
+        let generation = generation
         let key = "\(machineID)/\(filter.valuesKey)"
         guard valuesByServer[machineID]?[filter.valuesKey] == nil, !loadingValues.contains(key) else { return }
         loadingValues.insert(key)
@@ -159,6 +166,7 @@ final class MediaQueryStore {
         let values = await Task.detached(priority: .userInitiated) {
             JSONNodeParser.parse(body).map(MediaFilterValue.parse(root:)) ?? []
         }.value
+        guard generation == self.generation else { return }
         valuesByServer[machineID, default: [:]][filter.valuesKey] = values
     }
 
