@@ -132,11 +132,16 @@ private struct FieldPadding: ViewModifier {
 private struct ActionsInBar<Actions: View>: ViewModifier {
     let actions: Actions?
 
+    /// A list without actions adds no toolbar at all, rather than one whose
+    /// content changes as its section shows and hides.
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content.sectionListToolbar {
-            if let actions {
+        if let actions {
+            content.sectionListToolbar {
                 ToolbarItemGroup(placement: .primaryAction) { actions }
             }
+        } else {
+            content
         }
     }
 }
@@ -899,7 +904,10 @@ struct MainSplitView: View {
     /// Soft edge on both panes: `.automatic` can resolve to the hard style,
     /// which fills the toolbar while the pointer is over the scroll view even
     /// with nothing scrolled beneath it. Soft only blurs what actually passes
-    /// under the bar.
+    /// under the bar. The detail's toolbar items are declared here, not in
+    /// the sections: an item declared from inside a section's content fills
+    /// the toolbar behind it as the hard style does, and declared once, the
+    /// request actions stay in place across the sections that show a request.
     private var detailPane: some View {
         ZStack {
             WorkspaceView(editable: section == .endpoints)
@@ -911,6 +919,13 @@ struct MainSplitView: View {
         }
         .modifier(SectionInspector(section: section, server: connected))
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .toolbar {
+            if section == .activity {
+                ActivityToolbarItems()
+            } else {
+                RequestToolbarItems(server: connected)
+            }
+        }
         .wellBackground()
     }
 
