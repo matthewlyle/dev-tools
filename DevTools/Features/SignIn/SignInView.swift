@@ -14,7 +14,7 @@ struct SignInView: View {
     /// The app's name and the one thing to do: no card, icon, or intro.
     var body: some View {
         VStack(spacing: 24) {
-            Text("Plex Dev Tools")
+            Text("Dev Tools for Plex")
                 .font(.largeTitle.weight(.semibold))
             Group {
                 switch account.state {

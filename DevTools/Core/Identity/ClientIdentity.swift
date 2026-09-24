@@ -51,7 +51,7 @@ struct ClientIdentity: Sendable, Hashable {
         #endif
         return ClientIdentity(
             clientIdentifier: id,
-            product: "Plex Dev Tools",
+            product: "Dev Tools for Plex",
             version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1",
             platform: platform,
             platformVersion: "\(os.majorVersion).\(os.minorVersion)",
