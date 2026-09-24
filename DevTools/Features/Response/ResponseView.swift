@@ -91,7 +91,7 @@ struct ResponseView<RequestBar: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: requests.response?.receivedAt) { _, _ in
+        .onChange(of: requests.document?.version) { _, _ in
             collapsed = []
         }
     }
@@ -340,16 +340,20 @@ struct PaginationControls: View {
     @Environment(RequestStore.self) private var requests
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private enum Action { case previous, next, all }
+    /// The page being fetched, so its button shows the progress: Send's
+    /// spinner is across the window from the button that was pressed.
+    @State private var pending: Action?
+
     var body: some View {
         HStack(spacing: 4) {
             Button {
-                guard let server else { return }
-                requests.page(start: pagination.start - pagination.pageSize, size: pagination.pageSize, on: server)
+                run(.previous) { requests.page(start: pagination.start - pagination.pageSize, size: pagination.pageSize, on: $0) }
             } label: {
-                Label("Previous Page", systemImage: "chevron.left")
+                Label { Text("Previous Page") } icon: { progress(for: .previous) { Image(systemName: "chevron.left") } }
                     .labelStyle(.iconOnly)
             }
-            .disabled(!pagination.hasPrevious || server == nil)
+            .disabled(!pagination.hasPrevious || unavailable(for: .previous))
             .help("Previous page")
 
             Text(pagination.label)
@@ -361,22 +365,25 @@ struct PaginationControls: View {
                 .help("Paged response: X-Plex-Container-Start / Total-Size")
 
             Button {
-                guard let server else { return }
-                requests.page(start: pagination.end, size: pagination.pageSize, on: server)
+                run(.next) { requests.page(start: pagination.end, size: pagination.pageSize, on: $0) }
             } label: {
-                Label("Next Page", systemImage: "chevron.right")
+                Label { Text("Next Page") } icon: { progress(for: .next) { Image(systemName: "chevron.right") } }
                     .labelStyle(.iconOnly)
             }
-            .disabled(!pagination.hasNext || server == nil)
+            .disabled(!pagination.hasNext || unavailable(for: .next))
             .help("Next page")
 
-            Button("Fetch All") {
-                guard let server else { return }
-                requests.fetchAll(on: server)
+            Button {
+                run(.all) { requests.fetchAll(on: $0) }
+            } label: {
+                progress(for: .all) { Text("Fetch All") }
             }
             .font(.callout)
-            .disabled((!pagination.hasPrevious && !pagination.hasNext) || server == nil)
+            .disabled((!pagination.hasPrevious && !pagination.hasNext) || unavailable(for: .all))
             .help("Send again without paging, to get every item in one response")
+        }
+        .onChange(of: requests.isSending) { _, sending in
+            if !sending { pending = nil }
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 10)
@@ -384,6 +391,29 @@ struct PaginationControls: View {
         // Content layer, not chrome: a standard fill, not Liquid Glass.
         .background(.fill.tertiary, in: .capsule)
         .animation(reduceMotion ? nil : .snappy, value: pagination)
+    }
+
+    /// The pressed button stays enabled so its spinner isn't dimmed; a second
+    /// press is ignored in `run` instead.
+    private func unavailable(for action: Action) -> Bool {
+        server == nil || (requests.isSending && pending != action)
+    }
+
+    private func run(_ action: Action, _ fetch: (ConnectedServer) -> Void) {
+        guard let server, !requests.isSending else { return }
+        pending = action
+        fetch(server)
+    }
+
+    /// Swaps in a spinner at the content's own size, so nothing shifts.
+    private func progress(for action: Action, @ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .opacity(pending == action ? 0 : 1)
+            .overlay {
+                if pending == action {
+                    ProgressView().controlSize(.mini)
+                }
+            }
     }
 }
 
@@ -398,17 +428,28 @@ struct ResponseStatusBar: View {
 
     var body: some View {
         let type = response.contentType.flatMap(Self.mediaType)
+        let subtype = type.flatMap(Self.subtype(of:)).flatMap { $0 == type ? nil : $0 }
         let settles = !reduceMotion
-        ViewThatFits(in: .horizontal) {
-            readout(type: type)
-            if let type, let subtype = Self.subtype(of: type), subtype != type {
-                readout(type: subtype)
+        SheddingRow(spacing: 12, hasType: type != nil, hasSubtype: subtype != nil) {
+            Text(String(response.status))
+                .fontWeight(.semibold)
+                .foregroundStyle(statusColor)
+                .contentTransition(.numericText(value: Double(response.status)))
+            Text(duration)
+                .contentTransition(.numericText(value: Double(response.duration.milliseconds)))
+            Text(size)
+                .contentTransition(.numericText(value: Double(response.byteCount)))
+            if let type {
+                Text(type)
+                    .contentTransition(.interpolate)
             }
-            if type != nil {
-                readout(type: nil)
+            if let subtype {
+                Text(subtype)
+                    .contentTransition(.interpolate)
             }
-            readout(type: nil, measurements: false)
         }
+        .lineLimit(1)
+        .clipped()
         .font(.code(.callout))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
@@ -419,8 +460,9 @@ struct ResponseStatusBar: View {
             view.scaleEffect(settles ? scale : 1)
         } keyframes: { _ in
             KeyframeTrack {
-                CubicKeyframe(0.97, duration: 0)
+                MoveKeyframe(0.97)
                 SpringKeyframe(1.0, duration: 0.35, spring: .bouncy)
+                MoveKeyframe(1.0)
             }
         }
         .help(summary.joined(separator: " · "))
@@ -428,27 +470,6 @@ struct ResponseStatusBar: View {
         .accessibilityLabel(summary.joined(separator: ", "))
         .animation(reduceMotion ? nil : .snappy, value: response.receivedAt)
         .layoutPriority(1)
-    }
-
-    private func readout(type: String?, measurements: Bool = true) -> some View {
-        HStack(spacing: 12) {
-            Text(String(response.status))
-                .fontWeight(.semibold)
-                .foregroundStyle(statusColor)
-                .contentTransition(.numericText(value: Double(response.status)))
-            if measurements {
-                Text(duration)
-                    .contentTransition(.numericText(value: Double(response.duration.milliseconds)))
-                Text(size)
-                    .contentTransition(.numericText(value: Double(response.byteCount)))
-            }
-            if let type {
-                Text(type)
-                    .contentTransition(.interpolate)
-            }
-        }
-        .lineLimit(1)
-        .fixedSize()
     }
 
     private var duration: String {
@@ -482,5 +503,57 @@ struct ResponseStatusBar: View {
         guard let type = mediaType(contentType), let slash = type.firstIndex(of: "/") else { return nil }
         let token = type[type.index(after: slash)...].split(separator: "+").last.map(String.init)
         return token?.isEmpty == false ? token : nil
+    }
+}
+
+/// The status pill's row: status, duration, size, then the content type or
+/// its subtype, shedding from the end instead of wrapping. A shed segment
+/// is placed outside the clipped bounds rather than removed, so every
+/// segment stays the same view and its number rolls; `ViewThatFits` makes
+/// the same choice but draws it without content transitions.
+private struct SheddingRow: Layout {
+    let spacing: CGFloat
+    let hasType: Bool
+    let hasSubtype: Bool
+
+    /// Subview indices per level, richest first: 0 status, 1 duration,
+    /// 2 size, then the type and the subtype when present.
+    private var levels: [[Int]] {
+        var levels = [hasType ? [0, 1, 2, 3] : [0, 1, 2]]
+        if hasSubtype { levels.append([0, 1, 2, 4]) }
+        levels.append([0, 1, 2])
+        levels.append([0])
+        return levels
+    }
+
+    private func width(of indices: [Int], _ sizes: [CGSize]) -> CGFloat {
+        indices.reduce(0) { $0 + sizes[$1].width } + spacing * CGFloat(max(indices.count - 1, 0))
+    }
+
+    /// Decided from the proposal in both passes: the placed bounds can come
+    /// out a fraction narrower than the width measured for them.
+    private func shown(for proposal: ProposedViewSize, _ sizes: [CGSize]) -> [Int] {
+        let available = proposal.width ?? .infinity
+        return levels.first { width(of: $0, sizes) <= available } ?? [0]
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let indices = shown(for: proposal, sizes)
+        return CGSize(width: width(of: indices, sizes), height: indices.map { sizes[$0].height }.max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let indices = shown(for: proposal, sizes)
+        var x = bounds.minX
+        for index in subviews.indices {
+            guard indices.contains(index) else {
+                subviews[index].place(at: CGPoint(x: bounds.maxX + 10_000, y: bounds.midY), anchor: .leading, proposal: .unspecified)
+                continue
+            }
+            subviews[index].place(at: CGPoint(x: x, y: bounds.midY), anchor: .leading, proposal: .unspecified)
+            x += sizes[index].width + spacing
+        }
     }
 }

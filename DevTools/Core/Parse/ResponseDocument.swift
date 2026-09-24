@@ -26,6 +26,9 @@ struct ResponseDocument: Sendable {
     let notice: String?
     let tree: Node?
     let folds: [FoldRegion]
+    /// When this document was built. The text view re-renders when it
+    /// changes, which a response arriving ahead of its parsed body doesn't do.
+    let version = Date.now
 
     init(text: String, tokens: [Token], format: Format, notice: String?, tree: Node?, folds: [FoldRegion] = []) {
         self.text = text

@@ -22,7 +22,7 @@ struct RawResponseView<Header: View>: View {
                 folds: document.folds,
                 collapsed: $collapsed,
                 wrap: wrap || BodyControls.wrapForced(for: document),
-                version: response.receivedAt,
+                version: document.version,
                 header: AnyView(header())
             )
             // The text view insets itself by the bottom safe area, so it can
