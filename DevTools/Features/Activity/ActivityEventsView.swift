@@ -178,7 +178,7 @@ private struct EventList: View {
                     .overlay {
                         ZStack {
                             if visible.isEmpty, activity.status.isActive {
-                                ZeroState(text: "Waiting for events")
+                                ZeroState(text: "Waiting for events.")
                                     .restingStateTransition(rising: true)
                             }
                         }
@@ -235,7 +235,7 @@ private struct EventList: View {
                 description: Text("\(message) Check that the server is reachable, then connect again.")
             )
         } else {
-            ZeroState(text: "Connect to see events here")
+            ZeroState(text: "Connect to see events here.")
         }
     }
 }
