@@ -27,12 +27,16 @@ struct ActivityEventsView: View {
                         .padding(.bottom, 12)
                 }
             }
-            // The section's own actions, in the bar like History's: the type
-            // filter (which a compact width has no list pane for) and Clear.
+            // On a compact width the events are the tab's root and own its
+            // bar: the type filter (there's no list pane for it) and Clear.
+            // Elsewhere Clear is declared over the detail with the other
+            // sections' items (`ActivityToolbarItems`).
             .sectionListToolbar(followsList: false) {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if compact { ActivityTypeMenu() }
-                    ClearEventsButton()
+                if compact {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        ActivityTypeMenu()
+                        ClearEventsButton()
+                    }
                 }
             }
             .focusedSceneValue(
@@ -41,6 +45,16 @@ struct ActivityEventsView: View {
                     ? ShowMediaInfoAction(visible: true) { activity.selectedEventID = nil }
                     : nil
             )
+    }
+}
+
+/// Activity's item over the detail on a regular width, beside where the
+/// request sections put theirs.
+struct ActivityToolbarItems: ToolbarContent {
+    var body: some ToolbarContent {
+        ToolbarItem(id: "activity.clear", placement: .primaryAction) {
+            ClearEventsButton()
+        }
     }
 }
 
