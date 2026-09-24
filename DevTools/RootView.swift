@@ -34,6 +34,7 @@ struct RootView: View {
             case .active where wasInBackground:
                 wasInBackground = false
                 activity.resumeAfterBackground()
+                account.renewIfDue()
             default: break
             }
         }
