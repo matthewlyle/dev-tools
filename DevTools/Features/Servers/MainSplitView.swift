@@ -475,7 +475,7 @@ struct MainSplitView: View {
             set: { newValue in
                 guard newValue != section else { return }
                 requests.switchWorkspace(from: section.rawValue, to: newValue.rawValue)
-                section = newValue
+                withoutToolbarFade { section = newValue }
             }
         )
     }
