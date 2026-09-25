@@ -475,7 +475,7 @@ struct MainSplitView: View {
             set: { newValue in
                 guard newValue != section else { return }
                 requests.switchWorkspace(from: section.rawValue, to: newValue.rawValue)
-                section = newValue
+                withoutToolbarFade { section = newValue }
             }
         )
     }
@@ -577,7 +577,7 @@ struct MainSplitView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(id: "window.sectionList", placement: .topBarLeading) {
                     Button {
                         sectionListVisible.toggle()
                     } label: {
@@ -716,7 +716,7 @@ struct MainSplitView: View {
                 .toolbar(removing: .title)
                 .toolbar {
                     if !title.isEmpty {
-                        ToolbarItem(placement: .navigation) {
+                        ToolbarItem(id: "window.server", placement: .navigation) {
                             Menu {
                                 ServerMenu(showInfo: { showInfo = true })
                             } label: {
@@ -735,7 +735,7 @@ struct MainSplitView: View {
                 #endif
                 .toolbar {
                     if let section {
-                        ToolbarItem(placement: .secondaryAction) {
+                        ToolbarItem(id: "window.section", placement: .secondaryAction) {
                             SectionPicker(section: section)
                                 .fixedSize()
                         }

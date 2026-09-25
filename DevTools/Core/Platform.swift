@@ -151,6 +151,14 @@ extension EnvironmentValues {
     }
 }
 
+/// Marks the run loop turn's implicit transaction: SwiftUI applies the toolbar later in the turn, so a nested one would commit too early.
+func withoutToolbarFade(_ change: () -> Void) {
+    #if os(macOS)
+    CATransaction.setDisableActions(true)
+    #endif
+    change()
+}
+
 extension View {
     /// SwiftUI's `dismiss` can't close the `Settings` scene's window.
     func platformClosesWindow(when condition: Bool) -> some View {
