@@ -1,7 +1,6 @@
 import Foundation
 import Security
 
-/// On the Mac the item lives in the file-based keychain, where `accessibility` doesn't apply.
 enum TokenStore {
     private static let service = "mldgg.devtools"
     private static let account = "plex.tv"
@@ -16,6 +15,7 @@ enum TokenStore {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
+            kSecUseDataProtectionKeychain: true,
         ]
     }
 
@@ -25,7 +25,11 @@ enum TokenStore {
         query[kSecReturnAttributes] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        #if os(macOS)
+        if status == errSecItemNotFound { return moveFromFileKeychain() }
+        #endif
+        guard status == errSecSuccess,
               let attributes = item as? [CFString: Any],
               let data = attributes[kSecValueData] as? Data
         else { return nil }
@@ -54,7 +58,39 @@ enum TokenStore {
 
     @discardableResult
     static func delete() -> Bool {
-        let status = SecItemDelete(baseQuery as CFDictionary)
+        #if os(macOS)
+        let fileItemGone = remove(fileKeychainQuery)
+        return remove(baseQuery) && fileItemGone
+        #else
+        return remove(baseQuery)
+        #endif
+    }
+
+    private static func remove(_ query: [CFString: Any]) -> Bool {
+        let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
+
+    #if os(macOS)
+    private static var fileKeychainQuery: [CFString: Any] {
+        var query = baseQuery
+        query[kSecUseDataProtectionKeychain] = false
+        return query
+    }
+
+    private static func moveFromFileKeychain() -> String? {
+        var query = fileKeychainQuery
+        query[kSecReturnData] = true
+        query[kSecMatchLimit] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data
+        else { return nil }
+        let token = String(decoding: data, as: UTF8.self)
+        if (try? save(token)) != nil {
+            _ = remove(fileKeychainQuery)
+        }
+        return token
+    }
+    #endif
 }

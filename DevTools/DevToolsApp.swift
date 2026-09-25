@@ -30,18 +30,21 @@ struct DevToolsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(account)
-                .environment(servers)
-                .environment(requests)
-                .environment(spec)
-                .environment(activity)
-                .environment(saved)
-                .environment(memory)
-                .environment(mediaQuery)
-                .environment(images)
-                .environment(lightbox)
-                .task { await spec.load() }
+            // The unit tests host the app; its window would restore the session, reading the Keychain and signing in to plex.tv.
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+                RootView()
+                    .environment(account)
+                    .environment(servers)
+                    .environment(requests)
+                    .environment(spec)
+                    .environment(activity)
+                    .environment(saved)
+                    .environment(memory)
+                    .environment(mediaQuery)
+                    .environment(images)
+                    .environment(lightbox)
+                    .task { await spec.load() }
+            }
         }
         .defaultSize(width: 1400, height: 860)
         .commands {
