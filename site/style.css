@@ -447,6 +447,10 @@ footer a {
   text-decoration: none;
 }
 
+footer a + a {
+  margin-left: 16px;
+}
+
 footer a:hover,
 footer a:focus-visible {
   text-decoration: underline;
