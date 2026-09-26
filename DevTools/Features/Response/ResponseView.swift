@@ -258,26 +258,13 @@ struct ResponseInfoRow<Tabs: View>: View {
     @Environment(\.isCompactWidth) private var compact
 
     var body: some View {
-        Group {
-            if compact {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
-                        ResponseStatusBar(response: response)
-                        Spacer(minLength: 0)
-                        tabs()
-                    }
-                    if pagination != nil || notice != nil {
-                        HStack(spacing: 10) {
-                            secondary
-                        }
-                    }
-                }
-            } else {
-                HStack(spacing: 10) {
-                    ResponseStatusBar(response: response)
-                    secondary
-                    tabs()
-                }
+        InfoRowLayout(stacked: compact, hasSecondary: pagination != nil || notice != nil || (!compact && controls != nil)) {
+            ResponseStatusBar(response: response)
+            HStack(spacing: 10) {
+                secondary
+            }
+            HStack(spacing: 10) {
+                tabs()
             }
         }
         .padding(.horizontal, 12)
@@ -303,6 +290,79 @@ struct ResponseInfoRow<Tabs: View>: View {
         }
         Spacer()
         if !compact { controls }
+    }
+}
+
+/// One line while the status can keep at least its code, else status and tabs over the rest.
+/// A `ViewThatFits` would do it but stop the numbers rolling.
+private struct InfoRowLayout: Layout {
+    let stacked: Bool
+    let hasSecondary: Bool
+    private let spacing: CGFloat = 10
+    private let lineSpacing: CGFloat = 8
+
+    private struct Measures {
+        let statusMin: CGFloat
+        let secondaryMin: CGSize
+        let tabs: CGSize
+
+        init(_ subviews: LayoutSubviews) {
+            statusMin = subviews[0].sizeThatFits(ProposedViewSize(width: 0, height: nil)).width
+            secondaryMin = subviews[1].sizeThatFits(ProposedViewSize(width: 0, height: nil))
+            tabs = subviews[2].sizeThatFits(.unspecified)
+        }
+    }
+
+    private func secondaryWidth(_ m: Measures) -> CGFloat {
+        hasSecondary ? m.secondaryMin.width + spacing : 0
+    }
+
+    private func fitsOneLine(_ width: CGFloat, _ m: Measures) -> Bool {
+        !stacked && m.statusMin + secondaryWidth(m) + spacing + m.tabs.width <= width
+    }
+
+    private func statusProposal(_ width: CGFloat, oneLine: Bool, _ m: Measures) -> ProposedViewSize {
+        ProposedViewSize(width: max(width - m.tabs.width - spacing - (oneLine ? secondaryWidth(m) : 0), 0), height: nil)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let m = Measures(subviews)
+        let width = proposal.width ?? .infinity
+        let oneLine = fitsOneLine(width, m)
+        let status = subviews[0].sizeThatFits(statusProposal(width, oneLine: oneLine, m))
+        if oneLine {
+            let natural = status.width + secondaryWidth(m) + spacing + m.tabs.width
+            let height = max(status.height, m.tabs.height, hasSecondary ? m.secondaryMin.height : 0)
+            return CGSize(width: proposal.width ?? natural, height: height)
+        }
+        let needed = max(m.statusMin + spacing + m.tabs.width, hasSecondary ? m.secondaryMin.width : 0)
+        let height = max(status.height, m.tabs.height) + (hasSecondary ? lineSpacing + m.secondaryMin.height : 0)
+        return CGSize(width: proposal.width.map { max($0, needed) } ?? needed, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let m = Measures(subviews)
+        // Decided from the proposal, like `SheddingRow`: the placed bounds can come out a fraction narrower.
+        let width = proposal.width ?? bounds.width
+        let oneLine = fitsOneLine(width, m)
+        let statusProposal = statusProposal(width, oneLine: oneLine, m)
+        let status = subviews[0].sizeThatFits(statusProposal)
+        let lineHeight = oneLine ? bounds.height : max(status.height, m.tabs.height)
+        let midY = bounds.minY + lineHeight / 2
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: midY), anchor: .leading, proposal: statusProposal)
+        subviews[2].place(at: CGPoint(x: bounds.maxX, y: midY), anchor: .trailing, proposal: .unspecified)
+        guard hasSecondary else {
+            subviews[1].place(at: CGPoint(x: bounds.maxX + 10_000, y: midY), anchor: .leading, proposal: .zero)
+            return
+        }
+        if oneLine {
+            let x = bounds.minX + status.width + spacing
+            let width = max(bounds.maxX - m.tabs.width - spacing - x, 0)
+            subviews[1].place(at: CGPoint(x: x, y: midY), anchor: .leading, proposal: ProposedViewSize(width: width, height: nil))
+        } else {
+            let y = bounds.minY + lineHeight + lineSpacing
+            subviews[1].place(at: CGPoint(x: bounds.minX, y: y), anchor: .topLeading, proposal: ProposedViewSize(width: bounds.width, height: nil))
+        }
     }
 }
 
@@ -360,6 +420,7 @@ struct PaginationControls: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.fill.tertiary, in: .capsule)
+        .fixedSize()
         .animation(reduceMotion ? nil : .snappy, value: pagination)
     }
 
