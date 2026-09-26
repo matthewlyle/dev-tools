@@ -100,7 +100,11 @@ sed -i '' -E \
   site/index.html
 
 previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-notes="$(git log --first-parent --format='- %s' ${previous:+"$previous"..}HEAD -- DevTools | sed 's/^- Merge: /- /' | awk '{ print "- " toupper(substr($0, 3, 1)) substr($0, 4) }')"
+if [ -n "$previous" ]; then
+  notes="$(git log --first-parent --format='- %s' "$previous"..HEAD -- DevTools | sed 's/^- Merge: /- /' | awk '{ print "- " toupper(substr($0, 3, 1)) substr($0, 4) }')"
+else
+  notes="- First release"
+fi
 git tag -a "$tag" -m "Dev Tools for Plex $version (build $build)" -m "$notes"
 
 echo "wrote $dmg ($version, build $build), published it to site/, and tagged $tag:"
