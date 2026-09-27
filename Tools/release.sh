@@ -1,7 +1,7 @@
 #!/bin/sh
-# Builds a Developer ID-signed, notarized, stapled DevTools.app, packs it in a
-# signed, notarized, stapled DMG (build/release/DevTools-<version>.dmg),
-# publishes it to the landing page as site/DevTools-<version>.dmg (the download
+# Builds a Developer ID-signed, notarized, stapled "Dev Tools for Plex.app", packs
+# it in a signed, notarized, stapled DMG (build/release/DevToolsForPlex-<version>.dmg),
+# publishes it to the landing page as site/DevToolsForPlex-<version>.dmg (the download
 # link and version line in site/index.html point at it), and tags the commit it
 # was built from v<version>. The tag's notes are the merges since the last tag
 # that changed the app (DevTools/): the repo also holds the site, skills, and
@@ -21,7 +21,8 @@ set -eu
 cd "$(dirname "$0")/.."
 out="build/release"
 archive="$out/DevTools.xcarchive"
-app="$out/export/DevTools.app"
+name="Dev Tools for Plex"
+app="$out/export/$name.app"
 team="LQ2SFRWR75"
 profile="${NOTARY_PROFILE:-notary}"
 skip="${SKIP_NOTARIZE:-0}"
@@ -61,7 +62,7 @@ xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out/export" \
   -exportOptionsPlist Tools/ExportOptions-macOS.plist -allowProvisioningUpdates -quiet
 
 build="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")"
-dmg="$out/DevTools-$version.dmg"
+dmg="$out/DevToolsForPlex-$version.dmg"
 
 codesign --verify --deep --strict "$app"
 
@@ -77,9 +78,9 @@ fi
 
 stage="$out/dmg"
 mkdir "$stage"
-ditto "$app" "$stage/DevTools.app"
+ditto "$app" "$stage/$name.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Dev Tools for Plex" -srcfolder "$stage" -format UDZO -ov "$dmg" -quiet
+hdiutil create -volname "$name" -srcfolder "$stage" -format UDZO -ov "$dmg" -quiet
 rm -rf "$stage"
 codesign --sign "$identity" --timestamp "$dmg"
 
@@ -93,10 +94,10 @@ xcrun stapler staple "$dmg"
 spctl --assess --type open --context context:primary-signature --verbose "$dmg"
 
 rm -f site/DevTools*.dmg
-cp "$dmg" "site/DevTools-$version.dmg"
+cp "$dmg" "site/DevToolsForPlex-$version.dmg"
 sed -i '' -E \
   -e "s|(<p class=\"version\">Version )[^<]*|\1$version|" \
-  -e "s|href=\"DevTools[^\"]*\.dmg\"|href=\"DevTools-$version.dmg\"|" \
+  -e "s|href=\"DevTools[^\"]*\.dmg\"|href=\"DevToolsForPlex-$version.dmg\"|" \
   site/index.html
 
 previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"

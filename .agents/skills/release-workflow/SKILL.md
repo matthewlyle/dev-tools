@@ -31,8 +31,8 @@ Tools/release.sh 2>&1 | grep -E "status: |: accepted|rejected|Invalid|rror|alrea
 ```
 
 - It takes a couple of minutes (two notarizations). Run it async and don't touch the tree until it finishes.
-- Success is `…/DevTools.app: accepted`, `…/DevTools-<version>.dmg: accepted`, and `wrote … and tagged v<version>:` followed by the notes.
-- It leaves `site/DevTools-<version>.dmg` (gitignored), deletes older DMGs from `site/`, and edits the download link and version line in `site/index.html`.
+- Success is `…/Dev Tools for Plex.app: accepted`, `…/DevToolsForPlex-<version>.dmg: accepted`, and `wrote … and tagged v<version>:` followed by the notes.
+- It leaves `site/DevToolsForPlex-<version>.dmg` (gitignored), deletes older DMGs from `site/`, and edits the download link and version line in `site/index.html`.
 - `SKIP_NOTARIZE=1` builds and signs only, for a local check. It leaves `site/` and the tags alone, and its DMG can't be distributed.
 - Never create or move a tag by hand to cover a failed run. Fix the cause and run again.
 
@@ -44,10 +44,10 @@ Tools/release.sh 2>&1 | grep -E "status: |: accepted|rejected|Invalid|rror|alrea
 
 ```sh
 B=https://plex-dev-tools.vercel.app
-curl -s -o /tmp/live.dmg -w "HTTP %{http_code}\n" $B/DevTools-<version>.dmg
-[ "$(shasum -a 256 < /tmp/live.dmg)" = "$(shasum -a 256 < build/release/DevTools-<version>.dmg)" ] && echo "matches notarized build"
+curl -s -o /tmp/live.dmg -w "HTTP %{http_code}\n" $B/DevToolsForPlex-<version>.dmg
+[ "$(shasum -a 256 < /tmp/live.dmg)" = "$(shasum -a 256 < build/release/DevToolsForPlex-<version>.dmg)" ] && echo "matches notarized build"
 curl -s $B/ | grep -oE 'href="DevTools[^"]*"|Version [0-9.]+'
-curl -s -o /dev/null -w "previous DMG: HTTP %{http_code}\n" $B/DevTools-<previous>.dmg   # expect 404
+curl -s -o /dev/null -w "previous DMG: HTTP %{http_code}\n" $B/DevToolsForPlex-<previous>.dmg   # expect 404
 ```
 
 4. Push the branch and the tag together: `GIT_TERMINAL_PROMPT=0 git push -q origin main v<version>`, then check `git ls-remote --tags origin | grep v<version>`.
