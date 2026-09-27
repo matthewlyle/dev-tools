@@ -17,7 +17,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		D70000000000000000000011 /* DevTools.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DevTools.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D70000000000000000000011 /* Dev Tools for Plex.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Dev Tools for Plex.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D70000000000000000000021 /* DevToolsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DevToolsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -77,7 +77,7 @@
 		D70000000000000000000030 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D70000000000000000000011 /* DevTools.app */,
+				D70000000000000000000011 /* Dev Tools for Plex.app */,
 				D70000000000000000000021 /* DevToolsTests.xctest */,
 			);
 			name = Products;
@@ -105,7 +105,7 @@
 			packageProductDependencies = (
 			);
 			productName = DevTools;
-			productReference = D70000000000000000000011 /* DevTools.app */;
+			productReference = D70000000000000000000011 /* Dev Tools for Plex.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D70000000000000000000020 /* DevToolsTests */ = {
@@ -373,7 +373,8 @@
 				);
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtools;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = DevTools;
+				PRODUCT_NAME = "Dev Tools for Plex";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -417,7 +418,8 @@
 				);
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtools;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = DevTools;
+				PRODUCT_NAME = "Dev Tools for Plex";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -439,7 +441,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtoolsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DevTools.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DevTools";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Dev Tools for Plex.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Dev Tools for Plex";
 			};
 			name = Debug;
 		};
@@ -455,7 +457,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtoolsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DevTools.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DevTools";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Dev Tools for Plex.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Dev Tools for Plex";
 			};
 			name = Release;
 		};
