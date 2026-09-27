@@ -46,12 +46,7 @@ struct ServerInfoView: View {
 
     @ViewBuilder
     private var connectionLine: some View {
-        if entry.isProbing {
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.mini)
-                Text("Connecting…")
-            }
-        } else if let probe = servers.activeProbe(for: entry), case .ok(let latency) = probe.outcome {
+        if let probe = servers.activeProbe(for: entry), case .ok(let latency) = probe.outcome {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(probe.connection.kind.rawValue) · \(latency.milliseconds) ms")
                     .font(.code(.callout))
@@ -59,6 +54,11 @@ struct ServerInfoView: View {
                     .font(.code(.caption))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+            }
+        } else if entry.isProbing {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text("Connecting…")
             }
         } else if !entry.probes.isEmpty {
             Text("Unreachable")

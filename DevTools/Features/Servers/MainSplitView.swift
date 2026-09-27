@@ -814,7 +814,7 @@ struct MainSplitView: View {
     @ViewBuilder
     private var connectionStatus: some View {
         if stillConnecting {
-            ZeroState(text: servers.isRefreshing ? "Finding your servers" : "Connecting to \(servers.selected?.resource.name ?? "your server")") {
+            ZeroState(text: connectingText) {
                 ProgressView()
             }
         } else if servers.entries.isEmpty {
@@ -842,6 +842,13 @@ struct MainSplitView: View {
                 Button("Refresh Servers") { refreshServers() }
             }
         }
+    }
+
+    private var connectingText: String {
+        if !servers.isRefreshing, let selected = servers.selected, selected.isProbing || selected.probes.isEmpty {
+            return "Connecting to \(selected.resource.name)"
+        }
+        return "Finding your servers"
     }
 
     private func refreshServers() {

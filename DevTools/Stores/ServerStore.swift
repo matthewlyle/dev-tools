@@ -81,7 +81,6 @@ final class ServerStore {
         generation += 1
         let generation = generation
         isRefreshing = true
-        defer { if generation == self.generation { isRefreshing = false } }
         errorMessage = nil
 
         async let avatarsTask = plexTV.friendAvatars(token: token)
@@ -93,7 +92,7 @@ final class ServerStore {
             let previous = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
             entries = servers.map { resource in
                 var entry = Entry(resource: resource)
-                entry.probes = previous[resource.clientIdentifier]?.probes ?? []
+                entry.probes = previous[resource.clientIdentifier]?.probes.filter { resource.connections.contains($0.connection) } ?? []
                 return entry
             }
             if let selectedID, !entries.contains(where: { $0.id == selectedID }) {
@@ -104,12 +103,15 @@ final class ServerStore {
             guard generation == self.generation else { return }
             errorMessage = error.localizedDescription
         }
-        let avatars = try? await avatarsTask
-        guard generation == self.generation else { return }
-        if let avatars { ownerAvatars = avatars }
+        isRefreshing = false
         persist()
 
-        await probeAll()
+        async let probing: Void = probeAll()
+        if let avatars = try? await avatarsTask, generation == self.generation {
+            ownerAvatars = avatars
+            persist()
+        }
+        await probing
     }
 
     func ownerAvatar(for resource: PlexResource) -> URL? {
@@ -130,13 +132,24 @@ final class ServerStore {
         probeSequence += 1
         let sequence = probeSequence
         entries[index].pendingProbe = sequence
-        let results = await prober.probeAll(entries[index].resource)
+        await prober.probeAll(entries[index].resource) { result in
+            self.record(result, for: id, sequence: sequence)
+        }
         guard let current = entries.firstIndex(where: { $0.id == id }),
               entries[current].pendingProbe == sequence
         else { return }
         entries[current].pendingProbe = nil
-        guard !Task.isCancelled else { return }
-        entries[current].probes = results
+    }
+
+    /// A result replaces the entry's last one for its connection, so an earlier round shows until this one reaches it.
+    private func record(_ result: ProbeResult, for id: String, sequence: Int) {
+        guard !Task.isCancelled,
+              let index = entries.firstIndex(where: { $0.id == id }),
+              entries[index].pendingProbe == sequence
+        else { return }
+        var probes = entries[index].probes.filter { $0.id != result.id }
+        probes.append(result)
+        entries[index].probes = probes.sorted(by: ProbeResult.ranked)
     }
 
     func activeProbe(for entry: Entry) -> ProbeResult? {

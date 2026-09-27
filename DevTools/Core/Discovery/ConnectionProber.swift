@@ -15,6 +15,11 @@ struct ProbeResult: Sendable, Hashable, Identifiable {
             return false
         }
     }
+
+    static func ranked(_ lhs: ProbeResult, _ rhs: ProbeResult) -> Bool {
+        if lhs.connection.rank != rhs.connection.rank { return lhs.connection.rank < rhs.connection.rank }
+        return lhs.connection.uri < rhs.connection.uri
+    }
 }
 
 struct ConnectionProber: Sendable {
@@ -27,15 +32,17 @@ struct ConnectionProber: Sendable {
     }
 
     /// Probes go out without the token: it only goes to a connection that answered with this server's ID.
-    /// Plain HTTP is never probed, since only TLS proves who answered.
-    func probeAll(_ resource: PlexResource) async -> [ProbeResult] {
+    /// Plain HTTP is never probed, since only TLS proves who answered. Each result is reported as it
+    /// lands: a connection that never answers holds its slot until the timeout, and shouldn't hold the rest.
+    func probeAll(_ resource: PlexResource, report: @escaping @MainActor @Sendable (ProbeResult) -> Void) async {
         guard resource.accessToken != nil else {
-            return resource.connections.map {
-                ProbeResult(connection: $0, outcome: .failed("No access token for this resource"))
+            for connection in resource.connections {
+                await report(ProbeResult(connection: connection, outcome: .failed("No access token for this resource")))
             }
+            return
         }
 
-        let results = await withTaskGroup(of: ProbeResult.self) { group in
+        await withTaskGroup(of: ProbeResult.self) { group in
             for connection in resource.connections {
                 guard connection.isHTTPS else {
                     group.addTask { ProbeResult(connection: connection, outcome: .failed("Not encrypted")) }
@@ -45,15 +52,7 @@ struct ConnectionProber: Sendable {
                     await probe(connection, expecting: resource.clientIdentifier)
                 }
             }
-            var collected: [ProbeResult] = []
-            collected.reserveCapacity(resource.connections.count)
-            for await result in group { collected.append(result) }
-            return collected
-        }
-
-        return results.sorted { lhs, rhs in
-            if lhs.connection.rank != rhs.connection.rank { return lhs.connection.rank < rhs.connection.rank }
-            return lhs.connection.uri < rhs.connection.uri
+            for await result in group { await report(result) }
         }
     }
 
