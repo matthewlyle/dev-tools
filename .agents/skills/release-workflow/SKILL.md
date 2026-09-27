@@ -32,13 +32,13 @@ Tools/release.sh 2>&1 | grep -E "status: |: accepted|rejected|Invalid|rror|alrea
 
 - It takes a couple of minutes (two notarizations). Run it async and don't touch the tree until it finishes.
 - Success is `…/Dev Tools for Plex.app: accepted`, `…/DevToolsForPlex-<version>.dmg: accepted`, and `wrote … and tagged v<version>:` followed by the notes.
-- It leaves `site/DevToolsForPlex-<version>.dmg` (gitignored), deletes older DMGs from `site/`, and edits the download link and version line in `site/index.html`.
+- It leaves `site/DevToolsForPlex-<version>.dmg` (gitignored), deletes older DMGs from `site/`, points the stable `/DevToolsForPlex.dmg` redirect in `site/vercel.json` at the new DMG, and edits the version line in `site/index.html`. The page always links `DevToolsForPlex.dmg`.
 - `SKIP_NOTARIZE=1` builds and signs only, for a local check. It leaves `site/` and the tags alone, and its DMG can't be distributed.
 - Never create or move a tag by hand to cover a failed run. Fix the cause and run again.
 
 ## 4. Publish
 
-1. Commit `site/index.html` on a `site-<version>` branch and merge it into `main` (`change-workflow` step 6; no build needed).
+1. Commit `site/index.html` and `site/vercel.json` on a `site-<version>` branch and merge it into `main` (`change-workflow` step 6; no build needed).
 2. Deploy from a checkout of `main`: `cd site && vercel deploy --prod --yes`. If the working checkout is on another branch with its own `site/` edits, deploy from a worktree of `main` instead, with `site/.vercel` and the DMG copied in, so unmerged site changes don't go live.
 3. Verify the live site:
 
@@ -47,6 +47,8 @@ B=https://plex-dev-tools.vercel.app
 curl -s -o /tmp/live.dmg -w "HTTP %{http_code}\n" $B/DevToolsForPlex-<version>.dmg
 [ "$(shasum -a 256 < /tmp/live.dmg)" = "$(shasum -a 256 < build/release/DevToolsForPlex-<version>.dmg)" ] && echo "matches notarized build"
 curl -s $B/ | grep -oE 'href="DevTools[^"]*"|Version [0-9.]+'
+curl -s -o /dev/null -w "stable link: HTTP %{http_code} -> %{redirect_url}\n" $B/DevToolsForPlex.dmg   # expect 307 to the new DMG
+curl -sL -o /tmp/stable.dmg $B/DevToolsForPlex.dmg && cmp -s /tmp/stable.dmg /tmp/live.dmg && echo "stable link serves it"
 curl -s -o /dev/null -w "previous DMG: HTTP %{http_code}\n" $B/DevToolsForPlex-<previous>.dmg   # expect 404
 ```
 
