@@ -1,8 +1,9 @@
 #!/bin/sh
 # Builds a Developer ID-signed, notarized, stapled "Dev Tools for Plex.app", packs
 # it in a signed, notarized, stapled DMG (build/release/DevToolsForPlex-<version>.dmg),
-# publishes it to the landing page as site/DevToolsForPlex-<version>.dmg (the download
-# link and version line in site/index.html point at it), and tags the commit it
+# publishes it to the landing page as site/DevToolsForPlex-<version>.dmg (the stable
+# /DevToolsForPlex.dmg link redirects to it through site/vercel.json, and the version
+# line in site/index.html names it), and tags the commit it
 # was built from v<version>. The tag's notes are the merges since the last tag
 # that changed the app (DevTools/): the repo also holds the site, skills, and
 # docs, and the site commit for a release always lands after its tag.
@@ -95,10 +96,15 @@ spctl --assess --type open --context context:primary-signature --verbose "$dmg"
 
 rm -f site/DevTools*.dmg
 cp "$dmg" "site/DevToolsForPlex-$version.dmg"
-sed -i '' -E \
-  -e "s|(<p class=\"version\">Version )[^<]*|\1$version|" \
-  -e "s|href=\"DevTools[^\"]*\.dmg\"|href=\"DevToolsForPlex-$version.dmg\"|" \
-  site/index.html
+sed -i '' -E "s|(<p class=\"version\">Version )[^<]*|\1$version|" site/index.html
+# Temporary (307), so a browser that followed it doesn't keep the old file's address.
+cat > site/vercel.json <<EOF
+{
+  "redirects": [
+    { "source": "/DevToolsForPlex.dmg", "destination": "/DevToolsForPlex-$version.dmg", "permanent": false }
+  ]
+}
+EOF
 
 previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 if [ -n "$previous" ]; then
@@ -110,4 +116,4 @@ git tag -a "$tag" -m "Dev Tools for Plex $version (build $build)" -m "$notes"
 
 echo "wrote $dmg ($version, build $build), published it to site/, and tagged $tag:"
 echo "$notes"
-echo "Next: commit site/index.html, deploy site/, and git push origin main $tag."
+echo "Next: commit site/index.html and site/vercel.json, deploy site/, and git push origin main $tag."
