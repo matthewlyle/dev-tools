@@ -2,16 +2,26 @@
   App icon source. Glyph is lucide `braces` (ISC licensed,
   https://lucide.dev/icons/braces), stroke recoloured to Plex amber (#E5A00D).
 
-  The background fills the whole 1024 canvas. macOS 26 masks icons to its own
-  squircle and paints a light plate behind any transparent region, so a rounded
-  tile with transparent margins renders with a pale surround; a full-bleed
-  background gives the mask nothing to show through. The glyph stays inside the
-  middle ~45% so the mask can't clip it.
+  The background is the iOS well in dark mode: black under the system blue
+  accent (#0A84FF) at 16%, fading out by 55% of the way down.
+
+  It fills the whole 1024 canvas. macOS 26 masks icons to its own squircle and
+  paints a light plate behind any transparent region, so a rounded tile with
+  transparent margins renders with a pale surround; a full-bleed background
+  gives the mask nothing to show through. The glyph stays inside the middle
+  ~45% so the mask can't clip it.
 
   Regenerate the PNG set with Icon/build-icon.sh.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#161616"/>
+  <defs>
+    <linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A84FF" stop-opacity="0.16"/>
+      <stop offset="0.55" stop-color="#0A84FF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#000000"/>
+  <rect width="1024" height="1024" fill="url(#wash)"/>
   <g transform="translate(280 280) scale(19.333)"
      fill="none"
      stroke="#E5A00D"
