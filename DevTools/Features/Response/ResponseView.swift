@@ -293,8 +293,7 @@ struct ResponseInfoRow<Tabs: View>: View {
     }
 }
 
-/// One line while the status can keep at least its code, else status and tabs over the rest.
-/// A `ViewThatFits` would do it but stop the numbers rolling.
+/// Not a `ViewThatFits`, which would stop the numbers rolling.
 private struct InfoRowLayout: Layout {
     let stacked: Bool
     let hasSecondary: Bool

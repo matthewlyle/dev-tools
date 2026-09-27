@@ -32,8 +32,7 @@ struct ConnectionProber: Sendable {
     }
 
     /// Probes go out without the token: it only goes to a connection that answered with this server's ID.
-    /// Plain HTTP is never probed, since only TLS proves who answered. Each result is reported as it
-    /// lands: a connection that never answers holds its slot until the timeout, and shouldn't hold the rest.
+    /// Plain HTTP is never probed, since only TLS proves who answered.
     func probeAll(_ resource: PlexResource, report: @escaping @MainActor @Sendable (ProbeResult) -> Void) async {
         guard resource.accessToken != nil else {
             for connection in resource.connections {
