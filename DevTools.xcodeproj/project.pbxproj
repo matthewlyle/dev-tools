@@ -372,6 +372,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				"MARKETING_VERSION[sdk=iphoneos*]" = 0.1;
+				"MARKETING_VERSION[sdk=iphonesimulator*]" = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtools;
 				PRODUCT_MODULE_NAME = DevTools;
 				PRODUCT_NAME = "Dev Tools for Plex";
@@ -417,6 +419,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				"MARKETING_VERSION[sdk=iphoneos*]" = 0.1;
+				"MARKETING_VERSION[sdk=iphonesimulator*]" = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = mldgg.devtools;
 				PRODUCT_MODULE_NAME = DevTools;
 				PRODUCT_NAME = "Dev Tools for Plex";
