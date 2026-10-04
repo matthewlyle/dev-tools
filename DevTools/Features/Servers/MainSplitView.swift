@@ -208,7 +208,6 @@ private struct SectionInspector: ViewModifier {
     @State private var tall = false
     @Namespace private var posterZoom
     @State private var eventDetent: PresentationDetent = .medium
-    @State private var itemDetent: PresentationDetent = .medium
 
     private enum Shown {
         case event(NotificationEvent)
@@ -282,8 +281,6 @@ private struct SectionInspector: ViewModifier {
                 if let sheetItem {
                     mediaInfo(sheetItem, showsPoster: true)
                         .overlay { LightboxOverlay() }
-                        .presentationDetents([.medium, .large], selection: $itemDetent)
-                        .presentationDragIndicator(.visible)
                         .navigationTransition(.zoom(sourceID: sheetItem.id, in: posterZoom))
                 }
             }
@@ -299,9 +296,6 @@ private struct SectionInspector: ViewModifier {
             #endif
             .onChange(of: inspected == nil && sheetEvent == nil) { _, closed in
                 if closed { eventDetent = .medium }
-            }
-            .onChange(of: sheetItem == nil) { _, closed in
-                if closed { itemDetent = .medium }
             }
     }
 
