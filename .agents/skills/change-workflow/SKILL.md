@@ -90,7 +90,7 @@ Walk `git diff origin/main...HEAD` (and `git diff` for anything uncommitted) aga
 
 - Commit: one commit per coherent change. The subject is plain prose saying what changed, with no Conventional Commits prefix (`feat:`, `fix:`); the body says why, and records the constraint behind any non-obvious choice.
 - For a non-trivial change, spawn a `reviewer` agent on `git diff origin/main...HEAD` with AGENTS.md as the bar; fix what it finds that holds up. Agents started by `work-issue` skip this: the coordinator starts a separate reviewer on the pull request.
-- Push the branch (`git push -u origin <branch>`; outside an `issue-*` branch, only once the owner says so) and open a pull request. Its title is the release-note line: a user-facing summary in sentence case. Its body follows the PR template in `.agents/skills/work-issue/SKILL.md` under "Writing for GitHub"; never `gh pr create --fill`.
+- Push the branch (`git push -u origin <branch>`; outside an `issue-*` branch, only once the owner says so) and open a pull request. Its title is the release-note line: a user-facing summary in sentence case. Its body follows the PR template under "Writing for GitHub" in the user-level `work-issue` skill, with the checks line from `.agents/workflow.md`; never `gh pr create --fill`.
 - Leave the branch checked out, so a Run in Xcode includes it. Tell the owner exactly what to look at (screen, action, expected result), and that `main` won't have it until it's merged. Ask to merge.
 
 ## 6. Merge on approval
