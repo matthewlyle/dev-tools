@@ -1,17 +1,16 @@
 ---
 name: change-workflow
-description: The workflow for every change to the dev-tools app (a fix, a feature, a refactor, a doc edit) from branch to merged and pushed. Use for any task that edits the repo; ends with a pre-merge checklist distilled from AGENTS.md. Not for releases (release-workflow).
+description: The workflow for every change to the dev-tools app (a fix, a feature, a refactor, a doc edit) from branch to merged pull request. Use for any task that edits the repo; ends with a pre-merge checklist distilled from AGENTS.md. Not for releases (release-workflow).
 ---
 
 # Making a change
 
-Branch, do the work, verify, check, commit, hand off for review, merge on approval. `AGENTS.md` holds the rules; this is the order they're applied in and the checks that catch what slips on every merge.
+Branch, do the work, verify, check, commit, open a pull request, review, merge on approval. `AGENTS.md` holds the rules; this is the order they're applied in and the checks that catch what slips on every merge.
 
 ## 1. Start
 
-- `git switch main && git status -sb` — expect a clean tree and `## main...origin/main`. Commits on `main` you didn't make are the user's: leave them, and ask before pushing any that aren't on `origin` yet.
-- `git switch -c <short-kebab-name>`. Never commit on `main` or on a branch you didn't create.
-- Building on an unmerged branch of yours? Branch from it instead (stacked) and say so; merging the top merges them all.
+- `git fetch -q origin && git switch -c <short-kebab-name> origin/main`. An agent started by `work-issue` is already in its own worktree; its branch is the one to use. Never commit on `main` or on a branch you didn't create.
+- Building on an unmerged branch of yours? Branch from it instead (stacked), open its pull request against that branch, and say so; merge from the bottom of the stack up.
 
 ## 2. Work
 
@@ -19,11 +18,11 @@ Read the `AGENTS.md` sections the change touches before editing. Reuse the exist
 
 ## 3. Verify
 
-Both must print SUCCEEDED before a commit. Gate the commit on them (`&&` or an explicit check) — a `;` chain commits over a failed test.
+Both must print SUCCEEDED before a commit. Gate the commit on them (`&&` or an explicit check) — a `;` chain commits over a failed test. `CODE_SIGNING_ALLOWED=NO` lets them run on a Mac with no signing account (mini, CI); no test touches the Keychain.
 
 ```sh
-xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData/Build build 2>&1 | grep -E "error:|\*\* BUILD" | sort -u
-xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'platform=macOS' -derivedDataPath DerivedData/Build test 2>&1 | grep -E "error:|\*\* (BUILD|TEST)|failed" | sort -u
+xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData/Build CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E "error:|\*\* BUILD" | sort -u
+xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination 'platform=macOS' -derivedDataPath DerivedData/Build CODE_SIGNING_ALLOWED=NO test 2>&1 | grep -E "error:|\*\* (BUILD|TEST)|failed" | sort -u
 ```
 
 A failing test's message:
@@ -33,13 +32,30 @@ xcrun xcresulttool get test-results tests --path "$(ls -td DerivedData/Build/Log
 ```
 
 - SourceKit's "Cannot find … in scope" / "No such module 'Testing'" diagnostics are noise; `xcodebuild` is the verifier.
-- Never screenshot, `screencapture`, or drive the running app. A visual question you can't settle from code goes to the user with exact steps.
+- Never `screencapture` or drive the app on the owner's Mac. Agents on mini look at their own simulator instead (below). A visual question neither settles goes to the owner with exact steps.
 - To settle a SwiftUI behaviour question (does it animate, what does it measure), a throwaway `swiftc` script hosting the view offscreen in an `NSHostingView` and comparing `cacheDisplay` bitmaps is allowed; delete it after.
 - A docs-only change needs no build.
 
+### Look at it (agents on mini)
+
+Only in the simulator your assignment names. Take the before shot before you change anything.
+
+```sh
+SIM=<your simulator>
+xcodebuild -project DevTools.xcodeproj -scheme DevTools -destination "platform=iOS Simulator,name=$SIM" -derivedDataPath DerivedData/Build CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= build 2>&1 | grep -E "error:|\*\* BUILD" | sort -u
+xcrun simctl bootstatus "$SIM" -b
+xcrun simctl install "$SIM" "DerivedData/Build/Build/Products/Debug-iphonesimulator/Dev Tools for Plex.app"
+xcrun simctl launch --terminate-running-process "$SIM" mldgg.devtools
+xcrun simctl io "$SIM" screenshot /tmp/<issue>-<what>.png   # once it has drawn; then look at the picture
+```
+
+- Variants: `xcrun simctl ui "$SIM" appearance dark`, `xcrun simctl ui "$SIM" content_size accessibility-extra-large`, `xcrun simctl ui "$SIM" increase_contrast enabled`.
+- `simctl` can't tap, type or use the menu bar, and the simulator is an iPhone: anything past the launch screen, the iPad layout and the Mac app go to the owner as **Not checked**.
+- `xcrun simctl shutdown "$SIM"` when you're done.
+
 ## 4. Pre-merge checklist
 
-Walk `git diff main...HEAD` (and `git diff` for anything uncommitted) against every line. Fix, don't note.
+Walk `git diff origin/main...HEAD` (and `git diff` for anything uncommitted) against every line. Fix, don't note.
 
 **Comments** — delete any that:
 - restate the code, name the type, or narrate steps;
@@ -77,23 +93,24 @@ Keep only an external constraint and what it forces, a deliberate policy that lo
 
 **Docs** — a new load-bearing decision goes in AGENTS.md by narrowing the existing wording, not by adding lines. No new docs files.
 
-## 5. Review
+## 5. Commit and open a pull request
 
-- For a non-trivial change, spawn a `reviewer` agent on `git diff main...HEAD` with AGENTS.md as the bar; fix what it finds that holds up.
 - Commit: one commit per coherent change. The subject is plain prose saying what changed, with no Conventional Commits prefix (`feat:`, `fix:`); the body says why, and records the constraint behind any non-obvious choice.
-- Leave the branch checked out, so a Run in Xcode includes it. Tell the user exactly what to look at (screen, action, expected result), and that `main` won't have it until it's merged. Ask to merge.
+- For a non-trivial change, spawn a `reviewer` agent on `git diff origin/main...HEAD` with AGENTS.md as the bar; fix what it finds that holds up. Agents started by `work-issue` skip this: the coordinator starts a separate reviewer on the pull request.
+- Push the branch (`git push -u origin <branch>`; outside an `issue-*` branch, only once the owner says so) and open a pull request. Its title is the release-note line: a user-facing summary in sentence case. Its body follows the PR template in `.agents/skills/work-issue/SKILL.md` under "Writing for GitHub"; never `gh pr create --fill`.
+- Leave the branch checked out, so a Run in Xcode includes it. Tell the owner exactly what to look at (screen, action, expected result), and that `main` won't have it until it's merged. Ask to merge.
 
 ## 6. Merge on approval
 
-Only when the user says so:
+Only when the owner says so (a `work-issue` reviewer queues the merge itself, per its brief):
 
 ```sh
-git switch main && git merge --no-ff -q <branch> -m "Merge: <what, lowercase>"
-# re-run both verify commands; both must succeed
+gh pr merge <pr> --merge --subject "Merge: <the PR title, first letter lowercased>"
+git switch main && git pull -q --ff-only
 git branch -d <branch>            # every branch of a stack
-GIT_TERMINAL_PROMPT=0 git push -q origin main
-git status -sb | sed -n 1p        # expect ## main...origin/main
 ```
+
+Never squash or rebase a pull request: the release notes are read from merge commits.
 
 The merge subject of a change to the app is a release-note line. `Tools/release.sh` builds a tag's notes from the merges on `main`'s first-parent line since the previous tag that touched `DevTools/`, strips `Merge: ` and capitalizes the first letter, so write it as a user-facing summary of the change.
 

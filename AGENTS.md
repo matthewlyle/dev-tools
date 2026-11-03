@@ -109,10 +109,10 @@ We follow Apple's Human Interface Guidelines for macOS. Below is how that resolv
 
 ## Working here
 
-- Every change follows the `change-workflow` skill (branch, verify, pre-merge checklist, review, merge on approval); a release follows `release-workflow`. Both are in `.agents/skills/`. A feature is done only when that checklist passes, in the same commit.
+- Every change follows the `change-workflow` skill (branch, verify, pre-merge checklist, pull request, review, merge on approval); a release follows `release-workflow`. Issues and pull requests live on GitHub (`matthewlyle/dev-tools`): `github-issue` files them, `work-issue` hands them to worker agents on mini. All four are in `.agents/skills/`. A feature is done only when that checklist passes, in the same commit.
 - Xcode project uses synchronized groups: add or move files on disk and they're in the target. No `pbxproj` edits.
 - `xcodebuild` is the verifier: macOS and the iOS Simulator both build and the tests (Swift Testing, `DevToolsTests/`) pass before a commit; the commands are in `change-workflow`. SourceKit diagnostics in this workspace report the whole module as unresolved ("Cannot find type … in scope"); they are noise.
-- NEVER take screenshots (`screencapture`) or script/drive the running app for verification — it grabs the user's whole screen and is disruptive, and multiple app instances clash with their Xcode session. Reason from the code, and leave visual confirmation to the user, telling them precisely what to check.
+- NEVER take screenshots (`screencapture`) or script/drive the running app on the owner's Mac — it grabs their whole screen, and a second instance clashes with their Xcode session. Agents on mini use their own simulator through `xcrun simctl` instead (`change-workflow`, "Look at it"). Otherwise reason from the code, and leave visual confirmation to the owner, telling them precisely what to check.
 - Tests are fixture-driven and target contracts (parsers, URL building, spec matching, redaction, cURL). Add one when you add a contract; don't test plumbing.
 - Persistence goes through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
 - A `Local` connection on an iOS device triggers the local-network privacy prompt (`INFOPLIST_KEY_NSLocalNetworkUsageDescription`); the simulator never asks, so networking changes need a device check against a LAN server.
