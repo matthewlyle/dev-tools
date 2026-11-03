@@ -116,4 +116,4 @@ git tag -a "$tag" -m "Dev Tools for Plex $version (build $build)" -m "$notes"
 
 echo "wrote $dmg ($version, build $build), published it to site/, and tagged $tag:"
 echo "$notes"
-echo "Next: commit site/index.html and site/vercel.json, deploy site/, and git push origin main $tag."
+echo "Next: merge site/index.html and site/vercel.json through a pull request, deploy site/, and git push origin $tag."

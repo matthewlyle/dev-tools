@@ -15,8 +15,7 @@ description: Cutting a release of the dev-tools Mac app — version bump, notari
 
 ## 1. Ready main
 
-- Everything shipping is merged through `change-workflow`. `git switch main && git status -sb` shows a clean tree. The script refuses to start otherwise, because the tag must name exactly what was built.
-- Ask before pushing any commits on `main` you didn't make.
+- Everything shipping is merged through `change-workflow`. `git switch main && git pull -q --ff-only && git status -sb` shows a clean tree and `## main...origin/main`. The script refuses to start on a dirty tree, because the tag must name exactly what was built.
 
 ## 2. Bump the version
 
@@ -38,7 +37,7 @@ Tools/release.sh 2>&1 | grep -E "status: |: accepted|rejected|Invalid|rror|alrea
 
 ## 4. Publish
 
-1. Commit `site/index.html` and `site/vercel.json` on a `site-<version>` branch and merge it into `main` (`change-workflow` step 6; no build needed).
+1. Commit `site/index.html` and `site/vercel.json` on a `site-<version>` branch, open a pull request and merge it (`change-workflow` steps 5–6; no build needed).
 2. Deploy from a checkout of `main`: `cd site && vercel deploy --prod --yes`. If the working checkout is on another branch with its own `site/` edits, deploy from a worktree of `main` instead, with `site/.vercel` and the DMG copied in, so unmerged site changes don't go live.
 3. Verify the live site:
 
@@ -52,7 +51,7 @@ curl -sL -o /tmp/stable.dmg $B/DevToolsForPlex.dmg && cmp -s /tmp/stable.dmg /tm
 curl -s -o /dev/null -w "previous DMG: HTTP %{http_code}\n" $B/DevToolsForPlex-<previous>.dmg   # expect 404
 ```
 
-4. Push the branch and the tag together: `GIT_TERMINAL_PROMPT=0 git push -q origin main v<version>`, then check `git ls-remote --tags origin | grep v<version>`.
+4. Push the tag: `GIT_TERMINAL_PROMPT=0 git push -q origin v<version>`, then check `git ls-remote --tags origin | grep v<version>`. `main` itself only moves through pull requests.
 
 ## 5. Report
 
