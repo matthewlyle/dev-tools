@@ -8,7 +8,7 @@ by line.
 
 ## Repo
 
-- GitHub `matthewlyle/dev-tools`; checkout `~/src/dev-tools`; worktrees under
+- GitHub `matthewlyle/dev-tools`, owned by `matthewlyle`; checkout `~/src/dev-tools`; worktrees under
   `~/.herdr/worktrees/dev-tools/`. Agents run on mini. Releases don't: they need the Developer ID
   identity, the notary profile and Vercel, which live on the owner's Mac (`release-workflow`).
 
