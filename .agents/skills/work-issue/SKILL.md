@@ -5,7 +5,7 @@ description: Fanning dev-tools GitHub issues out to omp worker agents on mini, o
 
 # Working issues with worker agents
 
-One issue, one worktree, one simulator, one omp agent, one PR. Follows `change-workflow`: branch `issue-<n>-<slug>`, PR title is the release-note line, body says `Fixes #<n>`. Workers never merge; only the review step below may queue a merge.
+One issue, one worktree, one simulator, one omp agent, one PR. Follows `change-workflow`: branch `issue-<n>-<slug>`, PR title is the release-note line, body says `Fixes #<n>`. Workers never merge; only the reviewer, or the lead once the owner adds `approved`, may queue a merge.
 
 Agents run on mini, from `~/src/dev-tools`. Releases don't: they need the Developer ID identity, the notary profile and Vercel, which live on the owner's Mac (`release-workflow`).
 
@@ -43,6 +43,11 @@ If a cheaper worker's PRs keep bouncing in review, move that kind of issue up a 
 ## Review each PR
 
 When a worker reports its PR, clone a second simulator (`xcrun simctl clone devtools-base devtools-<n>-review`) and start a reviewer (a different agent from the worker) with `herdr-workers` in the issue's tab: name `<n>-review`, folder the worktree, label `issue=<n>`, template `dev-tools-reviewer`, and the task `PR <pr>, issue <n>, simulator devtools-<n>-review.`
+
+The reviewer reports Merge, Fix or Human:
+
+- **Fix:** send the review's **Fix before merge** list to the worker (`hc send <n>-<slug> …`). When it reports the new head, end the old `<n>-review` and start a fresh one on that head with the same simulator. A third review that still finds fixes goes to the owner.
+- **Human:** the owner answers on the PR or issue, or adds `approved`, which means yes to every **Your call** question. Have the worker make any listed fixes, then, once CI passes on the new head, queue the merge yourself (`gh pr merge <pr> -R matthewlyle/dev-tools --auto --merge --subject "Merge: <the PR title, first letter lowercased>"`), in dependency order when PRs build on each other.
 
 ## Writing for GitHub
 
@@ -90,6 +95,24 @@ Review comment, merge:
 <sub>Agent review of <short sha></sub>
 ```
 
+Review comment, back to the worker (no label, no assignee):
+
+```markdown
+> [!WARNING]
+> **Fix before merge**
+> - <bug, with file and numbers>
+
+<details>
+<summary>Checked: <count> passed</summary>
+
+- <criterion>
+- Builds, tests, checklist, CI
+
+</details>
+
+<sub>Agent review of <short sha></sub>
+```
+
 Review comment, needs a person (at most about 60 words outside `<details>`):
 
 ```markdown
@@ -122,3 +145,4 @@ Merging to `main` doesn't ship anything: the DMG and TestFlight builds come from
 - Before launching, read the issue's comments as well as its body: the owner answers design questions there. Copy each answer into the issue as a `## Decision` section.
 - When a worker reports done, check `gh pr view <pr> -R matthewlyle/dev-tools --json headRefOid` against its local HEAD. Agents have reported pushes that never happened. Start a reviewer only on the pushed head.
 - After a merge, merge `main` into open PRs that touch the same files before their review.
+- Before starting new work, check `gh pr list -R matthewlyle/dev-tools --label approved` and queue the merges those are waiting on.
