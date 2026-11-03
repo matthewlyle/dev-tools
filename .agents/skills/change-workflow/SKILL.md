@@ -57,29 +57,22 @@ xcrun simctl io "$SIM" screenshot /tmp/<issue>-<what>.png   # once it has drawn;
 
 Walk `git diff origin/main...HEAD` (and `git diff` for anything uncommitted) against every line. Fix, don't note.
 
-**Comments** — delete any that:
-- restate the code, name the type, or narrate steps;
-- are `// MARK:`, TODOs, or doc comments a signature already says;
-- describe what a view shows or how a feature behaves, or document wiring (`Published by…`, `Set by…`);
-- repeat AGENTS.md;
-- carry an anecdote: counts, timings, specific values met, "this showed up as", "we would have missed". The story goes in the commit message.
+**Comments** — every comment in the diff, and on lines it touches, meets AGENTS.md's bar (a *why* the code can't carry, one or two sentences); delete the rest. The change shouldn't raise the app above about 20 comment lines per 1,000 lines of code.
 
-Keep only an external constraint and what it forces, a deliberate policy that looks like an omission, or a non-obvious invariant, in one or two sentences. Comments on lines you touched that fail this bar go too. The change shouldn't raise the app above about 20 comment lines per 1,000 lines of code.
+**Tokens** — nothing new shows, copies, logs, or URL-encodes the app's tokens; they travel only as the `X-Plex-Token` header. A new `URLSession` that carries a token uses `SameOriginRedirects`; anything saved, copied, or exported from a request goes through `withoutCredentials`; artwork goes through `ImageStore`.
 
-**Tokens** — nothing new shows, copies, logs, or URL-encodes a credential; `X-Plex-Token` travels only as a header; artwork goes through `ImageStore`.
-
-**Platform** — no raw `NS*`/`UI*` type in a feature file; differences go through `Core/Platform.swift`; `#if os` only for genuine layout differences. Monospace only via `Font.code` / `.codeListRow` / `.codeDetailRow`.
+**Platform** — no raw `NS*`/`UI*` type in a feature file outside a view representable; differences go through `Core/Platform.swift`; `#if os` only for genuine layout differences. Monospace only via `Font.code` / `.codeListRow` / `.codeDetailRow`.
 
 **Toolbar and menus**
 - Placement per AGENTS.md: column → toolbar, object → request bar, sub-pane → its header row.
-- Every toolbar command has a menu bar command in the right menu, dimmed (never removed) when unavailable. A new shortcut is added to AGENTS.md's list and doesn't repurpose a standard one.
-- A detail toolbar item is declared at the pane with a stable `ToolbarItem(id:)`, never from inside a section's content. A view adds a `.toolbar` only where it declares items.
+- Every toolbar command has a menu bar command in the right menu, dimmed (never removed) when unavailable. A new shortcut collides with nothing in `grep -rn keyboardShortcut DevTools` and doesn't repurpose a standard one.
+- An item two sections share is declared once at the pane, never from inside a section's content. A view adds a `.toolbar` only where it declares items.
 - Anything published to the window (toolbar items, `focusedSceneValue`) gates on `sectionIsActive`, since hidden sections stay mounted.
 
 **Controls, states, copy**
 - Icon-only controls are `Label` + `.labelStyle(.iconOnly)` + `.help`; decorative symbols `.accessibilityHidden(true)`; status colour always paired with words.
 - Resting and empty-result states are `ZeroState`; failures and missing prerequisites are `ContentUnavailableView` saying what to do. Spinners unlabelled; nothing blocked while loading; disabled when there's no server.
-- Title Case controls and menu items, sentence-case descriptions, verbs on buttons, `…` on commands that ask first. Un-undoable destructive actions confirm.
+- Title Case controls and menu items, sentence-case descriptions, verbs on buttons, `…` on commands that ask first. Only the actions AGENTS.md lists ask for confirmation.
 
 **Motion**
 - `.animation(_, value:)` scoped to the value; system springs (`.snappy`, `.smooth`, `.bouncy` only for a user-caused landing); a Reduce Motion variant; nothing ambient; no motion on the response body.
@@ -88,10 +81,10 @@ Keep only an external constraint and what it forces, a deliberate policy that lo
 - Non-trivial motion has been through the `animate` and `review-animations` skills.
 
 **Data and tests**
-- Persistence goes through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional).
+- Persistence goes through `AppSupportStore`, `Codable`, tolerant of old files (unknown keys ignored, new keys optional). A new store holding account or server state joins `SignOutConfirmation`'s teardown.
 - A new contract (parsing, URL/string building, matching, redaction) gets a test that a plausible bug would fail. No plumbing tests; delete tests that pin wording or implementation.
 
-**Docs** — a new load-bearing decision goes in AGENTS.md by narrowing the existing wording, not by adding lines. No new docs files.
+**Docs** — a rule goes in AGENTS.md only if it's verified (not inferred), an agent couldn't see it from the code or the HIG, and breaking it costs something real (see AGENTS.md's opening). Narrow existing wording rather than adding lines; a rule a change proves wrong is fixed or deleted in the same pull request. No new docs files.
 
 ## 5. Commit and open a pull request
 
