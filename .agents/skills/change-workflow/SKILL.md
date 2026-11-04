@@ -32,7 +32,7 @@ xcrun xcresulttool get test-results tests --path "$(ls -td DerivedData/Build/Log
 ```
 
 - SourceKit's "Cannot find … in scope" / "No such module 'Testing'" diagnostics are noise; `xcodebuild` is the verifier.
-- Never `screencapture` or drive the app on the owner's Mac. Agents on mini look at their own simulator instead (below). A visual question neither settles goes to the owner with exact steps.
+- On the owner's Mac, look at or drive the app only with the owner's approval for that change: capture its window (never `screencapture`) and use the running instance (never launch a second). Agents on mini look at their own simulator instead (below). A visual question neither settles goes to the owner with exact steps.
 - To settle a SwiftUI behaviour question (does it animate, what does it measure), a throwaway `swiftc` script hosting the view offscreen in an `NSHostingView` and comparing `cacheDisplay` bitmaps is allowed; delete it after.
 - A docs-only change needs no build.
 
