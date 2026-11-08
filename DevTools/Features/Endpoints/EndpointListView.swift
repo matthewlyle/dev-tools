@@ -32,30 +32,34 @@ struct EndpointListView: View {
     }
 
     private var list: some View {
-        SectionColumnList {
-            if !savedRows.isEmpty {
-                Section {
-                    ForEach(savedRows) { item in
-                        SavedRequestRow(item: item, serverID: serverID, disabled: server == nil)
-                            .sectionColumnRow()
-                    }
-                } header: {
-                    SectionColumnHeader(title: "Saved")
-                }
-            }
-            ForEach(groups) { group in
-                Section {
-                    ForEach(group.operations) { operation in
-                        EndpointRow(operation: operation, disabled: server == nil, shared: server?.owned == false) {
-                            open(operation)
+        List {
+            Group {
+                if !savedRows.isEmpty {
+                    Section {
+                        ForEach(savedRows) { item in
+                            SavedRequestRow(item: item, serverID: serverID, disabled: server == nil)
+                                .sectionColumnRow()
                         }
-                        .sectionColumnRow()
+                    } header: {
+                        SectionColumnHeader(title: "Saved")
                     }
-                } header: {
-                    SectionColumnHeader(title: group.name)
+                }
+                ForEach(groups) { group in
+                    Section {
+                        ForEach(group.operations) { operation in
+                            EndpointRow(operation: operation, disabled: server == nil, shared: server?.owned == false) {
+                                open(operation)
+                            }
+                            .sectionColumnRow()
+                        }
+                    } header: {
+                        SectionColumnHeader(title: group.name)
+                    }
                 }
             }
+            .sectionListRows()
         }
+        .sectionColumnList()
         .overlay {
             if spec.catalog == nil {
                 if let message = spec.errorMessage {

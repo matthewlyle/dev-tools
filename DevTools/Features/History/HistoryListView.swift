@@ -124,33 +124,37 @@ struct HistoryListView: View {
     }
 
     private var list: some View {
-        SectionColumnList {
-            ForEach(rows) { entry in
-                Button {
-                    // A re-selected row replays only if its response never landed: a section switch
-                    // cancels a replay in flight.
-                    if selection == entry.id {
-                        if requests.response == nil, !requests.isSending, let connected {
-                            requests.replay(entry, on: connected)
+        List {
+            Group {
+                ForEach(rows) { entry in
+                    Button {
+                        // A re-selected row replays only if its response never landed: a section switch
+                        // cancels a replay in flight.
+                        if selection == entry.id {
+                            if requests.response == nil, !requests.isSending, let connected {
+                                requests.replay(entry, on: connected)
+                            }
+                        } else {
+                            selection = entry.id
                         }
-                    } else {
-                        selection = entry.id
+                        showDetail?()
+                    } label: {
+                        HistoryRow(entry: entry)
+                            .sectionColumnRow(selected: selection == entry.id)
+                            .contentShape(.rect)
                     }
-                    showDetail?()
-                } label: {
-                    HistoryRow(entry: entry)
-                        .sectionColumnRow(selected: selection == entry.id)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button("Delete", role: .destructive) { delete(entry.id) }
-                }
-                .swipeActions {
-                    Button("Delete", role: .destructive) { delete(entry.id) }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Delete", role: .destructive) { delete(entry.id) }
+                    }
+                    .swipeActions {
+                        Button("Delete", role: .destructive) { delete(entry.id) }
+                    }
                 }
             }
+            .sectionListRows()
         }
+        .sectionColumnList()
         #if os(macOS)
         .onDeleteCommand {
             if let selection { delete(selection) }
