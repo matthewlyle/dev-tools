@@ -17,7 +17,6 @@ struct ResponseView<RequestBar: View>: View {
     @AppStorage("responseTab") private var tab: ResponseTab = .raw
     @State private var collapsed: Set<Int> = []
 
-    /// The spec often omits `required`, so a 400 offers every documented parameter not sent.
     private var missingParameterHint: [SpecParameter]? {
         guard let response = requests.response, response.status == 400,
               let operation = spec.operation(matching: requests.current.path)
