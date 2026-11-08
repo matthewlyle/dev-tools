@@ -463,7 +463,7 @@ struct MainSplitView: View {
                 let state = ListSignpost.signposter.beginInterval("Section switch")
                 requests.switchWorkspace(from: section.rawValue, to: newValue.rawValue)
                 withoutToolbarFade { section = newValue }
-                ListSignpost.signposter.endInterval("Section switch", state)
+                DispatchQueue.main.async { ListSignpost.signposter.endInterval("Section switch", state) }
             }
         )
     }
