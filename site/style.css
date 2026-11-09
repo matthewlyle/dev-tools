@@ -285,7 +285,7 @@ main {
   margin: 12px 0 0;
   text-wrap: balance;
   color: var(--secondary-label);
-  font: 400 0.875rem/1.5 "Commit Mono", ui-monospace, monospace;
+  font: 400 0.875rem/1.5 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   animation: rise-in 800ms cubic-bezier(0.19, 1, 0.22, 1) 1500ms both;
 }
 
