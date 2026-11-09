@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 
 enum ServerSection: String, CaseIterable, Identifiable {
@@ -342,31 +343,22 @@ extension View {
     }
 }
 
-struct SectionColumnList<Content: View>: View {
-    @ViewBuilder let content: () -> Content
+enum ListSignpost {
+    static let signposter = OSSignposter(subsystem: "mldgg.devtools", category: "lists")
+}
 
-    @Environment(\.isCompactWidth) private var compact
+extension View {
+    func sectionListRows() -> some View {
+        listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
 
-    var body: some View {
-        if compact {
-            List {
-                Group { content() }
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-            .listStyle(.plain)
+    func sectionColumnList() -> some View {
+        listStyle(.plain)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
-        } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    content()
-                }
-                .padding(.vertical, 6)
-            }
-            .scrollDismissesKeyboard(.immediately)
-        }
+            .onAppear { ListSignpost.signposter.emitEvent("List mounted") }
     }
 }
 
@@ -468,8 +460,10 @@ struct MainSplitView: View {
             get: { section },
             set: { newValue in
                 guard newValue != section else { return }
+                let state = ListSignpost.signposter.beginInterval("Section switch")
                 requests.switchWorkspace(from: section.rawValue, to: newValue.rawValue)
                 withoutToolbarFade { section = newValue }
+                DispatchQueue.main.async { ListSignpost.signposter.endInterval("Section switch", state) }
             }
         )
     }
