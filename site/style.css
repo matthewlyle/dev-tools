@@ -396,7 +396,7 @@ main {
   }
 
   /* Sized by its text, not a fixed basis: a fixed column in rem wraps the
-     monospace subtitle to three short lines. */
+     subtitle to three short lines. */
   .landing .title {
     flex: none;
     text-align: left;
