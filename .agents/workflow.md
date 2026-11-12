@@ -1,8 +1,9 @@
 # dev-tools: agent workflow
 
 What the shared `work-issue` and `github-issue` skills (`skills/` in `matthewlyle/tracker`) need
-to know about this repo. The process lives there; only what's specific to dev-tools lives here.
-Building, verifying, looking at a change and the pre-merge checklist are in
+to know about this repo. The process lives there (the milestone flow, merge method, commit style,
+lite tier and cleanup default in the work-issue skill's `defaults.md`); only what's specific to
+dev-tools lives here. Building, verifying, looking at a change and the pre-merge checklist are in
 `.agents/skills/change-workflow/SKILL.md`; workers follow it and reviewers walk its checklist line
 by line.
 
@@ -11,8 +12,6 @@ by line.
 - GitHub `matthewlyle/dev-tools`, owned by `matthewlyle`; checkout `~/src/dev-tools`; worktrees under
   `~/.herdr/worktrees/dev-tools/`. Agents run on mini. Releases don't: they need the Developer ID
   identity, the notary profile and Vercel, which live on the owner's Mac (`release-workflow`).
-- `~/src/dev-tools` is the owner's checkout: agents only `git fetch` and `git worktree add` there,
-  and never check out, pull, commit or edit it. Work happens in their own worktree.
 
 ## Per issue
 
@@ -30,12 +29,10 @@ by line.
 
 ## Milestone
 
-- One PR per milestone, as `work-issue`'s `milestones.md` describes. Each issue's worker keeps its
-  own simulator; the PR's reviewer takes `devtools-<a>-review` (the first issue's number), with
-  task `PR <pr>, issues <a>, <b>, <c>, simulator devtools-<a>-review.`
-- Milestone merge: `gh pr merge <pr> -R matthewlyle/dev-tools --auto --rebase` (keeps one commit
-  per issue, and the release notes then list each issue's commit subject). Never squash a
-  milestone PR.
+- The PR's reviewer takes `devtools-<a>-review` (the first issue's number), with task
+  `PR <pr>, issues <a>, <b>, <c>, simulator devtools-<a>-review.`
+- Merge: `gh pr merge <pr> -R matthewlyle/dev-tools --auto --rebase`. `build-test` is required, so
+  auto-merge waits for it, and a rebase keeps one commit per issue, which the release notes list.
 
 ## Build, check, look
 
@@ -58,11 +55,6 @@ by line.
   reviewer's to fix: merge `origin/main` into the branch, keep both sides, re-run the verify steps
   and push. Any other conflict is a Fix.
 - Off limits: `Tools/release.sh`, `site/`, the version numbers.
-
-## Deploy
-
-- Nothing to deploy: merging ships nothing. The notarized DMG and the TestFlight build come from
-  `release-workflow`, run by the owner.
 
 ## Cleanup
 
