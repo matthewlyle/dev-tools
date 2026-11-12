@@ -1,8 +1,8 @@
 # dev-tools: agent workflow
 
-What the shared `work-issue` (`skills/` in `matthewlyle/tracker`) and `github-issue` (`matthewlyle/agent-skills`) skills need to know
-about this repo. The process lives there; only what's specific to dev-tools lives here. Building,
-verifying, looking at a change and the pre-merge checklist are in
+What the shared `work-issue` and `github-issue` skills (`skills/` in `matthewlyle/tracker`) need
+to know about this repo. The process lives there; only what's specific to dev-tools lives here.
+Building, verifying, looking at a change and the pre-merge checklist are in
 `.agents/skills/change-workflow/SKILL.md`; workers follow it and reviewers walk its checklist line
 by line.
 
@@ -11,6 +11,8 @@ by line.
 - GitHub `matthewlyle/dev-tools`, owned by `matthewlyle`; checkout `~/src/dev-tools`; worktrees under
   `~/.herdr/worktrees/dev-tools/`. Agents run on mini. Releases don't: they need the Developer ID
   identity, the notary profile and Vercel, which live on the owner's Mac (`release-workflow`).
+- `~/src/dev-tools` is the owner's checkout: agents only `git fetch` and `git worktree add` there,
+  and never check out, pull, commit or edit it. Work happens in their own worktree.
 
 ## Per issue
 
@@ -21,13 +23,19 @@ by line.
   the owner: agents can't sign in.
 - Worker task: `Issue <n>, simulator devtools-<n>.` Reviewer task:
   `PR <pr>, issue <n>, simulator devtools-<n>-review.`
-- Milestone (one PR for several issues): each issue's worker keeps its own simulator. The
-  reviewer takes `devtools-<a>-review` (the first issue's number), with task
-  `PR <pr>, issues <a>, <b>, <c>, simulator devtools-<a>-review.`
 - An agent uses only its own simulator, only through `xcrun simctl` (change-workflow, "Look at
   it"). Never `screencapture`, never launch the Mac app, never touch another simulator.
 - Lite fits a one-line copy or constant fix, not layout or concurrency work.
-- Cleanup after a merge: `xcrun simctl delete devtools-<n> devtools-<n>-review`.
+- A change to `AGENTS.md` or `.agents/` is never lite: it goes to the owner as Human.
+
+## Milestone
+
+- One PR per milestone, as `work-issue`'s `milestones.md` describes. Each issue's worker keeps its
+  own simulator; the PR's reviewer takes `devtools-<a>-review` (the first issue's number), with
+  task `PR <pr>, issues <a>, <b>, <c>, simulator devtools-<a>-review.`
+- Milestone merge: `gh pr merge <pr> -R matthewlyle/dev-tools --auto --rebase` (keeps one commit
+  per issue, and the release notes then list each issue's commit subject). Never squash a
+  milestone PR.
 
 ## Build, check, look
 
@@ -46,13 +54,19 @@ by line.
   platform, screen and action.
 - Merge: `gh pr merge <pr> -R matthewlyle/dev-tools --auto --merge --subject "Merge: <the PR title, first letter lowercased>"`.
   The merge subject becomes a line in the release notes (`Tools/release.sh`).
-  A milestone PR: `gh pr merge <pr> -R matthewlyle/dev-tools --auto --merge --subject "Merge: <the milestone title, first letter lowercased>"`
-  (a merge commit keeps each issue's commit).
 - A PR that conflicts with `main` only because another PR touched the same lines is the
   reviewer's to fix: merge `origin/main` into the branch, keep both sides, re-run the verify steps
   and push. Any other conflict is a Fix.
 - Off limits: `Tools/release.sh`, `site/`, the version numbers.
-- Merging doesn't ship anything: the DMG and TestFlight builds come from `release-workflow`.
+
+## Deploy
+
+- Nothing to deploy: merging ships nothing. The notarized DMG and the TestFlight build come from
+  `release-workflow`, run by the owner.
+
+## Cleanup
+
+- `xcrun simctl delete devtools-<n> devtools-<n>-review`.
 
 ## Issues
 
